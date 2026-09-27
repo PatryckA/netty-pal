@@ -232,14 +232,57 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .period-btn.active{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
 .period-btn .pdot{width:7px; height:7px; border-radius:50%; background:var(--ok);}
 .period-btn .pdot.none{background:transparent; border:1.5px solid var(--line);}
-.court-row{display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0.9rem; border-top:1px solid var(--line);}
-.court-row:first-child{border-top:none;}
-.court-row .select-input{flex:1; min-width:0;}
-.court-row .pname{flex:1;}
-.court-row .pname.empty{color:var(--ink-soft); font-weight:500; font-style:italic;}
+/* ---- Court ---- */
+:root{ --court-bg:#CDE2D5; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#1A3027; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
+:root[data-theme="dark"]{ --court-bg:#1A3027; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; }
+.sheet .grow{flex:1; min-width:0;}
+.court-wrap{max-width:320px; margin:0 auto 1rem;}
+.court-end{
+  text-align:center; font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;
+  color:var(--ink-soft); padding:0.3rem 0;
+}
+.court{position:relative; width:100%; aspect-ratio:100 / 135; background:var(--court-bg); border-radius:10px;}
+.court-lines{position:absolute; inset:0; width:100%; height:100%;}
+.court-lines *{fill:none; stroke:var(--court-line); stroke-width:1; vector-effect:non-scaling-stroke;}
+.court-lines rect,.court-lines line,.court-lines path,.court-lines circle{stroke-width:2.5px;}
+.court-token{
+  position:absolute; transform:translate(-50%, -30%); display:flex; flex-direction:column; align-items:center;
+  gap:0.2rem; background:none; border:none; padding:0.2rem; cursor:pointer; color:var(--ink); width:6.5rem;
+}
+div.court-token{cursor:default;}
+.court-token .pos-chip{width:2.9rem; height:2.9rem; font-size:1.15rem; box-shadow:0 0 0 3px var(--court-line), 0 2px 6px var(--shadow);}
+.court-token.picking .pos-chip{box-shadow:0 0 0 3px var(--ink), 0 2px 6px var(--shadow);}
+button.court-token:hover .pos-chip{transform:scale(1.06);}
+.token-name{
+  max-width:100%; background:var(--surface); border-radius:6px; padding:0.1rem 0.45rem; font-size:0.8rem; font-weight:700;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 1px 3px var(--shadow);
+}
+.token-name.empty{color:var(--ink-soft); font-weight:500; font-style:italic;}
+.sheet-backdrop{position:fixed; inset:0; background:rgba(10,15,25,0.45); z-index:40;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:41; max-width:640px; margin:0 auto; max-height:75vh;
+  display:flex; flex-direction:column; background:var(--paper); border-radius:16px 16px 0 0;
+  box-shadow:0 -8px 30px var(--shadow); padding-bottom:env(safe-area-inset-bottom);
+}
+.sheet-head{display:flex; align-items:center; gap:0.75rem; padding:0.9rem 1rem; border-bottom:1px solid var(--line);}
+.sheet-head h3{font-size:1.35rem; text-transform:uppercase;}
+.sheet-body{overflow-y:auto; padding:0 1rem 1rem;}
+.sheet-body .list-label{margin-top:0.9rem;}
+.pick-row{
+  display:flex; align-items:center; gap:0.6rem; width:100%; text-align:left; background:var(--surface);
+  border:1px solid var(--line); border-radius:10px; padding:0.65rem 0.8rem; margin-bottom:0.4rem;
+  color:var(--ink); cursor:pointer; font-size:0.95rem;
+}
+.pick-row:hover{border-color:var(--accent);}
+.pick-row.current{border-color:var(--accent); background:var(--accent-bg);}
+.pick-row .pname{display:block;}
+.pick-row .psub{display:block;}
+.pick-count{font-size:0.78rem; font-weight:800; color:var(--ink-soft); white-space:nowrap; font-variant-numeric:tabular-nums;}
+.pick-count.zero{color:var(--warm);}
 .pos-chip{
   width:2.6rem; height:2.6rem; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
-  font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:#fff;
+  font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:var(--chip-ink);
 }
 .pos-chip.att{background:var(--warm);}
 .pos-chip.mid{background:var(--accent); color:var(--accent-contrast);}
@@ -326,6 +369,12 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
 const CODE_LENGTH = 6;
 const POSITIONS = ['GS','GA','WA','C','WD','GD','GK'];
 const POS_ZONE = { GS:'att', GA:'att', WA:'mid', C:'mid', WD:'mid', GD:'def', GK:'def' };
+const POS_NAMES = { GS:'Goal Shooter', GA:'Goal Attack', WA:'Wing Attack', C:'Centre', WD:'Wing Defence', GD:'Goal Defence', GK:'Goal Keeper' };
+// Where each bib sits on the court drawing, as % across and % down, with
+// the attacking end at the top: GS in the goal circle, GA and WA in the
+// attacking third, C in the centre, WD and GD in the defensive third, GK in
+// the defending goal circle.
+const COURT_SPOTS = { GS:[50,9], GA:[26,19], WA:[74,22], C:[50,48], WD:[26,71], GD:[74,74], GK:[50,89] };
 
 let USER = null;
 let authReady = false;
@@ -334,7 +383,7 @@ let offlineMode = !navigator.onLine;
 // What the screen is showing. form is the name of an open inline form.
 // view is 'home', 'season' or 'game'; gameTab and period belong to the game screen.
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
-  gameId:null, gameTab:'lineup', period:1 };
+  gameId:null, gameTab:'lineup', period:1, pickPos:null };
 
 // Home screen: one entry per season the user belongs to.
 let HOME = { loaded:false, items:[] };
@@ -839,37 +888,18 @@ function renderLineupTab(g){
       </button>`).join('')}
   </div>`;
 
-  // Where each player sits this period, so the dropdown can show it.
+  // Where each player sits this period.
   const posOf = {};
   POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
 
-  const rows = POSITIONS.map(pos => {
-    const pid = plan[pos];
-    const chip = `<span class="pos-chip ${pid ? POS_ZONE[pos] : 'unfilled'}" aria-hidden="true">${pos}</span>`;
-    if (!editable){
-      return `<div class="court-row">${chip}<span class="pname ${pid ? '' : 'empty'}">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</span></div>`;
-    }
-    const ids = avail.includes(pid) || !pid ? avail : [pid, ...avail];
-    const opts = ids.map(id => {
-      const elsewhere = posOf[id] && posOf[id] !== pos ? ` (now ${posOf[id]}, will swap)` : '';
-      const unavailable = !avail.includes(id) ? ' (not playing)' : '';
-      return `<option value="${escapeHtml(id)}" ${id === pid ? 'selected' : ''}>${escapeHtml(playerName(id))}${elsewhere}${unavailable}</option>`;
-    }).join('');
-    return `<div class="court-row">${chip}
-      <select class="select-input" data-field="plan-slot" data-pos="${pos}" aria-label="${pos} for ${escapeHtml(periodName(g, p))}">
-        <option value="" ${pid ? '' : 'selected'}>Empty</option>${opts}
-      </select></div>`;
-  }).join('');
+  // Periods on court this game per playing player, to keep it even.
+  const counts = gamePeriodCounts(g, avail);
 
   const bench = avail.filter(id => !posOf[id]);
   const benchHtml = `<div class="panel"><h4>Bench, ${escapeHtml(periodName(g, p))}</h4>
     ${bench.length ? `<div class="chip-wrap">${bench.map(id => `<span class="chip">${escapeHtml(playerName(id))}</span>`).join('')}</div>`
       : '<span class="hint">Nobody on the bench.</span>'}</div>`;
 
-  // Periods on court this game per playing player, to keep it even.
-  const counts = {};
-  avail.forEach(id => counts[id] = 0);
-  for (let k = 1; k <= n; k++) POSITIONS.forEach(pos => { const id = planFor(g, k)[pos]; if (id in counts) counts[id]++; });
   const countsHtml = `<div class="panel"><h4>${escapeHtml(periodNoun(g, true))} on court this game</h4>
     ${avail.length ? `<div class="chip-wrap">${avail.map(id =>
       `<span class="chip ${counts[id] ? '' : 'zero'}">${escapeHtml(playerName(id))} <b>${counts[id]}</b></span>`).join('')}</div>`
@@ -882,11 +912,83 @@ function renderLineupTab(g){
     </div>` : '';
 
   return `${picker}
-    <div class="list-card">${rows}</div>
+    ${courtHtml(plan, editable, g, p)}
     ${tools}
     ${benchHtml}
     ${countsHtml}
-    ${editable ? '<p class="hint">Picking someone who is already on court swaps the two players. You can still change everything on game day.</p>' : ''}`;
+    ${editable ? '<p class="hint">Tap a position on the court to choose who plays there. Picking someone who is already on court swaps the two players. You can still change everything on game day.</p>' : ''}
+    ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, counts) : ''}`;
+}
+
+function gamePeriodCounts(g, ids){
+  const counts = {};
+  ids.forEach(id => counts[id] = 0);
+  for (let k = 1; k <= periodCount(g); k++) POSITIONS.forEach(pos => { const id = planFor(g, k)[pos]; if (id in counts) counts[id]++; });
+  return counts;
+}
+
+// A simple netball court, attacking end at the top. Each position's bib
+// sits in the area of the court that position plays in.
+function courtHtml(plan, editable, g, p){
+  const tokens = POSITIONS.map(pos => {
+    const pid = plan[pos];
+    const [x, y] = COURT_SPOTS[pos];
+    const name = pid ? playerName(pid) : 'Empty';
+    const inner = `<span class="pos-chip ${pid ? POS_ZONE[pos] : 'unfilled'}" aria-hidden="true">${pos}</span>
+      <span class="token-name ${pid ? '' : 'empty'}">${escapeHtml(name)}</span>`;
+    const style = `style="left:${x}%; top:${y}%"`;
+    if (!editable) return `<div class="court-token" ${style} aria-label="${POS_NAMES[pos]}: ${escapeHtml(name)}">${inner}</div>`;
+    return `<button class="court-token ${UI.pickPos === pos ? 'picking' : ''}" ${style} data-action="pick-pos" data-pos="${pos}"
+        aria-label="${POS_NAMES[pos]}, ${escapeHtml(name)}. Change who plays ${pos} in ${escapeHtml(periodName(g, p))}">${inner}</button>`;
+  }).join('');
+  return `<div class="court-wrap">
+      <div class="court-end">Attacking end</div>
+      <div class="court" role="group" aria-label="Court positions, ${escapeHtml(periodName(g, p))}">
+        <svg class="court-lines" viewBox="0 0 100 135" preserveAspectRatio="none" aria-hidden="true">
+          <rect x="1" y="1" width="98" height="133" rx="1.5" />
+          <line x1="1" y1="45" x2="99" y2="45" />
+          <line x1="1" y1="90" x2="99" y2="90" />
+          <path d="M20 1 A30 30 0 0 0 80 1" />
+          <path d="M20 134 A30 30 0 0 1 80 134" />
+          <circle cx="50" cy="67.5" r="3" />
+        </svg>
+        ${tokens}
+      </div>
+      <div class="court-end">Defending end</div>
+    </div>`;
+}
+
+// Bottom sheet listing who can play the chosen position. Bench players
+// with the fewest periods so far this game come first.
+function pickerSheetHtml(g, p, plan, avail, posOf, counts){
+  const pos = UI.pickPos;
+  const current = plan[pos];
+  const n = periodCount(g);
+  const row = (id, sub) => `<button class="pick-row ${id === current ? 'current' : ''}" data-action="pick-player" data-player="${escapeHtml(id)}">
+      <span class="grow"><span class="pname">${escapeHtml(playerName(id))}</span><span class="psub">${sub}</span></span>
+      <span class="pick-count ${counts[id] ? '' : 'zero'}">${counts[id] || 0} of ${n}</span>
+    </button>`;
+  const byCount = (a, b) => (counts[a] || 0) - (counts[b] || 0) || playerName(a).localeCompare(playerName(b));
+  const bench = avail.filter(id => !posOf[id]).sort(byCount);
+  const onCourt = avail.filter(id => posOf[id] && posOf[id] !== pos).sort(byCount);
+  return `<div class="sheet-backdrop" data-action="close-picker"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-head">
+        <span class="pos-chip ${POS_ZONE[pos]}" aria-hidden="true">${pos}</span>
+        <div class="grow">
+          <h3 id="sheet-title">${POS_NAMES[pos]}</h3>
+          <div class="psub">${escapeHtml(periodName(g, p))} · ${current ? 'now ' + escapeHtml(playerName(current)) : 'empty'}</div>
+        </div>
+        <button class="btn ghost small" data-action="close-picker">Close</button>
+      </div>
+      <div class="sheet-body">
+        ${bench.length ? `<div class="list-label">On the bench</div>${bench.map(id => row(id, 'Bench')).join('')}` : ''}
+        ${onCourt.length ? `<div class="list-label">On court (will swap)</div>${onCourt.map(id => row(id, 'Now ' + posOf[id])).join('')}` : ''}
+        ${!bench.length && !onCourt.length ? '<div class="empty-state">No other players are marked as playing.</div>' : ''}
+        ${current ? `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="pick-player" data-player="">Leave ${pos} empty</button>` : ''}
+        <p class="hint">Counts show ${escapeHtml(periodNoun(g, true))} planned this game.</p>
+      </div>
+    </div>`;
 }
 
 function renderAvailTab(g){
@@ -1213,7 +1315,7 @@ function openSeason(teamId, seasonId){
 }
 
 function openGame(gameId){
-  UI = { ...UI, view:'game', gameId, gameTab:'lineup', period:1, form:null };
+  UI = { ...UI, view:'game', gameId, gameTab:'lineup', period:1, form:null, pickPos:null };
   saveNav();
   render();
   window.scrollTo(0, 0);
@@ -1582,9 +1684,21 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'back-to-games'){
       backToGames();
     } else if (a === 'game-tab'){
-      UI.gameTab = btn.dataset.tab; saveNav(); render();
+      UI.gameTab = btn.dataset.tab; UI.pickPos = null; saveNav(); render();
     } else if (a === 'period'){
-      UI.period = parseInt(btn.dataset.period, 10) || 1; disarm('clear-period'); render();
+      UI.period = parseInt(btn.dataset.period, 10) || 1; UI.pickPos = null; disarm('clear-period'); render();
+    } else if (a === 'pick-pos'){
+      UI.pickPos = btn.dataset.pos; render();
+      const first = document.querySelector('.sheet .pick-row, .sheet button');
+      if (first) first.focus();
+    } else if (a === 'close-picker'){
+      closePicker();
+    } else if (a === 'pick-player'){
+      const pos = UI.pickPos;
+      UI.pickPos = null; render();
+      await setPlanSlot(pos, btn.dataset.player);
+      const token = document.querySelector(`.court-token[data-pos="${pos}"]`);
+      if (token) token.focus();
     } else if (a === 'copy-period'){
       await copyPreviousPeriod();
     } else if (a === 'clear-period'){
@@ -1622,7 +1736,15 @@ document.addEventListener('submit', (e) => {
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
-  if (el.matches('select[data-field="plan-slot"]')) setPlanSlot(el.dataset.pos, el.value).catch(err => { fail(err); render(); });
+});
+function closePicker(){
+  const pos = UI.pickPos;
+  UI.pickPos = null; render();
+  const token = pos && document.querySelector(`.court-token[data-pos="${pos}"]`);
+  if (token) token.focus();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && UI.pickPos) closePicker();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches('input[data-field="player-name"]')) e.target.blur();
