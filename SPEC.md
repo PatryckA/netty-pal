@@ -159,17 +159,23 @@ teams/{teamId}                       name, adminUid
   seasons/{seasonId}                 name, competition, format, periodMinutes (7), joinCode
     members/{uid}                    name, roles: ["coach","scorer"] (empty = viewer)
     players/{playerId}               name, active
-    games/{gameId}                   round, date, time, venue, opponent,
-                                     format, periodMinutes, scorerUid,
+    games/{gameId}                   round, date, time, venue, court, opponent,
+                                     format, periodMinutes, available[], plan{},
                                      status: scheduled | live | final,
-                                     firstCentre: us | them, score summary
-      events/{eventId}               type, period, clockMs, playerId, position,
-                                     createdBy, createdAt, undone
+                                     scorerUid, scorerName,
+                                     live { period, phase: running | paused | ended,
+                                            startedAt, elapsedMs, firstCentre: us | them },
+                                     summary { us, them, courtTime { playerId: { pos: ms } } }
+      events/{eventId}               type, period, t (ms of play into the period),
+                                     at, by, undone, plus per type below
 ```
 
-Event types: `clockStart`, `clockStop`, `periodEnd`, `lineup` (player on/off/position),
-`goal`, `miss`, `intercept`, `heldBall`, `obstruction`, `contact`, `oppGoal`,
-`oppMiss`, `centreOverride`.
+Event types (as built in step 2b): `lineup` (full lineup map; `start: true` at a
+period start), `goal`, `miss`, `intercept`, `held`, `obstruction`, `contact` (with
+`pos` and `playerId`), `oppGoal`, `oppMiss`, `centre` (team taking the next centre),
+`periodEnd`. The clock itself lives on the game doc (`live`), not in events.
+A period with no planned changes starts from the actual lineup at the end of the
+previous period, so substitutions carry forward.
 
 All summaries are calculated from the event list, so undo just marks an event as
 undone and everything recalculates.
