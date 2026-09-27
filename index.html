@@ -232,6 +232,12 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .period-btn.active{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
 .period-btn .pdot{width:7px; height:7px; border-radius:50%; background:var(--ok);}
 .period-btn .pdot.none{background:transparent; border:1.5px solid var(--line);}
+.period-btn .pdot.follow{background:transparent; border:1.5px solid var(--ok);}
+.follow-note{
+  font-size:0.82rem; color:var(--ink-soft); background:var(--surface); border:1px dashed var(--line);
+  border-radius:8px; padding:0.45rem 0.7rem; margin:0 0 0.7rem;
+}
+.follow-note.own{border-style:solid;}
 /* ---- Court ---- */
 :root{ --court-bg:#CDE2D5; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#1A3027; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
@@ -477,7 +483,20 @@ function periodNoun(g, plural){
   if (g.format === 'halves') return plural ? 'halves' : 'half';
   return plural ? 'quarters' : 'quarter';
 }
-function planFor(g, p){ return (g.plan && g.plan[p]) || {}; }
+// Lineups carry forward: a period with no lineup of its own uses the one
+// before it. So setting Q1 fills Q2 to Q4, and a change in Q2 flows on to
+// Q3 and Q4 unless those have been changed separately.
+function ownPlan(g, p){ return g.plan && g.plan[p] ? g.plan[p] : null; }
+function planFor(g, p){
+  for (let k = p; k >= 1; k--){ const own = ownPlan(g, k); if (own) return own; }
+  return {};
+}
+// The earlier period this one is following, or 0 if it has its own lineup.
+function followsPeriod(g, p){
+  if (p < 2 || ownPlan(g, p)) return 0;
+  for (let k = p - 1; k >= 1; k--) if (ownPlan(g, k)) return k;
+  return 0;
+}
 function isPeriodPlanned(g, p){ return POSITIONS.some(pos => planFor(g, p)[pos]); }
 function plannedCount(g){
   let n = 0;
@@ -883,8 +902,9 @@ function renderLineupTab(g){
   const picker = `<div class="period-picker" role="tablist" aria-label="${escapeHtml(periodNoun(g, true))}">
     ${Array.from({ length:n }, (_, i) => i + 1).map(k => `
       <button class="period-btn ${k === p ? 'active' : ''}" data-action="period" data-period="${k}" role="tab" aria-selected="${k === p}"
-        aria-label="${escapeHtml(periodName(g, k))}, ${isPeriodPlanned(g, k) ? 'planned' : 'not planned'}">
-        <span class="pdot ${isPeriodPlanned(g, k) ? '' : 'none'}" aria-hidden="true"></span>${escapeHtml(periodName(g, k))}
+        aria-label="${escapeHtml(periodName(g, k))}, ${!isPeriodPlanned(g, k) ? 'not planned'
+          : followsPeriod(g, k) ? 'same as ' + escapeHtml(periodName(g, followsPeriod(g, k))) : 'planned'}">
+        <span class="pdot ${!isPeriodPlanned(g, k) ? 'none' : followsPeriod(g, k) ? 'follow' : ''}" aria-hidden="true"></span>${escapeHtml(periodName(g, k))}
       </button>`).join('')}
   </div>`;
 
@@ -905,18 +925,35 @@ function renderLineupTab(g){
       `<span class="chip ${counts[id] ? '' : 'zero'}">${escapeHtml(playerName(id))} <b>${counts[id]}</b></span>`).join('')}</div>`
       : '<span class="hint">No players are marked as playing.</span>'}</div>`;
 
-  const tools = editable ? `<div class="lineup-tools">
-      ${p > 1 ? `<button class="btn ghost small" data-action="copy-period">Copy ${escapeHtml(periodName(g, p - 1))}</button>` : ''}
-      ${isPeriodPlanned(g, p) ? `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
-        ${isArmed('clear-period') ? 'Tap again to clear' : 'Clear ' + escapeHtml(periodName(g, p))}</button>` : ''}
-    </div>` : '';
+  // Tell the coach whether this period is following an earlier one, and
+  // offer to undo this period's own changes (or clear Q1).
+  const follows = followsPeriod(g, p);
+  const prevName = p > 1 ? escapeHtml(periodName(g, p - 1)) : '';
+  let followNote = '';
+  if (p > 1 && isPeriodPlanned(g, p)){
+    followNote = follows
+      ? `<p class="follow-note">Same as ${escapeHtml(periodName(g, follows))}. Changes you make here also apply to later ${escapeHtml(periodNoun(g, true))} you haven't changed.</p>`
+      : `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>`;
+  }
+  let tools = '';
+  if (editable){
+    if (p === 1 && ownPlan(g, 1) && isPeriodPlanned(g, 1)){
+      tools = `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
+        ${isArmed('clear-period') ? 'Tap again to clear' : 'Clear ' + escapeHtml(periodName(g, 1))}</button>`;
+    } else if (p > 1 && ownPlan(g, p)){
+      tools = `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
+        ${isArmed('clear-period') ? 'Tap again to undo changes' : 'Reset to match ' + prevName}</button>`;
+    }
+    tools = tools ? `<div class="lineup-tools">${tools}</div>` : '';
+  }
 
   return `${picker}
+    ${followNote}
     ${courtHtml(plan, editable, g, p)}
     ${tools}
     ${benchHtml}
     ${countsHtml}
-    ${editable ? '<p class="hint">Tap a position on the court to choose who plays there. Picking someone who is already on court swaps the two players. You can still change everything on game day.</p>' : ''}
+    ${editable ? `<p class="hint">Tap a position on the court to choose who plays there. Picking someone who is already on court swaps the two players. Each ${escapeHtml(periodNoun(g))} starts the same as the one before, so you only need to make the changes. You can still change everything on game day.</p>` : ''}
     ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, counts) : ''}`;
 }
 
@@ -1569,36 +1606,29 @@ async function deleteGame(){
 // Puts a player in a position for the selected period. If they were
 // already somewhere else that period, whoever was in the target position
 // moves into their old spot (a swap), so nobody is ever in two places.
+// If the period was following an earlier one, it gets its own copy of that
+// lineup first, with the change applied, and later periods follow it.
 async function setPlanSlot(pos, pid){
   const g = findGame(UI.gameId);
   if (!g) return;
   const p = UI.period;
-  const plan = planFor(g, p);
-  const updates = {};
+  const next = { ...planFor(g, p) };
   if (pid){
-    const from = POSITIONS.find(other => other !== pos && plan[other] === pid);
-    if (from) updates[`plan.${p}.${from}`] = plan[pos] || deleteField();
-    updates[`plan.${p}.${pos}`] = pid;
+    const from = POSITIONS.find(other => other !== pos && next[other] === pid);
+    if (from){ if (next[pos]) next[from] = next[pos]; else delete next[from]; }
+    next[pos] = pid;
   } else {
-    updates[`plan.${p}.${pos}`] = deleteField();
+    delete next[pos];
   }
-  await updateDoc(gameRef(g.id), updates);
+  await updateDoc(gameRef(g.id), { [`plan.${p}`]: next });
 }
 
-async function copyPreviousPeriod(){
-  const g = findGame(UI.gameId);
-  if (!g || UI.period < 2) return;
-  const avail = new Set(availableIds(g));
-  const prev = planFor(g, UI.period - 1);
-  const copy = {};
-  POSITIONS.forEach(pos => { if (prev[pos] && avail.has(prev[pos])) copy[pos] = prev[pos]; });
-  await updateDoc(gameRef(g.id), { [`plan.${UI.period}`]: copy });
-}
-
+// Q1: empty it. Later periods: drop their own changes so they follow the
+// period before again.
 async function clearPeriod(){
   const g = findGame(UI.gameId);
   if (!g) return;
-  await updateDoc(gameRef(g.id), { [`plan.${UI.period}`]: {} });
+  await updateDoc(gameRef(g.id), { [`plan.${UI.period}`]: UI.period === 1 ? {} : deleteField() });
 }
 
 async function toggleAvail(pid){
@@ -1699,8 +1729,6 @@ document.addEventListener('click', async (e) => {
       await setPlanSlot(pos, btn.dataset.player);
       const token = document.querySelector(`.court-token[data-pos="${pos}"]`);
       if (token) token.focus();
-    } else if (a === 'copy-period'){
-      await copyPreviousPeriod();
     } else if (a === 'clear-period'){
       if (!isArmed('clear-period')) return arm('clear-period');
       disarm('clear-period'); await clearPeriod();
