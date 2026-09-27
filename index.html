@@ -61,7 +61,7 @@ a{color:inherit;}
 }
 .brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase; white-space:nowrap;}
 @media (max-width:520px){ .user-chip .uname{display:none;} }
-.brand span{color:var(--warm);}
+.brand span{color:var(--accent);}
 .user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--ink-soft); min-width:0;}
 .user-chip .uname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:9rem;}
 main{flex:1; padding:1rem 1rem 4rem;}
@@ -108,9 +108,12 @@ main{flex:1; padding:1rem 1rem 4rem;}
 /* ---- Sign in ---- */
 .hero{text-align:center; padding:3rem 1rem 2rem; display:flex; flex-direction:column; align-items:center; gap:1rem;}
 .hero h1{font-size:3rem; text-transform:uppercase; letter-spacing:0.03em; line-height:1;}
-.hero h1 span{color:var(--warm);}
+.hero h1 span{color:var(--accent);}
 .hero p{margin:0; color:var(--ink-soft); max-width:26rem;}
 .hero .fine{font-size:0.78rem;}
+.hero .invite-note{color:var(--ink); background:var(--accent-bg); border-radius:10px; padding:0.7rem 1rem;}
+.panel.invite-panel{border-color:var(--accent); background:var(--accent-bg);}
+.invite-panel p{margin:0 0 0.6rem;}
 .ball{width:84px; height:84px;}
 
 /* ---- Home ---- */
@@ -766,11 +769,12 @@ function renderTopbar(){
   </header>`;
 }
 
+// White netball with pink panel lines, matching the app icon.
 function ballSvg(){
   return `<svg class="ball" viewBox="0 0 100 100" aria-hidden="true">
-    <circle cx="50" cy="50" r="46" fill="var(--warm)"/>
-    <path d="M50 4 C30 30 30 70 50 96 M50 4 C70 30 70 70 50 96 M6 38 C35 48 65 48 94 38 M6 62 C35 52 65 52 94 62"
-      fill="none" stroke="var(--paper)" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="3"/>
+    <path d="M50 5 C30 30 30 70 50 95 M50 5 C70 30 70 70 50 95 M6 38 C35 48 65 48 94 38 M6 62 C35 52 65 52 94 62"
+      fill="none" stroke="#E0457B" stroke-width="4" stroke-linecap="round"/>
   </svg>`;
 }
 
@@ -779,7 +783,9 @@ function renderSignedOut(){
     <div class="hero">
       ${ballSvg()}
       <h1>Netty <span>Pal</span></h1>
-      <p>Court time, positions and live scoring for your netball team. Share the load: any parent with the season code can follow along, and the coach can hand them the scoring.</p>
+      ${pendingInvite()
+        ? `<p class="invite-note"><b>You've been invited to join a team.</b> Sign in with Google to accept.</p>`
+        : '<p>Court time, positions and live scoring for your netball team. Share the load: any parent with the season code can follow along, and the coach can hand them the scoring.</p>'}
       <button class="btn big" data-action="sign-in">Sign in with Google</button>
       <p class="fine">We only use your Google name, email and photo so your team knows who's who.</p>
     </div>
@@ -796,6 +802,7 @@ function renderHome(){
       </div>` : '';
   if (!HOME.loaded) list = '<div class="loading-state">Loading your teams…</div>';
   else if (!HOME.items.length && HOME.failed) list = retry;
+  else if (!HOME.items.length && HOME.invite) list = '';
   else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a season code from your coach, or create your own team.</div>';
   else list = `<div class="team-list">${HOME.items.map(it => `
       <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
@@ -838,6 +845,7 @@ function renderHome(){
 
   return `<h2 class="section-title">Your teams</h2>
     <p class="hint" style="margin:-0.4rem 0 0.9rem">Signed in as ${escapeHtml(USER.email || USER.displayName || '')}</p>
+    ${inviteHtml()}
     ${form}
     ${list}
     ${UI.form ? '' : `<div class="home-actions">
@@ -1040,7 +1048,7 @@ function renderGame(){
   const g = findGame(UI.gameId);
   if (!g) return back + '<div class="empty-state">This game has been deleted.</div>';
 
-  const tabs = [['live', g.status === 'live' ? 'Live' : 'Game'], ['lineup','Lineup'], ['avail','Players'], ['fair','Fairness']];
+  const tabs = [['live', g.status === 'live' ? 'Live' : 'Game'], ['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']];
   if (canEditGames()) tabs.push(['details','Details']);
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = 'lineup';
   watchEvents(g.id);
@@ -1587,14 +1595,14 @@ function renderPlayersTab(){
     if (!editable) return `<div class="list-row ${inactive ? 'inactive' : ''}">
         <span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
         <span class="pname grow">${escapeHtml(p.name)}</span>
-        ${inactive ? '<span class="badge">Inactive</span>' : ''}
+        ${inactive ? '<span class="badge">Removed</span>' : ''}
       </div>`;
     return `<div class="list-row ${inactive ? 'inactive' : ''}">
         <span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
         <input class="row-input" id="pl-${escapeHtml(p.id)}" value="${escapeHtml(p.name)}" maxlength="40"
           data-field="player-name" data-player="${escapeHtml(p.id)}" aria-label="Player name">
         <button class="btn ghost small" data-action="toggle-player" data-player="${escapeHtml(p.id)}">
-          ${inactive ? 'Make active' : 'Make inactive'}</button>
+          ${inactive ? 'Add back' : 'Remove from team'}</button>
       </div>`;
   }).join('');
 
@@ -1603,12 +1611,12 @@ function renderPlayersTab(){
       <button type="submit" class="btn">Add</button>
     </form>` : '';
 
-  return `<h3 class="subhead">Players <span class="hint" style="font-family:var(--font-body); text-transform:none">${activeCount} active</span></h3>
+  return `<h3 class="subhead">Players <span class="hint" style="font-family:var(--font-body); text-transform:none">${activeCount} on the team</span></h3>
     <div class="list-card">
       ${rows || '<div class="empty-state">No players yet.</div>'}
       ${add}
     </div>
-    ${editable ? '<p class="hint">Fill-ins go here too. Marking someone inactive hides them from game day but keeps their stats.</p>' : ''}`;
+    ${editable ? '<p class="hint">Fill-ins go here too. "Remove from team" is for someone who has left: they stop appearing in lineups but keep their stats, and you can add them back. To leave someone out of a single game, untick them on that game\'s Players tab instead.</p>' : ''}`;
 }
 
 function renderPeopleTab(){
@@ -1917,8 +1925,9 @@ async function createTeam(fd){
   render();
 }
 
-async function joinWithCode(fd){
-  const code = normaliseCode(fd.get('code'));
+async function joinWithCode(fd){ return joinByCode(normaliseCode(fd.get('code'))); }
+
+async function joinByCode(code){
   if (!code) return;
   const codeSnap = await getDoc(doc(db, 'joinCodes', code));
   if (!codeSnap.exists()){ toast("That code wasn't found. Check it with your coach.", true); return; }
@@ -2001,10 +2010,12 @@ async function regenerateCode(){
   toast('New code ready. The old one no longer works.');
 }
 
+// The invite is a link with the code in it (?join=CODE), so parents just
+// tap it and sign in. The code is included as text too, as a fallback.
 async function shareCode(){
   const s = CUR.season, t = CUR.team;
-  const url = location.origin + location.pathname;
-  const text = `Join ${t.name} (${s.name}) on Netty Pal. Open ${url}, sign in with Google, tap "Join with a code" and enter: ${s.joinCode}`;
+  const url = `${location.origin}${location.pathname}?join=${encodeURIComponent(s.joinCode)}`;
+  const text = `Join ${t.name} (${s.name}) on Netty Pal: ${url}\n\nTap the link and sign in with Google. (Season code: ${s.joinCode})`;
   if (navigator.share){
     try { await navigator.share({ title:'Netty Pal', text }); } catch(e){ /* cancelled */ }
     return;
@@ -2333,6 +2344,15 @@ document.addEventListener('click', async (e) => {
       goHome();
     } else if (a === 'reload-home'){
       loadHome();
+    } else if (a === 'accept-invite'){
+      const inv = HOME.invite;
+      if (!inv) return;
+      if (inv.already){ clearInvite(); openSeason(inv.teamId, inv.seasonId); return; }
+      await runBusy(async () => { await joinByCode(inv.code); clearInvite(); });
+    } else if (a === 'dismiss-invite'){
+      clearInvite(); render();
+    } else if (a === 'retry-invite'){
+      lookupInvite();
     } else if (a === 'tab'){
       UI.tab = btn.dataset.tab; UI.form = null; saveNav(); render();
     } else if (a === 'toggle-player'){
@@ -2524,6 +2544,77 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------------------------------------------------------------------
+   Invite links (?join=CODE). The code is remembered on this device until
+   the person joins or taps "Not now", so it survives signing in.
+--------------------------------------------------------------------- */
+const INVITE_KEY = 'nettyPalInvite';
+let inviteMemory = '';
+function pendingInvite(){
+  try { return localStorage.getItem(INVITE_KEY) || inviteMemory; } catch(e){ return inviteMemory; }
+}
+function clearInvite(){
+  inviteMemory = '';
+  try { localStorage.removeItem(INVITE_KEY); } catch(e){}
+  HOME.invite = null;
+}
+(function captureInvite(){
+  const params = new URLSearchParams(location.search);
+  const code = normaliseCode(params.get('join'));
+  if (!code) return;
+  inviteMemory = code;
+  try { localStorage.setItem(INVITE_KEY, code); } catch(e){}
+  // Tidy the address bar so a refresh or bookmark doesn't re-trigger it.
+  params.delete('join');
+  const rest = params.toString();
+  history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+})();
+
+// Looks up the invite so the home screen can say which team it's for.
+async function lookupInvite(){
+  const code = pendingInvite();
+  if (!code || !USER) return;
+  HOME.invite = { code, loading:true };
+  render();
+  try {
+    const codeSnap = await getDoc(doc(db, 'joinCodes', code));
+    if (!codeSnap.exists()){ HOME.invite = { code, bad:true }; render(); return; }
+    const { teamId, seasonId } = codeSnap.data();
+    const [teamSnap, memberSnap] = await Promise.all([
+      getDoc(doc(db, 'teams', teamId)),
+      getDoc(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid))
+    ]);
+    HOME.invite = { code, teamId, seasonId, teamName:teamSnap.exists() ? teamSnap.data().name : 'a team',
+      already:memberSnap.exists() };
+  } catch (err){
+    console.warn('Netty Pal: invite lookup', err);
+    HOME.invite = { code, error:true };
+  }
+  render();
+}
+
+function inviteHtml(){
+  const inv = HOME.invite;
+  if (!inv) return '';
+  if (inv.loading) return '<div class="panel invite-panel">Checking your invite…</div>';
+  if (inv.bad) return `<div class="panel invite-panel" role="alert">
+      <p>That invite link isn't valid any more (the team may have made a new code). Ask your coach for a new link.</p>
+      <button class="btn ghost small" data-action="dismiss-invite">OK</button></div>`;
+  if (inv.error) return `<div class="panel invite-panel" role="alert">
+      <p>Couldn't check your invite just now.</p>
+      <div class="form-actions" style="justify-content:flex-start">
+        <button class="btn small" data-action="retry-invite">Try again</button>
+        <button class="btn ghost small" data-action="dismiss-invite">Not now</button></div></div>`;
+  if (inv.already) return `<div class="panel invite-panel">
+      <p>You're already in <b>${escapeHtml(inv.teamName)}</b>.</p>
+      <button class="btn small" data-action="accept-invite">Open team</button></div>`;
+  return `<div class="panel invite-panel">
+      <p>You've been invited to join <b>${escapeHtml(inv.teamName)}</b>.</p>
+      <div class="form-actions" style="justify-content:flex-start">
+        <button class="btn" data-action="accept-invite" ${UI.busy ? 'disabled' : ''}>Join team</button>
+        <button class="btn ghost" data-action="dismiss-invite">Not now</button></div></div>`;
+}
+
+/* ---------------------------------------------------------------------
    Boot
 --------------------------------------------------------------------- */
 onAuthStateChanged(auth, (user) => {
@@ -2531,7 +2622,11 @@ onAuthStateChanged(auth, (user) => {
   authReady = true;
   if (!user){ HOME = { loaded:false, items:[] }; UI = { ...UI, view:'home', form:null }; render(); return; }
   const nav = loadNav();
-  if (nav && (nav.view === 'season' || nav.view === 'game') && nav.teamId && nav.seasonId){
+  // An invite link always lands on the home screen, where it can be accepted.
+  if (pendingInvite()){
+    goHome();
+    lookupInvite();
+  } else if (nav && (nav.view === 'season' || nav.view === 'game') && nav.teamId && nav.seasonId){
     openSeason(nav.teamId, nav.seasonId);
     if (nav.tab) UI.tab = nav.tab;
     if (nav.view === 'game' && nav.gameId){
