@@ -112,6 +112,20 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .hero p{margin:0; color:var(--ink-soft); max-width:26rem;}
 .hero .fine{font-size:0.78rem;}
 .hero .invite-note{color:var(--ink); background:var(--accent-bg); border-radius:10px; padding:0.7rem 1rem;}
+.signin-options{display:flex; flex-direction:column; gap:0.6rem; width:100%; max-width:20rem;}
+.signin-btn{display:flex; align-items:center; justify-content:center; gap:0.6rem; width:100%;}
+.signin-btn.google{background:var(--surface); color:var(--ink); border-color:var(--line);}
+.signin-btn.google:hover{background:var(--surface-2); border-color:var(--accent);}
+.signin-btn.facebook{background:#1877F2; border-color:#1877F2; color:#fff;}
+.signin-btn.facebook:hover{background:#166FE5; border-color:#166FE5;}
+.signin-btn.email{background:none; color:var(--ink); border-color:var(--line);}
+.signin-card{
+  width:100%; max-width:22rem; text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:1rem; display:flex; flex-direction:column; gap:0.7rem;
+}
+.signin-card h3{font-size:1.3rem;}
+.signin-card p{margin:0; color:var(--ink-soft); font-size:0.9rem;}
+.hero .fine a{color:var(--ink-soft);}
 .panel.invite-panel{border-color:var(--accent); background:var(--accent-bg);}
 .invite-panel p{margin:0 0 0.6rem;}
 .ball{width:84px; height:84px;}
@@ -537,7 +551,8 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+  sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
@@ -660,6 +675,12 @@ function friendlyError(err){
   if (code.includes('popup-blocked')) return 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
   if (code.includes('unauthorized-domain')) return "This web address isn't allowed to sign in yet. Add it under Firebase > Authentication > Settings > Authorised domains.";
   if (code.includes('unavailable') || code.includes('network')) return 'No connection. Check your internet and try again.';
+  if (code.includes('account-exists-with-different-credential'))
+    return "You've already signed in with this email another way (probably Google or an email link). Please sign in that way instead.";
+  if (code.includes('operation-not-allowed')) return "That way of signing in isn't switched on yet. Please use another option for now.";
+  if (code.includes('invalid-email')) return "That email address doesn't look right.";
+  if (code.includes('invalid-action-code') || code.includes('expired-action-code'))
+    return 'That sign-in link has expired or was already used. Ask for a new one.';
   return (err && err.message) || 'Something went wrong.';
 }
 function fail(err){ console.warn('Netty Pal:', err); toast(friendlyError(err), true); }
@@ -931,18 +952,100 @@ function ballSvg(){
   </svg>`;
 }
 
+// Sign-in options: Google, Facebook, or a link emailed to you (no
+// password). UI.signin is null, 'email' (asking for email and name),
+// 'sent' (check your inbox) or 'confirm' (link opened on another device,
+// so the email has to be typed again).
 function renderSignedOut(){
+  const intro = pendingInvite()
+    ? `<p class="invite-note"><b>You've been invited to join a team.</b> Sign in to accept.</p>`
+    : '<p>Court time, positions and live scoring for your netball team. Share the load: any parent with the team code can follow along, and the coach can hand them the scoring.</p>';
+  let panel;
+  if (UI.signin === 'sent'){
+    panel = `<div class="signin-card">
+        <h3>Check your email</h3>
+        <p>We've sent a sign-in link to <b>${escapeHtml(UI.signinEmail || '')}</b>. Open it on this phone to sign in. It can take a minute, and may land in junk mail.</p>
+        <button class="btn ghost" data-action="signin-back">Use a different option</button>
+      </div>`;
+  } else if (UI.signin === 'email' || UI.signin === 'confirm'){
+    const confirm = UI.signin === 'confirm';
+    panel = `<form class="signin-card" data-form="${confirm ? 'email-confirm' : 'email-signin'}">
+        <h3>${confirm ? 'Finish signing in' : 'Sign in with email'}</h3>
+        ${confirm ? '<p>Please type your email again to finish signing in on this device.</p>'
+          : "<p>We'll email you a sign-in link. No password needed.</p>"}
+        <div class="field"><label for="si-email">Email</label>
+          <input class="text-input" id="si-email" name="email" type="email" autocomplete="email" required value="${escapeHtml(UI.signinEmail || '')}"></div>
+        <div class="field"><label for="si-name">Your name <span class="hint">(so your team knows who you are)</span></label>
+          <input class="text-input" id="si-name" name="name" autocomplete="name" maxlength="60" placeholder="e.g. Sam Lee"></div>
+        <div class="form-actions">
+          ${confirm ? '' : '<button type="button" class="btn ghost" data-action="signin-back">Back</button>'}
+          <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>${confirm ? 'Sign in' : 'Email me a link'}</button>
+        </div>
+      </form>`;
+  } else {
+    panel = `<div class="signin-options">
+        <button class="btn big signin-btn google" data-action="sign-in">${googleSvg()}<span>Continue with Google</span></button>
+        <button class="btn big signin-btn facebook" data-action="sign-in-facebook">${facebookSvg()}<span>Continue with Facebook</span></button>
+        <button class="btn big signin-btn email" data-action="sign-in-email">${mailSvg()}<span>Continue with email</span></button>
+      </div>
+      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a></p>`;
+  }
   return `<div class="app-shell"><main>
     <div class="hero">
       ${ballSvg()}
       <h1>Netty <span>Pal</span></h1>
-      ${pendingInvite()
-        ? `<p class="invite-note"><b>You've been invited to join a team.</b> Sign in with Google to accept.</p>`
-        : '<p>Court time, positions and live scoring for your netball team. Share the load: any parent with the team code can follow along, and the coach can hand them the scoring.</p>'}
-      <button class="btn big" data-action="sign-in">Sign in with Google</button>
-      <p class="fine">We only use your Google name, email and photo so your team knows who's who.</p>
+      ${intro}
+      ${panel}
     </div>
   </main></div>`;
+}
+
+function googleSvg(){
+  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.2a6.6 6.6 0 0 1 0-4.3V7.1H2.1a11 11 0 0 0 0 9.9l3.7-2.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>`;
+}
+function facebookSvg(){
+  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#FFFFFF"/><path fill="#1877F2" d="M13.4 21.9v-7.1h2.4l.4-2.8h-2.8v-1.8c0-.8.2-1.4 1.4-1.4h1.5V6.3c-.3 0-1.1-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8V12H8v2.8h2.4v7.1a10 10 0 0 0 3 0z"/></svg>`;
+}
+function mailSvg(){
+  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 6.5 12 13l8.5-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+}
+
+/* ---- Email link sign-in ----
+   Firebase emails a one-time link. Opening it brings the person back here,
+   where the link is checked and they're signed in. The email (and name)
+   are remembered on this device in between; if the link is opened on a
+   different device, they're asked to type the email again. */
+const EMAIL_KEY = 'nettyPalSigninEmail', NAME_KEY = 'nettyPalSigninName';
+async function sendEmailLink(fd){
+  const email = String(fd.get('email') || '').trim(), name = String(fd.get('name') || '').trim();
+  if (!email) return;
+  // Come back to the app, keeping any team invite so it isn't lost if the
+  // email is opened in a different browser.
+  const invite = pendingInvite();
+  const url = `${location.origin}${location.pathname}${invite ? '?join=' + encodeURIComponent(invite) : ''}`;
+  await sendSignInLinkToEmail(auth, email, { url, handleCodeInApp:true });
+  try { localStorage.setItem(EMAIL_KEY, email); if (name) localStorage.setItem(NAME_KEY, name); } catch(e){}
+  UI.signin = 'sent'; UI.signinEmail = email;
+}
+async function finishEmailLink(email, name){
+  const cred = await signInWithEmailLink(auth, email, location.href);
+  try { localStorage.removeItem(EMAIL_KEY); localStorage.removeItem(NAME_KEY); } catch(e){}
+  // Tidy the sign-in code out of the address bar.
+  history.replaceState(null, '', location.pathname);
+  if (name && cred.user && !cred.user.displayName){
+    await updateProfile(cred.user, { displayName:name });
+    USER = auth.currentUser;
+  }
+  UI.signin = null;
+}
+// Runs once when the page opens: is this the link from the email?
+async function checkEmailLink(){
+  if (!isSignInWithEmailLink(auth, location.href)) return;
+  let email = '', name = '';
+  try { email = localStorage.getItem(EMAIL_KEY) || ''; name = localStorage.getItem(NAME_KEY) || ''; } catch(e){}
+  if (!email){ UI.signin = 'confirm'; render(); return; }
+  try { await finishEmailLink(email, name); }
+  catch (err){ UI.signin = null; history.replaceState(null, '', location.pathname); fail(err); render(); }
 }
 
 /* ---- Home ---- */
@@ -3539,6 +3642,13 @@ document.addEventListener('click', async (e) => {
   try {
     if (a === 'sign-in'){
       await signInWithPopup(auth, new GoogleAuthProvider());
+    } else if (a === 'sign-in-facebook'){
+      await signInWithPopup(auth, new FacebookAuthProvider());
+    } else if (a === 'sign-in-email'){
+      UI.signin = 'email'; render();
+      const f = document.getElementById('si-email'); if (f) f.focus();
+    } else if (a === 'signin-back'){
+      UI.signin = null; render();
     } else if (a === 'sign-out'){
       closeSeason();
       await signOut(auth);
@@ -3743,6 +3853,8 @@ document.addEventListener('submit', (e) => {
   else if (name === 'add-game') runBusy(async () => { await addGame(fd); done(); });
   else if (name === 'edit-game') runBusy(() => saveGame(fd));
   else if (name === 'import-save') runBusy(() => saveImport(fd));
+  else if (name === 'email-signin') runBusy(() => sendEmailLink(fd));
+  else if (name === 'email-confirm') runBusy(() => finishEmailLink(String(fd.get('email') || '').trim(), String(fd.get('name') || '').trim()));
   else if (name === 'add-correction'){ const g = findGame(UI.gameId); if (g) runBusy(() => addCorrection(g, fd)); }
 });
 
@@ -4032,6 +4144,9 @@ onAuthStateChanged(auth, (user) => {
     goHome();
   }
 });
+
+// Opened from a sign-in email? Finish signing in.
+checkEmailLink();
 
 window.addEventListener('online', () => { offlineMode = false; render(); });
 window.addEventListener('offline', () => { offlineMode = true; render(); });
