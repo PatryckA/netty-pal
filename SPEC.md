@@ -150,6 +150,18 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - The same figures totalled across all completed games.
 - Court time totals per player and per position (to help keep court time fair).
 
+### As built (step 3)
+- Game **Summary** tab (once a game has started): result, score by period, shooting
+  (our shooters with positions, opposition by GS / GA / Team, team totals), court
+  time per player per position (players marked as playing with no court time are
+  highlighted).
+- Team **Stats** tab: record (played, won, lost, drawn, goals for : against, both
+  teams' shooting %), results list (tap to open a game), players (games on court,
+  minutes, goals, %) and court time by position in minutes.
+- Season totals include games that have reached full time, finalised or not; games
+  in progress are left out and noted. They're worked out from each game's events,
+  loaded when the Stats tab is opened. Everyone in the season can see them.
+
 ---
 
 ## 7. Draft data model (Firestore)
@@ -193,8 +205,8 @@ undone and everything recalculates.
      planner per period, fairness view.
    - **2b. The live game**: clock, court board, lineup changes, scoring pad, centre
      pass, undo, scorer handover, live view, post-game corrections and Finalise.
-3. **Summaries**: per game and season to date.
-4. **Fixture import**: PDF or pasted text, review table. Needs a sample fixture file.
+3. **Summaries**: per game and season to date. (Built.)
+4. **Fixture import**: PDF, CSV or pasted text, review table. (Built; tune with a real draw.)
 
 ---
 

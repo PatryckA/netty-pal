@@ -385,6 +385,37 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .undo-bar{position:fixed; right:max(1rem, calc(50% - 320px + 1rem)); bottom:calc(1rem + env(safe-area-inset-bottom)); display:flex; gap:0.5rem; z-index:20;}
 .undo-btn{width:3.1rem; height:3.1rem; border-radius:12px; border:1px solid var(--line); background:var(--surface); color:var(--ink); box-shadow:0 4px 14px var(--shadow); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .undo-btn:disabled{opacity:0.4; cursor:default;}
+/* ---- Summaries ---- */
+.result-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:0.8rem 1rem; margin-bottom:0.6rem; text-align:center;}
+.result-card.won{border-color:var(--ok); background:var(--ok-bg);}
+.result-card.lost{border-color:var(--critical); background:var(--critical-bg);}
+.result-word{font-family:var(--font-display); font-size:1.1rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em;}
+.result-card.won .result-word{color:var(--ok);}
+.result-card.lost .result-word{color:var(--critical);}
+.result-score{display:flex; align-items:center; justify-content:center; gap:0.6rem; margin-top:0.2rem;}
+.result-score span{font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--ink-soft); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.result-score span:first-child{text-align:right;}
+.result-score span:last-child{text-align:left;}
+.result-score b{font-family:var(--font-display); font-size:2.6rem; line-height:1; font-variant-numeric:tabular-nums;}
+.result-score i{font-style:normal; font-size:1.6rem; color:var(--ink-soft);}
+.fair tr.team-total td{font-weight:800; border-top:2px solid var(--line);}
+.fair tr.no-time td{color:var(--warm);}
+.record-grid{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.4rem; margin-bottom:0.5rem;}
+.rec{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:0.55rem 0.3rem; text-align:center; display:flex; flex-direction:column; gap:0.1rem;}
+.rec b{font-family:var(--font-display); font-size:1.5rem; line-height:1; font-variant-numeric:tabular-nums;}
+.rec span{font-size:0.66rem; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
+.rec.wide{grid-column:span 2;}
+.rec.won b{color:var(--ok);}
+.rec.lost b{color:var(--critical);}
+.result-row{display:flex; align-items:center; gap:0.6rem; width:100%; padding:0.6rem 0.9rem; border:none; border-top:1px solid var(--line); background:none; color:var(--ink); text-align:left; cursor:pointer; font-family:var(--font-body);}
+.result-row:first-child{border-top:none;}
+.result-row:hover{background:var(--surface-2);}
+.result-row .grow{flex:1; min-width:0;}
+.result-row .pname,.result-row .psub{display:block;}
+.result-badge{font-size:0.78rem; font-weight:800; white-space:nowrap; padding:0.2rem 0.5rem; border-radius:6px; background:var(--surface-2);}
+.result-badge.won{background:var(--ok-bg); color:var(--ok);}
+.result-badge.lost{background:var(--critical-bg); color:var(--critical);}
+
 /* ---- Fixture import ---- */
 textarea.text-input{font-family:var(--font-body); font-size:0.9rem; resize:vertical;}
 .imp-row{border-top:1px solid var(--line); padding-top:0.7rem; display:flex; flex-direction:column; gap:0.5rem;}
@@ -709,7 +740,8 @@ function computeGame(g, events){
   const n = periodCount(g), L = g.live || {};
   const evs = (events || []).filter(e => !e.undone)
     .sort((a,b) => (a.period - b.period) || (a.t - b.t) || ((a.at || 0) - (b.at || 0)));
-  const res = { us:0, them:0, oppMiss:0, byPeriod:{}, players:{}, lineup:null, centre:null };
+  const res = { us:0, them:0, oppMiss:0, byPeriod:{}, players:{}, lineup:null, centre:null,
+    opp:{ GS:{ goal:0, miss:0 }, GA:{ goal:0, miss:0 }, Team:{ goal:0, miss:0 } } };
   const P = id => res.players[id] || (res.players[id] = { ms:0, pos:{}, goal:0, miss:0, intercept:0, held:0, obstruction:0, contact:0 });
   for (let p = 1; p <= n; p++){
     const pe = evs.filter(e => e.period === p);
@@ -732,6 +764,8 @@ function computeGame(g, events){
       else if (e.type === 'oppGoal'){ them++; centre = otherTeam(centre); }
       else if (e.type === 'oppMiss') res.oppMiss++;
       else if (e.type === 'centre') centre = e.team;
+      if (e.type === 'oppGoal' || e.type === 'oppMiss')
+        res.opp[e.pos === 'GS' || e.pos === 'GA' ? e.pos : 'Team'][e.type === 'oppGoal' ? 'goal' : 'miss']++;
       if (STAT_LABEL[e.type] && e.playerId) P(e.playerId)[e.type]++;
     });
     res.us += us; res.them += them;
@@ -934,12 +968,13 @@ function renderSeason(){
   if (!t || !s || !CUR.loaded.members) return `<button class="back-link" data-action="go-home">‹ All teams</button>
     <div class="loading-state">Loading…</div>`;
 
-  const tabs = [['games','Games'], ['players','Players'], ['people','People']];
+  const tabs = [['games','Games'], ['stats','Stats'], ['players','Players'], ['people','People']];
   if (isAdmin()) tabs.push(['settings','Settings']);
   if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'games';
 
   let content = '';
   if (UI.tab === 'games') content = renderGamesTab();
+  else if (UI.tab === 'stats') content = renderSeasonStatsTab();
   else if (UI.tab === 'players') content = renderPlayersTab();
   else if (UI.tab === 'people') content = renderPeopleTab();
   else if (UI.tab === 'settings') content = renderSettingsTab();
@@ -1092,13 +1127,16 @@ function renderGame(){
   const g = findGame(UI.gameId);
   if (!g) return back + '<div class="empty-state">This game has been deleted.</div>';
 
-  const tabs = [['live', g.status === 'live' ? 'Live' : 'Game'], ['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']];
+  const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
+  if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Summary']);
+  tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']);
   if (canEditGames()) tabs.push(['details','Details']);
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = 'lineup';
   watchEvents(g.id);
 
   let content = '';
   if (UI.gameTab === 'live') content = renderLiveTab(g);
+  else if (UI.gameTab === 'summary') content = renderSummaryTab(g);
   else if (UI.gameTab === 'lineup') content = renderLineupTab(g);
   else if (UI.gameTab === 'avail') content = renderAvailTab(g);
   else if (UI.gameTab === 'fair') content = renderFairTab(g);
@@ -1705,6 +1743,174 @@ function correctionFormHtml(g, playerOpts){
       </div>
       <div class="form-actions"><button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Add</button></div>
     </form>`;
+}
+
+/* ---------------------------------------------------------------------
+   Summaries (step 3): one game, and the season to date.
+--------------------------------------------------------------------- */
+function pctText(goals, shots){ return shots ? Math.round(100 * goals / shots) + '%' : '·'; }
+function resultWord(us, them){ return us > them ? 'Won' : us < them ? 'Lost' : 'Drew'; }
+function minsText(ms){ return ms ? String(Math.round(ms / 60000)) : '·'; }
+
+// Court time table: minutes per position for each player, plus a total.
+// fmt turns milliseconds into what's shown in each cell.
+function courtTimeTable(rows, fmt, playingIds){
+  const max = Math.max(1, ...rows.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
+  const body = rows.map(r => `<tr class="${playingIds && playingIds.has(r.id) && !r.ms ? 'no-time' : ''}">
+      <td>${escapeHtml(playerName(r.id))}</td>
+      ${POSITIONS.map(pos => {
+        const v = r.pos[pos] || 0;
+        const shade = v ? `style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + 30 * v / max)}%, transparent)"` : '';
+        return `<td ${shade}>${v ? fmt(v) : '·'}</td>`;
+      }).join('')}
+      <td class="total">${r.ms ? fmt(r.ms) : '0'}</td>
+    </tr>`).join('');
+  return `<div class="fair-wrap"><table class="fair">
+      <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}<th scope="col">Total</th></tr></thead>
+      <tbody>${body || `<tr><td colspan="${POSITIONS.length + 2}">Nobody has been on court yet.</td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function renderSummaryTab(g){
+  if (!CUR.loaded.events) return '<div class="loading-state">Loading…</div>';
+  const st = computeGame(g, CUR.events);
+  const n = periodCount(g), over = isGameOver(g);
+  const res = resultWord(st.us, st.them);
+
+  const head = `<div class="result-card ${over ? res.toLowerCase() : ''}">
+      <div class="result-word">${over ? res : 'In progress'}</div>
+      <div class="result-score">
+        <span>${escapeHtml(teamLabel(g, 'us'))}</span><b>${st.us}</b><i aria-hidden="true">:</i><b>${st.them}</b><span>${escapeHtml(teamLabel(g, 'them'))}</span>
+      </div>
+      ${g.status === 'live' && over ? '<div class="hint">Full time. Not finalised yet.</div>' : ''}
+    </div>`;
+
+  const periods = Array.from({ length:n }, (_, i) => i + 1);
+  const cell = (p, side) => st.byPeriod[p] ? st.byPeriod[p][side] : '·';
+  const byPeriod = `<h3 class="subhead">Score by ${escapeHtml(periodNoun(g))}</h3>
+    <div class="fair-wrap"><table class="fair">
+      <thead><tr><th scope="col">Team</th>${periods.map(p => `<th scope="col">${escapeHtml(periodName(g, p))}</th>`).join('')}<th scope="col">Total</th></tr></thead>
+      <tbody>
+        <tr><td>${escapeHtml(teamLabel(g, 'us'))}</td>${periods.map(p => `<td>${cell(p, 'us')}</td>`).join('')}<td class="total">${st.us}</td></tr>
+        <tr><td>${escapeHtml(teamLabel(g, 'them'))}</td>${periods.map(p => `<td>${cell(p, 'them')}</td>`).join('')}<td class="total">${st.them}</td></tr>
+      </tbody>
+    </table></div>`;
+
+  // Shooting: who shot, from which positions, and how accurately.
+  const shooterPos = {};
+  CUR.events.filter(e => !e.undone && (e.type === 'goal' || e.type === 'miss') && e.playerId && e.pos)
+    .forEach(e => { (shooterPos[e.playerId] = shooterPos[e.playerId] || new Set()).add(e.pos); });
+  const shooters = Object.entries(st.players).filter(([, r]) => r.goal + r.miss)
+    .sort((a, b) => b[1].goal - a[1].goal || playerName(a[0]).localeCompare(playerName(b[0])));
+  const ourShots = st.us + shooters.reduce((s, [, r]) => s + r.miss, 0);
+  const oppRows = ['GS', 'GA', 'Team'].filter(k => st.opp[k].goal + st.opp[k].miss);
+  const shooting = `<h3 class="subhead">Shooting</h3>
+    <div class="fair-wrap"><table class="fair stats-table">
+      <thead><tr><th scope="col">Shooter</th><th scope="col">Pos</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <tbody>
+        ${shooters.map(([id, r]) => `<tr><td>${escapeHtml(playerName(id))}</td><td>${escapeHtml(Array.from(shooterPos[id] || []).join(', '))}</td>
+          <td>${r.goal}/${r.goal + r.miss}</td><td>${pctText(r.goal, r.goal + r.miss)}</td></tr>`).join('')}
+        <tr class="team-total"><td>${escapeHtml(teamLabel(g, 'us'))}</td><td></td><td>${st.us}/${ourShots}</td><td>${pctText(st.us, ourShots)}</td></tr>
+        ${oppRows.map(k => `<tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${k}</td>
+          <td>${st.opp[k].goal}/${st.opp[k].goal + st.opp[k].miss}</td><td>${pctText(st.opp[k].goal, st.opp[k].goal + st.opp[k].miss)}</td></tr>`).join('')}
+        <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.them}/${st.them + st.oppMiss}</td><td>${pctText(st.them, st.them + st.oppMiss)}</td></tr>
+      </tbody>
+    </table></div>
+    <p class="hint">Goals shows goals out of shots.</p>`;
+
+  const playing = new Set(availableIds(g));
+  const ids = byName(Array.from(new Set([...Object.keys(st.players).filter(id => st.players[id].ms), ...playing])));
+  const rows = ids.map(id => ({ id, ms:(st.players[id] || {}).ms || 0, pos:(st.players[id] || {}).pos || {} }));
+  const benched = rows.filter(r => !r.ms && playing.has(r.id)).length;
+  const court = `<h3 class="subhead">Court time</h3>
+    ${courtTimeTable(rows, fmtMins, playing)}
+    <p class="hint">Minutes and seconds in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
+
+  return head + byPeriod + shooting + court;
+}
+
+// Loads the events of every game played so far this season (only while
+// the Stats tab is open), so the season totals are worked out exactly the
+// same way as each game's own summary.
+function playedGames(){ return sortGames(CUR.games).filter(g => g.status === 'live' || g.status === 'final'); }
+function loadSeasonEvents(force){
+  const games = playedGames();
+  const key = games.map(g => `${g.id}:${g.status}:${g.summary ? g.summary.us + '-' + g.summary.them : ''}:${g.live ? g.live.period + g.live.phase : ''}`).join('|');
+  if (!force && (CUR.seasonEventsKey === key || CUR.seasonEventsLoading)) return;
+  CUR.seasonEventsKey = key;
+  CUR.seasonEventsLoading = true;
+  CUR.seasonEventsError = null;
+  const seasonId = UI.seasonId;
+  Promise.all(games.map(g => getDocs(eventsRef(g.id)).then(snap => [g.id, snap.docs.map(d => ({ id:d.id, ...d.data() }))])))
+    .then(pairs => { if (UI.seasonId !== seasonId) return; CUR.seasonEvents = Object.fromEntries(pairs); })
+    .catch(err => { console.warn('Netty Pal: season events', err); CUR.seasonEventsError = err; })
+    .finally(() => { CUR.seasonEventsLoading = false; render(); });
+}
+
+function renderSeasonStatsTab(){
+  if (!CUR.loaded.games || !CUR.loaded.players) return '<div class="loading-state">Loading…</div>';
+  loadSeasonEvents(false);
+  if (CUR.seasonEventsError) return `<div class="panel" role="alert"><p style="margin:0 0 0.6rem">Couldn't load the season's games.</p>
+    <button class="btn small" data-action="reload-stats">Try again</button></div>`;
+  if (!CUR.seasonEvents) return '<div class="loading-state">Adding up the season…</div>';
+
+  const finished = playedGames().filter(g => isGameOver(g) && CUR.seasonEvents[g.id]);
+  const inProgress = playedGames().filter(g => !isGameOver(g)).length;
+  if (!finished.length) return `<div class="empty-state">No games have reached full time yet.${inProgress ? ' A game is in progress: its stats will appear here at full time.' : ' Stats appear here once games are scored.'}</div>`;
+
+  const rec = { w:0, l:0, d:0, gf:0, ga:0, ourShots:0, oppShots:0 };
+  const players = {};
+  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0 });
+  const results = finished.map(g => {
+    const st = computeGame(g, CUR.seasonEvents[g.id]);
+    const r = resultWord(st.us, st.them);
+    rec[r === 'Won' ? 'w' : r === 'Lost' ? 'l' : 'd']++;
+    rec.gf += st.us; rec.ga += st.them; rec.oppShots += st.them + st.oppMiss;
+    Object.entries(st.players).forEach(([id, s]) => {
+      const p = P(id);
+      p.ms += s.ms; p.goal += s.goal; p.miss += s.miss;
+      rec.ourShots += s.goal + s.miss;
+      if (s.ms) p.games++;
+      Object.entries(s.pos).forEach(([pos, v]) => { p.pos[pos] = (p.pos[pos] || 0) + v; });
+    });
+    return { g, st, r };
+  });
+
+  const recordCard = `<div class="record-grid">
+      <div class="rec"><b>${finished.length}</b><span>Played</span></div>
+      <div class="rec won"><b>${rec.w}</b><span>Won</span></div>
+      <div class="rec lost"><b>${rec.l}</b><span>Lost</span></div>
+      <div class="rec"><b>${rec.d}</b><span>Drawn</span></div>
+      <div class="rec wide"><b>${rec.gf} : ${rec.ga}</b><span>Goals for : against</span></div>
+      <div class="rec"><b>${pctText(rec.gf, rec.ourShots)}</b><span>Our shooting</span></div>
+      <div class="rec"><b>${pctText(rec.ga, rec.oppShots)}</b><span>Their shooting</span></div>
+    </div>
+    ${inProgress ? `<p class="hint">${inProgress} game${inProgress === 1 ? ' is' : 's are'} in progress and not included yet.</p>` : ''}`;
+
+  const resultsList = `<h3 class="subhead">Results</h3>
+    <div class="list-card">${results.slice().reverse().map(({ g, st, r }) => `
+      <button class="result-row" data-action="open-game" data-game="${escapeHtml(g.id)}">
+        <span class="grow"><span class="pname">${escapeHtml(gameTitle(g))}</span>
+          <span class="psub">${g.round ? 'Round ' + escapeHtml(g.round) + ' · ' : ''}${escapeHtml(fmtGameWhen(g))}${g.status === 'final' ? '' : ' · not finalised'}</span></span>
+        <span class="result-badge ${r.toLowerCase()}">${r} ${st.us} : ${st.them}</span>
+      </button>`).join('')}</div>`;
+
+  const list = Object.values(players).filter(p => p.ms || p.goal + p.miss)
+    .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
+  const playerTable = `<h3 class="subhead">Players</h3>
+    <div class="fair-wrap"><table class="fair stats-table">
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td>
+        <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hint">Games counts games where they got on court. Mins is total court time.</p>`;
+
+  const court = `<h3 class="subhead">Court time by position</h3>
+    ${courtTimeTable(list, minsText)}
+    <p class="hint">Total minutes in each position this season. Darker means more.</p>`;
+
+  return `${recordCard}${resultsList}${playerTable}${court}
+    <div class="lineup-tools"><button class="btn ghost small" data-action="reload-stats">Refresh</button></div>`;
 }
 
 function renderDetailsTab(g){
@@ -2868,6 +3074,8 @@ document.addEventListener('click', async (e) => {
       goHome();
     } else if (a === 'reload-home'){
       loadHome();
+    } else if (a === 'reload-stats'){
+      CUR.seasonEvents = null; loadSeasonEvents(true); render();
     } else if (a === 'import-open'){
       closeImport(); UI.form = 'import'; render();
     } else if (a === 'import-cancel'){
