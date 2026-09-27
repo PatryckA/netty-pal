@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Netty Pal</title>
+<meta name="description" content="Court time, positions and live scoring for junior netball teams.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F4E8C">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Netty Pal">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --paper:#F2F0EA; --surface:#FFFFFF; --surface-2:#F7F5F0; --line:#DAD5C8;
+  --ink:#172033; --ink-soft:#586072; --accent:#1F4E8C; --accent-strong:#163B6B;
+  --accent-contrast:#FFFFFF; --accent-bg:#E0E8F4; --warm:#C8641C; --warm-bg:#F7E6D6;
+  --ok:#2E7550; --ok-bg:#DDEEE3; --critical:#B3261E; --critical-bg:#F6DEDC;
+  --shadow:rgba(23,32,51,0.10);
+  --font-display:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --font-body:'Manrope','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#10151F; --surface:#171E2B; --surface-2:#1D2534; --line:#2B3547;
+    --ink:#E8EAF0; --ink-soft:#A3AABA; --accent:#7FAEE8; --accent-strong:#A5C7F0;
+    --accent-contrast:#0D1522; --accent-bg:#1C2B42; --warm:#F0A060; --warm-bg:#3A2819;
+    --ok:#74C497; --ok-bg:#1A3325; --critical:#F08A82; --critical-bg:#3D1F1D;
+    --shadow:rgba(0,0,0,0.45);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#10151F; --surface:#171E2B; --surface-2:#1D2534; --line:#2B3547;
+  --ink:#E8EAF0; --ink-soft:#A3AABA; --accent:#7FAEE8; --accent-strong:#A5C7F0;
+  --accent-contrast:#0D1522; --accent-bg:#1C2B42; --warm:#F0A060; --warm-bg:#3A2819;
+  --ok:#74C497; --ok-bg:#1A3325; --critical:#F08A82; --critical-bg:#3D1F1D;
+  --shadow:rgba(0,0,0,0.45);
+}
+*{box-sizing:border-box;}
+html,body{margin:0; padding:0;}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--font-body);
+  font-size:16px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+h1,h2,h3{font-family:var(--font-display); font-weight:700; margin:0; letter-spacing:0.01em; text-wrap:balance;}
+button{font-family:var(--font-body);}
+input,select{font-family:var(--font-body); font-size:1rem;}
+a{color:inherit;}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+.app-shell{max-width:640px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
+.topbar{
+  position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:0.75rem 1rem;
+  display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
+}
+.brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase;}
+.brand span{color:var(--warm);}
+.user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--ink-soft); min-width:0;}
+.user-chip .uname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:9rem;}
+main{flex:1; padding:1rem 1rem 4rem;}
+.loading-state{color:var(--ink-soft); font-size:0.9rem; padding:3rem 1rem; text-align:center;}
+.offline-banner{background:var(--critical); color:#fff; font-size:0.82rem; font-weight:600; padding:0.6rem 1rem; text-align:center;}
+
+/* ---- Buttons and inputs ---- */
+.btn{
+  background:var(--accent); color:var(--accent-contrast); border:1px solid var(--accent); border-radius:8px;
+  padding:0.55rem 0.95rem; font-weight:700; font-size:0.88rem; cursor:pointer;
+}
+.btn:hover{background:var(--accent-strong); border-color:var(--accent-strong);}
+.btn.ghost{background:none; color:var(--ink); border-color:var(--line);}
+.btn.ghost:hover{border-color:var(--accent); color:var(--accent);}
+.btn.small{padding:0.35rem 0.65rem; font-size:0.78rem;}
+.btn.big{padding:0.8rem 1.4rem; font-size:1rem;}
+.btn.danger{background:none; color:var(--critical); border-color:var(--critical);}
+.btn.danger.armed,.btn.armed{background:var(--critical); color:#fff; border-color:var(--critical);}
+.btn:disabled{opacity:0.55; cursor:default;}
+.text-input,.select-input{
+  width:100%; background:var(--surface); border:1px solid var(--line); border-radius:8px;
+  padding:0.55rem 0.7rem; color:var(--ink);
+}
+.text-input:focus,.select-input:focus{border-color:var(--accent); outline:none;}
+.field{display:flex; flex-direction:column; gap:0.3rem;}
+.field label,.field .label{font-size:0.78rem; font-weight:700; color:var(--ink-soft);}
+.field-row{display:flex; gap:0.6rem; flex-wrap:wrap;}
+.field-row > .field{flex:1; min-width:130px;}
+.hint{font-size:0.75rem; color:var(--ink-soft);}
+.segmented{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; width:fit-content;}
+.segmented label{position:relative; cursor:pointer;}
+.segmented input{position:absolute; opacity:0; pointer-events:none;}
+.segmented span{display:block; padding:0.5rem 0.9rem; font-size:0.85rem; font-weight:700; background:var(--surface); color:var(--ink);}
+.segmented input:checked + span{background:var(--accent); color:var(--accent-contrast);}
+.segmented input:focus-visible + span{outline:2px solid var(--accent); outline-offset:-3px;}
+.form-card{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1rem;
+  display:flex; flex-direction:column; gap:0.8rem; margin-bottom:1rem;
+}
+.form-card h3{font-size:1.2rem;}
+.form-actions{display:flex; gap:0.5rem; justify-content:flex-end; flex-wrap:wrap;}
+.check-row{display:flex; align-items:center; gap:0.5rem; font-size:0.88rem;}
+
+/* ---- Sign in ---- */
+.hero{text-align:center; padding:3rem 1rem 2rem; display:flex; flex-direction:column; align-items:center; gap:1rem;}
+.hero h1{font-size:3rem; text-transform:uppercase; letter-spacing:0.03em; line-height:1;}
+.hero h1 span{color:var(--warm);}
+.hero p{margin:0; color:var(--ink-soft); max-width:26rem;}
+.hero .fine{font-size:0.78rem;}
+.ball{width:84px; height:84px;}
+
+/* ---- Home ---- */
+.section-title{font-size:1.7rem; margin-bottom:0.8rem; text-transform:uppercase;}
+.team-list{display:flex; flex-direction:column; gap:0.6rem; margin-bottom:1.2rem;}
+.team-card{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:0.9rem 1rem;
+  text-align:left; color:var(--ink); cursor:pointer; display:flex; justify-content:space-between;
+  align-items:center; gap:0.75rem; width:100%;
+}
+.team-card:hover{border-color:var(--accent);}
+.team-card .tname{font-family:var(--font-display); font-size:1.35rem; font-weight:700; line-height:1.1;}
+.team-card .tseason{font-size:0.8rem; color:var(--ink-soft);}
+.badges{display:flex; gap:0.3rem; flex-wrap:wrap; justify-content:flex-end;}
+.badge{
+  font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em;
+  padding:0.18rem 0.45rem; border-radius:5px; background:var(--surface-2); color:var(--ink-soft);
+  border:1px solid var(--line); white-space:nowrap;
+}
+.badge.admin{background:var(--warm-bg); color:var(--warm); border-color:transparent;}
+.badge.coach{background:var(--accent-bg); color:var(--accent); border-color:transparent;}
+.badge.scorer{background:var(--ok-bg); color:var(--ok); border-color:transparent;}
+.home-actions{display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1rem;}
+.empty-state{color:var(--ink-soft); font-size:0.9rem; padding:1.5rem 0.5rem; text-align:center;}
+
+/* ---- Season ---- */
+.back-link{
+  background:none; border:none; color:var(--ink-soft); font-size:0.8rem; font-weight:700;
+  padding:0; cursor:pointer; margin-bottom:0.35rem;
+}
+.back-link:hover{color:var(--accent);}
+.season-head{margin-bottom:0.9rem;}
+.season-head h2{font-size:2rem; text-transform:uppercase; line-height:1.05;}
+.season-meta{font-size:0.82rem; color:var(--ink-soft); margin-top:0.2rem;}
+.tabs{display:flex; gap:0.35rem; margin-bottom:1rem; overflow-x:auto; padding-bottom:0.2rem;}
+.tab{
+  flex:none; background:var(--surface); border:1px solid var(--line); color:var(--ink);
+  padding:0.45rem 0.85rem; border-radius:20px; font-size:0.84rem; font-weight:700; cursor:pointer;
+}
+.tab.active{background:var(--accent); color:var(--accent-contrast); border-color:var(--accent);}
+.list-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:1rem;}
+.list-row{display:flex; align-items:center; gap:0.6rem; padding:0.65rem 0.9rem; border-top:1px solid var(--line); flex-wrap:wrap;}
+.list-row:first-child{border-top:none;}
+.list-row .grow{flex:1; min-width:0;}
+.list-row.inactive .pname{color:var(--ink-soft); text-decoration:line-through;}
+.pname{font-weight:600;}
+.psub{font-size:0.75rem; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis;}
+.row-input{
+  flex:1; min-width:0; background:transparent; border:1px solid transparent; border-radius:7px;
+  padding:0.35rem 0.5rem; color:var(--ink); font-weight:600;
+}
+.row-input:hover{border-color:var(--line);}
+.row-input:focus{border-color:var(--accent); background:var(--surface); outline:none;}
+.avatar{
+  width:34px; height:34px; border-radius:50%; background:var(--accent-bg); color:var(--accent);
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem; flex:none;
+  overflow:hidden;
+}
+.avatar img{width:100%; height:100%; object-fit:cover;}
+.avatar.small{width:26px; height:26px; font-size:0.7rem;}
+.role-toggles{display:flex; gap:0.35rem; flex-wrap:wrap;}
+.role-toggle{
+  border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); border-radius:20px;
+  padding:0.3rem 0.7rem; font-size:0.76rem; font-weight:800; cursor:pointer;
+}
+.role-toggle[aria-pressed="true"].coach{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+.role-toggle[aria-pressed="true"].scorer{background:var(--ok); border-color:var(--ok); color:#fff;}
+.member-actions{display:flex; gap:0.35rem; flex-wrap:wrap; width:100%; padding-left:calc(34px + 0.6rem);}
+.code-card{
+  background:var(--accent); color:var(--accent-contrast); border-radius:12px; padding:1rem;
+  margin-bottom:1rem; display:flex; flex-direction:column; gap:0.6rem;
+}
+.code-card .label{font-size:0.75rem; font-weight:700; opacity:0.85; text-transform:uppercase; letter-spacing:0.08em;}
+.code-value{font-family:var(--font-display); font-size:2.6rem; font-weight:800; letter-spacing:0.18em; line-height:1;}
+.code-card .btn{background:var(--accent-contrast); color:var(--accent); border-color:var(--accent-contrast);}
+.code-card .btn.armed{background:var(--critical); color:#fff; border-color:var(--critical);}
+.code-actions{display:flex; gap:0.4rem; flex-wrap:wrap;}
+.subhead{font-size:1.2rem; text-transform:uppercase; margin:0.2rem 0 0.6rem;}
+.placeholder-card{
+  background:var(--surface); border:1.5px dashed var(--line); border-radius:12px; padding:1.5rem 1rem;
+  text-align:center; color:var(--ink-soft); font-size:0.9rem;
+}
+.add-inline{display:flex; gap:0.5rem; padding:0.75rem 0.9rem; border-top:1px dashed var(--line);}
+.add-inline .text-input{flex:1;}
+.toast{
+  position:fixed; left:50%; bottom:1.2rem; transform:translateX(-50%); z-index:50;
+  background:var(--ink); color:var(--paper); padding:0.65rem 1rem; border-radius:10px;
+  font-size:0.85rem; font-weight:600; box-shadow:0 6px 20px var(--shadow); max-width:calc(100% - 2rem);
+}
+.toast.error{background:var(--critical); color:#fff;}
+.danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading-state">Loading Netty Pal…</div></div>
+<div id="toast-root"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+  collection, onSnapshot, writeBatch, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+/* ---------------------------------------------------------------------
+   Firebase. This config is not a secret: it only tells the page which
+   Firebase project to talk to. Who can read or change what is enforced
+   by the Firestore security rules (see firestore.rules), not by this page.
+--------------------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBToJHWizkOtnLXMt4HawIbTBk0cz9cxes",
+  authDomain: "netty-pal.firebaseapp.com",
+  projectId: "netty-pal",
+  storageBucket: "netty-pal.firebasestorage.app",
+  messagingSenderId: "614096574186",
+  appId: "1:614096574186:web:df6472c29986949ae66993"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
+
+/* ---------------------------------------------------------------------
+   Data layout (Firestore)
+     teams/{teamId}                               name, adminUid
+       seasons/{seasonId}                         name, competition, format, periodMinutes, joinCode
+         members/{uid}                            name, email, photoURL, roles[], code
+         players/{playerId}                       name, active
+     joinCodes/{code}                             teamId, seasonId
+     users/{uid}/memberships/{seasonId}           teamId, seasonId (so "my teams" can be listed)
+--------------------------------------------------------------------- */
+const DEFAULT_PERIOD_MINUTES = 7;
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
+const CODE_LENGTH = 6;
+
+let USER = null;
+let authReady = false;
+let offlineMode = !navigator.onLine;
+
+// What the screen is showing. form is the name of an open inline form.
+let UI = { view:'home', teamId:null, seasonId:null, tab:'players', form:null, busy:false };
+
+// Home screen: one entry per season the user belongs to.
+let HOME = { loaded:false, items:[] };
+
+// The season currently open, kept live by onSnapshot listeners.
+let CUR = { team:null, season:null, members:[], players:[], unsubs:[], loaded:{} };
+
+let armed = new Map(); // key -> timeout id, for "tap again to confirm" buttons
+
+/* ---------------------------------------------------------------------
+   Helpers
+--------------------------------------------------------------------- */
+function escapeHtml(str){
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function newId(){ return doc(collection(db, '_')).id; }
+function randomCode(){
+  const bytes = new Uint32Array(CODE_LENGTH);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
+}
+function normaliseCode(raw){ return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function initials(name){
+  const parts = String(name || '?').trim().split(/\s+/);
+  return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length-1][0] : '')).toUpperCase();
+}
+function formatLabel(season){
+  if (!season) return '';
+  const n = season.format === 'halves' ? 2 : 4;
+  return `${n} × ${season.periodMinutes || DEFAULT_PERIOD_MINUTES} min ${season.format === 'halves' ? 'halves' : 'quarters'}`;
+}
+function avatarHtml(name, photoURL, cls){
+  const inner = photoURL
+    ? `<img src="${escapeHtml(photoURL)}" alt="" referrerpolicy="no-referrer">`
+    : escapeHtml(initials(name));
+  return `<span class="avatar ${cls || ''}" aria-hidden="true">${inner}</span>`;
+}
+function roleBadges(roles, isAdmin){
+  const out = [];
+  if (isAdmin) out.push('<span class="badge admin">Admin</span>');
+  if (roles && roles.includes('coach')) out.push('<span class="badge coach">Coach</span>');
+  if (roles && roles.includes('scorer')) out.push('<span class="badge scorer">Scorer</span>');
+  if (!out.length) out.push('<span class="badge">Viewer</span>');
+  return out.join('');
+}
+function toast(msg, isError){
+  const root = document.getElementById('toast-root');
+  root.innerHTML = `<div class="toast${isError ? ' error' : ''}" role="status">${escapeHtml(msg)}</div>`;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { root.innerHTML = ''; }, isError ? 6000 : 3000);
+}
+function friendlyError(err){
+  const code = (err && err.code) || '';
+  if (code.includes('permission-denied')) return "You don't have permission to do that.";
+  if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) return 'Sign-in was cancelled.';
+  if (code.includes('popup-blocked')) return 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
+  if (code.includes('unauthorized-domain')) return "This web address isn't allowed to sign in yet. Add it under Firebase > Authentication > Settings > Authorised domains.";
+  if (code.includes('unavailable') || code.includes('network')) return 'No connection. Check your internet and try again.';
+  return (err && err.message) || 'Something went wrong.';
+}
+function fail(err){ console.warn('Netty Pal:', err); toast(friendlyError(err), true); }
+
+// "Tap again to confirm" for anything destructive or hard to undo.
+function isArmed(key){ return armed.has(key); }
+function arm(key){
+  clearTimeout(armed.get(key));
+  armed.set(key, setTimeout(() => { armed.delete(key); render(); }, 4000));
+  render();
+}
+function disarm(key){ clearTimeout(armed.get(key)); armed.delete(key); }
+
+// Role checks for the open season. The page uses these to decide what to
+// show; the security rules enforce the same thing on Google's side.
+function isAdmin(){ return !!(USER && CUR.team && CUR.team.adminUid === USER.uid); }
+function myMember(){ return USER ? CUR.members.find(m => m.id === USER.uid) : null; }
+function myRoles(){ const m = myMember(); return (m && m.roles) || []; }
+function canEditRoster(){ return isAdmin() || myRoles().includes('coach'); }
+
+/* ---------------------------------------------------------------------
+   Rendering. Live updates re-render the whole screen, so any half-typed
+   text in a form is saved first and put back afterwards.
+--------------------------------------------------------------------- */
+function captureInputs(){
+  const saved = {};
+  document.querySelectorAll('#app input[id], #app select[id]').forEach(el => {
+    saved[el.id] = (el.type === 'checkbox' || el.type === 'radio') ? { checked:el.checked } : { value:el.value };
+  });
+  const active = document.activeElement;
+  return { saved, focusId: active && active.id ? active.id : null,
+    selStart: active && 'selectionStart' in active ? active.selectionStart : null };
+}
+function restoreInputs(state){
+  Object.entries(state.saved).forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if ('checked' in v) el.checked = v.checked; else el.value = v.value;
+  });
+  if (state.focusId){
+    const el = document.getElementById(state.focusId);
+    if (el){
+      el.focus();
+      try { if (state.selStart != null) el.setSelectionRange(state.selStart, state.selStart); } catch(e){}
+    }
+  }
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const keep = captureInputs();
+  let body;
+  if (!authReady) body = '<div class="loading-state">Loading Netty Pal…</div>';
+  else if (!USER) body = renderSignedOut();
+  else {
+    let main;
+    if (UI.view === 'season') main = renderSeason();
+    else main = renderHome();
+    body = `<div class="app-shell">
+      ${offlineMode ? '<div class="offline-banner">You\'re offline. Changes will sync when you reconnect.</div>' : ''}
+      ${renderTopbar()}
+      <main>${main}</main>
+    </div>`;
+  }
+  app.innerHTML = body;
+  restoreInputs(keep);
+}
+
+function renderTopbar(){
+  return `<header class="topbar">
+    <div class="brand">Netty <span>Pal</span></div>
+    <div class="user-chip">
+      ${avatarHtml(USER.displayName, USER.photoURL, 'small')}
+      <span class="uname">${escapeHtml(USER.displayName || USER.email)}</span>
+      <button class="btn ghost small" data-action="sign-out">Sign out</button>
+    </div>
+  </header>`;
+}
+
+function ballSvg(){
+  return `<svg class="ball" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="46" fill="var(--warm)"/>
+    <path d="M50 4 C30 30 30 70 50 96 M50 4 C70 30 70 70 50 96 M6 38 C35 48 65 48 94 38 M6 62 C35 52 65 52 94 62"
+      fill="none" stroke="var(--paper)" stroke-width="4" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function renderSignedOut(){
+  return `<div class="app-shell"><main>
+    <div class="hero">
+      ${ballSvg()}
+      <h1>Netty <span>Pal</span></h1>
+      <p>Court time, positions and live scoring for your netball team. Share the load: any parent with the season code can follow along, and the coach can hand them the scoring.</p>
+      <button class="btn big" data-action="sign-in">Sign in with Google</button>
+      <p class="fine">We only use your Google name, email and photo so your team knows who's who.</p>
+    </div>
+  </main></div>`;
+}
+
+/* ---- Home ---- */
+function renderHome(){
+  let list;
+  if (!HOME.loaded) list = '<div class="loading-state">Loading your teams…</div>';
+  else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a season code from your coach, or create your own team.</div>';
+  else list = `<div class="team-list">${HOME.items.map(it => `
+      <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
+        <div>
+          <div class="tname">${escapeHtml(it.teamName)}</div>
+          <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
+        </div>
+        <div class="badges">${roleBadges(it.roles, it.isAdmin)}</div>
+      </button>`).join('')}</div>`;
+
+  let form = '';
+  if (UI.form === 'join') form = `
+    <form class="form-card" data-form="join">
+      <h3>Join a team</h3>
+      <div class="field">
+        <label for="join-code">Season code</label>
+        <input class="text-input" id="join-code" name="code" autocomplete="off" autocapitalize="characters"
+          maxlength="12" placeholder="e.g. K7PQ2M" required>
+        <span class="hint">Ask your coach or team admin for this.</span>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
+        <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Join</button>
+      </div>
+    </form>`;
+  else if (UI.form === 'create-team') form = `
+    <form class="form-card" data-form="create-team">
+      <h3>Create a team</h3>
+      <div class="field">
+        <label for="ct-team">Team name</label>
+        <input class="text-input" id="ct-team" name="teamName" placeholder="e.g. Hawks 11U" required maxlength="60">
+      </div>
+      ${seasonFieldsHtml('ct', {})}
+      <p class="hint">You'll be the team admin, Coach and Scorer to start with. You can hand any of those to other parents later.</p>
+      <div class="form-actions">
+        <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
+        <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Create team</button>
+      </div>
+    </form>`;
+
+  return `<h2 class="section-title">Your teams</h2>
+    ${form}
+    ${list}
+    ${UI.form ? '' : `<div class="home-actions">
+      <button class="btn" data-action="show-form" data-form-name="join">Join with a code</button>
+      <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create a team</button>
+    </div>`}`;
+}
+
+// Shared season fields for "create team", "new season" and season settings.
+function seasonFieldsHtml(prefix, s){
+  const fmt = s.format || 'quarters';
+  return `
+    <div class="field-row">
+      <div class="field">
+        <label for="${prefix}-season">Season name</label>
+        <input class="text-input" id="${prefix}-season" name="seasonName" required maxlength="60"
+          placeholder="e.g. Winter 2027" value="${escapeHtml(s.name || '')}">
+      </div>
+      <div class="field">
+        <label for="${prefix}-comp">Competition <span class="hint">(optional)</span></label>
+        <input class="text-input" id="${prefix}-comp" name="competition" maxlength="80"
+          placeholder="e.g. Saturday juniors" value="${escapeHtml(s.competition || '')}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <span class="label" id="${prefix}-fmt-label">Game format</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="${prefix}-fmt-label">
+          <label><input type="radio" id="${prefix}-fmt-q" name="format" value="quarters" ${fmt === 'quarters' ? 'checked' : ''}><span>Quarters</span></label>
+          <label><input type="radio" id="${prefix}-fmt-h" name="format" value="halves" ${fmt === 'halves' ? 'checked' : ''}><span>Halves</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="${prefix}-mins">Minutes per period</label>
+        <input class="text-input" id="${prefix}-mins" name="periodMinutes" type="number" min="1" max="30" required
+          value="${escapeHtml(s.periodMinutes || DEFAULT_PERIOD_MINUTES)}" style="max-width:7rem">
+      </div>
+    </div>
+    <span class="hint">These are the defaults for every game this season. Each game can override them.</span>`;
+}
+
+/* ---- Season ---- */
+function renderSeason(){
+  const t = CUR.team, s = CUR.season;
+  if (!t || !s || !CUR.loaded.members) return `<button class="back-link" data-action="go-home">‹ All teams</button>
+    <div class="loading-state">Loading…</div>`;
+
+  const tabs = [['games','Games'], ['players','Players'], ['people','People']];
+  if (isAdmin()) tabs.push(['settings','Settings']);
+  if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'players';
+
+  let content = '';
+  if (UI.tab === 'games') content = renderGamesTab();
+  else if (UI.tab === 'players') content = renderPlayersTab();
+  else if (UI.tab === 'people') content = renderPeopleTab();
+  else if (UI.tab === 'settings') content = renderSettingsTab();
+
+  return `<div class="season-head">
+      <button class="back-link" data-action="go-home">‹ All teams</button>
+      <h2>${escapeHtml(t.name)}</h2>
+      <div class="season-meta">${escapeHtml(s.name)}${s.competition ? ' · ' + escapeHtml(s.competition) : ''} · ${escapeHtml(formatLabel(s))}</div>
+      <div class="badges" style="justify-content:flex-start; margin-top:0.45rem">${roleBadges(myRoles(), isAdmin())}</div>
+    </div>
+    <nav class="tabs" aria-label="Season sections">
+      ${tabs.map(([k, label]) => `<button class="tab ${UI.tab === k ? 'active' : ''}" data-action="tab" data-tab="${k}" ${UI.tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
+    </nav>
+    ${content}`;
+}
+
+function renderGamesTab(){
+  return `<div class="placeholder-card">
+    Fixtures, the game clock, the court board and live scoring are coming in the next build step.
+  </div>`;
+}
+
+function renderPlayersTab(){
+  const editable = canEditRoster();
+  const players = CUR.players.slice().sort((a,b) =>
+    (b.active !== false) - (a.active !== false) || (a.name || '').localeCompare(b.name || ''));
+  const activeCount = players.filter(p => p.active !== false).length;
+
+  const rows = players.map(p => {
+    const inactive = p.active === false;
+    if (!editable) return `<div class="list-row ${inactive ? 'inactive' : ''}">
+        <span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
+        <span class="pname grow">${escapeHtml(p.name)}</span>
+        ${inactive ? '<span class="badge">Inactive</span>' : ''}
+      </div>`;
+    return `<div class="list-row ${inactive ? 'inactive' : ''}">
+        <span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
+        <input class="row-input" id="pl-${escapeHtml(p.id)}" value="${escapeHtml(p.name)}" maxlength="40"
+          data-field="player-name" data-player="${escapeHtml(p.id)}" aria-label="Player name">
+        <button class="btn ghost small" data-action="toggle-player" data-player="${escapeHtml(p.id)}">
+          ${inactive ? 'Make active' : 'Make inactive'}</button>
+      </div>`;
+  }).join('');
+
+  const add = editable ? `<form class="add-inline" data-form="add-player">
+      <input class="text-input" id="add-player-name" name="name" placeholder="Add a player" maxlength="40" required aria-label="New player name">
+      <button type="submit" class="btn">Add</button>
+    </form>` : '';
+
+  return `<h3 class="subhead">Players <span class="hint" style="font-family:var(--font-body); text-transform:none">${activeCount} active</span></h3>
+    <div class="list-card">
+      ${rows || '<div class="empty-state">No players yet.</div>'}
+      ${add}
+    </div>
+    ${editable ? '<p class="hint">Fill-ins go here too. Marking someone inactive hides them from game day but keeps their stats.</p>' : ''}`;
+}
+
+function renderPeopleTab(){
+  const admin = isAdmin();
+  const s = CUR.season;
+  const members = CUR.members.slice().sort((a,b) => {
+    const aa = a.id === CUR.team.adminUid, bb = b.id === CUR.team.adminUid;
+    return (bb - aa) || (a.name || '').localeCompare(b.name || '');
+  });
+
+  const regenKey = 'regen-code';
+  const codeCard = `<div class="code-card">
+      <span class="label">Season code</span>
+      <span class="code-value">${escapeHtml(s.joinCode || '')}</span>
+      <span style="font-size:0.82rem; opacity:0.9">Parents sign in, tap “Join with a code” and enter this. They'll join as viewers until given a role.</span>
+      <div class="code-actions">
+        <button class="btn small" data-action="share-code">${navigator.share ? 'Share' : 'Copy invite'}</button>
+        ${admin ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
+          ${isArmed(regenKey) ? 'Tap again: old code stops working' : 'New code'}</button>` : ''}
+      </div>
+    </div>`;
+
+  const rows = members.map(m => {
+    const isTeamAdmin = m.id === CUR.team.adminUid;
+    const isMe = USER && m.id === USER.uid;
+    const roles = m.roles || [];
+    const head = `${avatarHtml(m.name, m.photoURL)}
+      <div class="grow">
+        <div class="pname">${escapeHtml(m.name || 'Unknown')}${isMe ? ' <span class="hint">(you)</span>' : ''}</div>
+        ${admin && m.email ? `<div class="psub">${escapeHtml(m.email)}</div>` : ''}
+      </div>`;
+    if (!admin) return `<div class="list-row">${head}<div class="badges">${roleBadges(roles, isTeamAdmin)}</div></div>`;
+
+    const rmKey = 'rm-' + m.id, adKey = 'admin-' + m.id;
+    return `<div class="list-row">
+        ${head}
+        <div class="role-toggles">
+          ${isTeamAdmin ? '<span class="badge admin">Admin</span>' : ''}
+          <button class="role-toggle coach" aria-pressed="${roles.includes('coach')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="coach">Coach</button>
+          <button class="role-toggle scorer" aria-pressed="${roles.includes('scorer')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="scorer">Scorer</button>
+        </div>
+        ${isTeamAdmin ? '' : `<div class="member-actions">
+          <button class="btn ghost small ${isArmed(adKey) ? 'armed' : ''}" data-action="make-admin" data-member="${escapeHtml(m.id)}">
+            ${isArmed(adKey) ? 'Tap again: you stop being admin' : 'Make admin'}</button>
+          <button class="btn danger small ${isArmed(rmKey) ? 'armed' : ''}" data-action="remove-member" data-member="${escapeHtml(m.id)}">
+            ${isArmed(rmKey) ? 'Tap again to remove' : 'Remove'}</button>
+        </div>`}
+      </div>`;
+  }).join('');
+
+  const leaveKey = 'leave';
+  const leave = admin ? '' : `<div class="danger-zone">
+      <button class="btn danger small ${isArmed(leaveKey) ? 'armed' : ''}" data-action="leave-season">
+        ${isArmed(leaveKey) ? 'Tap again to leave' : 'Leave this season'}</button>
+    </div>`;
+
+  return `${codeCard}
+    <h3 class="subhead">People <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
+    <div class="list-card">${rows}</div>
+    ${admin ? '<p class="hint">Coach: manages the lineup and court time. Scorer: scores games. One person can be both. Everyone else can follow games and see the stats.</p>' : ''}
+    ${leave}`;
+}
+
+function renderSettingsTab(){
+  const t = CUR.team, s = CUR.season;
+  const newSeason = UI.form === 'new-season' ? `
+    <form class="form-card" data-form="new-season">
+      <h3>Start a new season</h3>
+      ${seasonFieldsHtml('ns', { format:s.format, periodMinutes:s.periodMinutes, competition:s.competition })}
+      <label class="check-row"><input type="checkbox" id="ns-copy" name="copyPlayers" checked> Copy this season's active players</label>
+      <p class="hint">The new season gets its own code, so parents will need to join it.</p>
+      <div class="form-actions">
+        <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
+        <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Create season</button>
+      </div>
+    </form>` : `<button class="btn ghost" data-action="show-form" data-form-name="new-season">Start a new season</button>`;
+
+  return `<form class="form-card" data-form="team-settings">
+      <h3>Team</h3>
+      <div class="field">
+        <label for="ts-team">Team name</label>
+        <input class="text-input" id="ts-team" name="teamName" required maxlength="60" value="${escapeHtml(t.name)}">
+      </div>
+      <div class="form-actions"><button type="submit" class="btn">Save team</button></div>
+    </form>
+    <form class="form-card" data-form="season-settings">
+      <h3>This season</h3>
+      ${seasonFieldsHtml('ss', s)}
+      <div class="form-actions"><button type="submit" class="btn">Save season</button></div>
+    </form>
+    ${newSeason}`;
+}
+
+/* ---------------------------------------------------------------------
+   Loading data
+--------------------------------------------------------------------- */
+async function loadHome(){
+  HOME.loaded = false;
+  render();
+  try {
+    const snaps = await getMembershipDocs();
+    const items = await Promise.all(snaps.map(async (ms) => {
+      const { teamId, seasonId } = ms;
+      try {
+        const [teamSnap, seasonSnap, memberSnap] = await Promise.all([
+          getDoc(doc(db, 'teams', teamId)),
+          getDoc(doc(db, 'teams', teamId, 'seasons', seasonId)),
+          getDoc(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid))
+        ]);
+        if (!teamSnap.exists() || !seasonSnap.exists() || !memberSnap.exists()) throw { code:'permission-denied' };
+        const team = teamSnap.data(), season = seasonSnap.data();
+        return { teamId, seasonId, teamName:team.name, seasonName:season.name, competition:season.competition,
+          roles:memberSnap.data().roles || [], isAdmin:team.adminUid === USER.uid };
+      } catch (err){
+        // Removed from this season (or it no longer exists): tidy up our
+        // own pointer to it so it stops appearing here.
+        if (String(err && err.code).includes('permission-denied')){
+          deleteDoc(doc(db, 'users', USER.uid, 'memberships', seasonId)).catch(() => {});
+          return null;
+        }
+        throw err;
+      }
+    }));
+    HOME.items = items.filter(Boolean).sort((a,b) =>
+      a.teamName.localeCompare(b.teamName) || b.seasonName.localeCompare(a.seasonName));
+  } catch (err){
+    fail(err);
+    HOME.items = [];
+  }
+  HOME.loaded = true;
+  render();
+}
+
+async function getMembershipDocs(){
+  const snap = await getDocs(collection(db, 'users', USER.uid, 'memberships'));
+  return snap.docs.map(d => d.data());
+}
+
+function closeSeason(){
+  CUR.unsubs.forEach(u => u());
+  CUR = { team:null, season:null, members:[], players:[], unsubs:[], loaded:{} };
+}
+
+function openSeason(teamId, seasonId){
+  closeSeason();
+  UI = { ...UI, view:'season', teamId, seasonId, tab:'players', form:null };
+  saveNav();
+  render();
+  const seasonRef = doc(db, 'teams', teamId, 'seasons', seasonId);
+  const lostAccess = (err) => {
+    console.warn('Netty Pal: season listener', err);
+    if (String(err && err.code).includes('permission-denied') && UI.view === 'season' && UI.seasonId === seasonId){
+      deleteDoc(doc(db, 'users', USER.uid, 'memberships', seasonId)).catch(() => {});
+      toast("You're no longer a member of that season.", true);
+      goHome();
+    }
+  };
+  CUR.unsubs.push(onSnapshot(doc(db, 'teams', teamId), (snap) => {
+    CUR.team = snap.exists() ? { id:snap.id, ...snap.data() } : null; render();
+  }, lostAccess));
+  CUR.unsubs.push(onSnapshot(seasonRef, (snap) => {
+    CUR.season = snap.exists() ? { id:snap.id, ...snap.data() } : null; render();
+  }, lostAccess));
+  CUR.unsubs.push(onSnapshot(collection(seasonRef, 'members'), (snap) => {
+    CUR.members = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    CUR.loaded.members = true;
+    // If an admin removed us while we're looking at the season, leave.
+    if (USER && !CUR.members.some(m => m.id === USER.uid)) lostAccess({ code:'permission-denied' });
+    else render();
+  }, lostAccess));
+  CUR.unsubs.push(onSnapshot(collection(seasonRef, 'players'), (snap) => {
+    CUR.players = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    render();
+  }, lostAccess));
+}
+
+function goHome(){
+  closeSeason();
+  UI = { ...UI, view:'home', teamId:null, seasonId:null, form:null };
+  saveNav();
+  loadHome();
+}
+
+// Remember which season was open so a refresh (or reopening the installed
+// app) lands back in the same place.
+function saveNav(){
+  try { localStorage.setItem('nettyPalNav', JSON.stringify({ view:UI.view, teamId:UI.teamId, seasonId:UI.seasonId, tab:UI.tab })); } catch(e){}
+}
+function loadNav(){
+  try { return JSON.parse(localStorage.getItem('nettyPalNav') || 'null'); } catch(e){ return null; }
+}
+
+/* ---------------------------------------------------------------------
+   Actions that change data
+--------------------------------------------------------------------- */
+function memberProfile(){
+  return { name: USER.displayName || USER.email || 'Unknown', email: USER.email || '', photoURL: USER.photoURL || '' };
+}
+
+// Picks a code nobody else is using. The security rules only allow a
+// code to be created, never overwritten, so a clash can't hijack a team.
+async function uniqueCode(){
+  for (let i = 0; i < 6; i++){
+    const code = randomCode();
+    const snap = await getDoc(doc(db, 'joinCodes', code));
+    if (!snap.exists()) return code;
+  }
+  throw new Error("Couldn't create a unique season code. Please try again.");
+}
+
+function readSeasonFields(fd){
+  const mins = parseInt(fd.get('periodMinutes'), 10);
+  return {
+    name: String(fd.get('seasonName') || '').trim(),
+    competition: String(fd.get('competition') || '').trim(),
+    format: fd.get('format') === 'halves' ? 'halves' : 'quarters',
+    periodMinutes: (mins >= 1 && mins <= 30) ? mins : DEFAULT_PERIOD_MINUTES
+  };
+}
+
+// Writes a new season, its code, and makes the current user a member with
+// both roles. Used by "create team" and "new season".
+function addSeasonToBatch(batch, teamId, seasonId, code, fields){
+  batch.set(doc(db, 'teams', teamId, 'seasons', seasonId), { ...fields, joinCode:code, createdAt:serverTimestamp() });
+  batch.set(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid),
+    { ...memberProfile(), roles:['coach','scorer'], joinedAt:serverTimestamp() });
+  batch.set(doc(db, 'joinCodes', code), { teamId, seasonId });
+  batch.set(doc(db, 'users', USER.uid, 'memberships', seasonId), { teamId, seasonId });
+}
+
+async function createTeam(fd){
+  const teamName = String(fd.get('teamName') || '').trim();
+  const fields = readSeasonFields(fd);
+  if (!teamName || !fields.name) return;
+  const teamId = newId(), seasonId = newId();
+  const code = await uniqueCode();
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'teams', teamId), { name:teamName, adminUid:USER.uid, createdAt:serverTimestamp() });
+  addSeasonToBatch(batch, teamId, seasonId, code, fields);
+  await batch.commit();
+  toast('Team created.');
+  openSeason(teamId, seasonId);
+  UI.tab = 'people';
+  render();
+}
+
+async function joinWithCode(fd){
+  const code = normaliseCode(fd.get('code'));
+  if (!code) return;
+  const codeSnap = await getDoc(doc(db, 'joinCodes', code));
+  if (!codeSnap.exists()){ toast("That code wasn't found. Check it with your coach.", true); return; }
+  const { teamId, seasonId } = codeSnap.data();
+  const memberRef = doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid);
+  const existing = await getDoc(memberRef);
+  const batch = writeBatch(db);
+  if (!existing.exists()){
+    // The code is stored on the member doc so the security rules can check
+    // it matches the season's current code.
+    batch.set(memberRef, { ...memberProfile(), roles:[], code, joinedAt:serverTimestamp() });
+  }
+  batch.set(doc(db, 'users', USER.uid, 'memberships', seasonId), { teamId, seasonId });
+  await batch.commit();
+  toast(existing.exists() ? "You're already in this team." : "You're in! You can follow games and stats.");
+  openSeason(teamId, seasonId);
+}
+
+function seasonRef(){ return doc(db, 'teams', UI.teamId, 'seasons', UI.seasonId); }
+
+async function addPlayer(fd){
+  const name = String(fd.get('name') || '').trim();
+  if (!name) return;
+  await setDoc(doc(collection(seasonRef(), 'players')), { name, active:true, createdAt:serverTimestamp() });
+  const input = document.getElementById('add-player-name');
+  if (input){ input.value = ''; input.focus(); }
+}
+
+async function renamePlayer(playerId, name){
+  name = name.trim();
+  const p = CUR.players.find(p => p.id === playerId);
+  if (!p || !name || name === p.name) return render();
+  await updateDoc(doc(seasonRef(), 'players', playerId), { name });
+}
+
+async function togglePlayer(playerId){
+  const p = CUR.players.find(p => p.id === playerId);
+  if (!p) return;
+  await updateDoc(doc(seasonRef(), 'players', playerId), { active: p.active === false });
+}
+
+async function toggleRole(memberId, role){
+  const m = CUR.members.find(m => m.id === memberId);
+  if (!m) return;
+  const roles = new Set(m.roles || []);
+  if (roles.has(role)) roles.delete(role); else roles.add(role);
+  await updateDoc(doc(seasonRef(), 'members', memberId), { roles: Array.from(roles) });
+}
+
+async function removeMember(memberId){
+  await deleteDoc(doc(seasonRef(), 'members', memberId));
+  toast('Removed.');
+}
+
+async function makeAdmin(memberId){
+  const m = CUR.members.find(m => m.id === memberId);
+  await updateDoc(doc(db, 'teams', UI.teamId), { adminUid: memberId });
+  toast(`${m ? m.name : 'They'} is now the team admin.`);
+  UI.tab = 'people';
+}
+
+async function leaveSeason(){
+  const seasonId = UI.seasonId;
+  const batch = writeBatch(db);
+  batch.delete(doc(seasonRef(), 'members', USER.uid));
+  batch.delete(doc(db, 'users', USER.uid, 'memberships', seasonId));
+  await batch.commit();
+  toast('You left the season.');
+  goHome();
+}
+
+async function regenerateCode(){
+  const old = CUR.season.joinCode;
+  const code = await uniqueCode();
+  const batch = writeBatch(db);
+  batch.update(seasonRef(), { joinCode: code });
+  batch.set(doc(db, 'joinCodes', code), { teamId:UI.teamId, seasonId:UI.seasonId });
+  if (old) batch.delete(doc(db, 'joinCodes', old));
+  await batch.commit();
+  toast('New code ready. The old one no longer works.');
+}
+
+async function shareCode(){
+  const s = CUR.season, t = CUR.team;
+  const url = location.origin + location.pathname;
+  const text = `Join ${t.name} (${s.name}) on Netty Pal. Open ${url}, sign in with Google, tap "Join with a code" and enter: ${s.joinCode}`;
+  if (navigator.share){
+    try { await navigator.share({ title:'Netty Pal', text }); } catch(e){ /* cancelled */ }
+    return;
+  }
+  try { await navigator.clipboard.writeText(text); toast('Invite copied. Paste it into a message.'); }
+  catch(e){ toast('Copy failed. The code is ' + s.joinCode, true); }
+}
+
+async function saveTeamSettings(fd){
+  const name = String(fd.get('teamName') || '').trim();
+  if (!name) return;
+  await updateDoc(doc(db, 'teams', UI.teamId), { name });
+  toast('Team saved.');
+}
+
+async function saveSeasonSettings(fd){
+  const fields = readSeasonFields(fd);
+  if (!fields.name) return;
+  await updateDoc(seasonRef(), fields);
+  toast('Season saved.');
+}
+
+async function createNewSeason(fd){
+  const fields = readSeasonFields(fd);
+  if (!fields.name) return;
+  const teamId = UI.teamId, seasonId = newId();
+  const code = await uniqueCode();
+  const batch = writeBatch(db);
+  addSeasonToBatch(batch, teamId, seasonId, code, fields);
+  if (fd.get('copyPlayers')){
+    CUR.players.filter(p => p.active !== false).forEach(p => {
+      batch.set(doc(collection(db, 'teams', teamId, 'seasons', seasonId, 'players')),
+        { name:p.name, active:true, createdAt:serverTimestamp() });
+    });
+  }
+  await batch.commit();
+  toast('New season created.');
+  openSeason(teamId, seasonId);
+  UI.tab = 'people';
+  render();
+}
+
+/* ---------------------------------------------------------------------
+   Event wiring
+--------------------------------------------------------------------- */
+async function runBusy(fn){
+  if (UI.busy) return;
+  UI.busy = true; render();
+  try { await fn(); } catch (err){ fail(err); }
+  finally { UI.busy = false; render(); }
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const a = btn.dataset.action;
+  try {
+    if (a === 'sign-in'){
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } else if (a === 'sign-out'){
+      closeSeason();
+      await signOut(auth);
+    } else if (a === 'show-form'){
+      UI.form = btn.dataset.formName; render();
+      const first = document.querySelector('#app form input:not([type=hidden])');
+      if (first) first.focus();
+    } else if (a === 'close-form'){
+      UI.form = null; render();
+    } else if (a === 'open-season'){
+      openSeason(btn.dataset.team, btn.dataset.season);
+    } else if (a === 'go-home'){
+      goHome();
+    } else if (a === 'tab'){
+      UI.tab = btn.dataset.tab; UI.form = null; saveNav(); render();
+    } else if (a === 'toggle-player'){
+      await togglePlayer(btn.dataset.player);
+    } else if (a === 'toggle-role'){
+      await toggleRole(btn.dataset.member, btn.dataset.role);
+    } else if (a === 'remove-member'){
+      const key = 'rm-' + btn.dataset.member;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); await removeMember(btn.dataset.member);
+    } else if (a === 'make-admin'){
+      const key = 'admin-' + btn.dataset.member;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); await makeAdmin(btn.dataset.member);
+    } else if (a === 'leave-season'){
+      if (!isArmed('leave')) return arm('leave');
+      disarm('leave'); await leaveSeason();
+    } else if (a === 'regen-code'){
+      if (!isArmed('regen-code')) return arm('regen-code');
+      disarm('regen-code'); await runBusy(regenerateCode);
+    } else if (a === 'share-code'){
+      await shareCode();
+    }
+  } catch (err){ fail(err); render(); }
+});
+
+document.addEventListener('submit', (e) => {
+  const form = e.target.closest('form[data-form]');
+  if (!form) return;
+  e.preventDefault();
+  const fd = new FormData(form);
+  const name = form.dataset.form;
+  const done = () => { UI.form = null; };
+  if (name === 'join') runBusy(async () => { await joinWithCode(fd); done(); });
+  else if (name === 'create-team') runBusy(async () => { await createTeam(fd); done(); });
+  else if (name === 'add-player') addPlayer(fd).catch(fail);
+  else if (name === 'team-settings') saveTeamSettings(fd).catch(fail);
+  else if (name === 'season-settings') saveSeasonSettings(fd).catch(fail);
+  else if (name === 'new-season') runBusy(async () => { await createNewSeason(fd); done(); });
+});
+
+// Player names save when the box loses focus (or Enter is pressed).
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches('input[data-field="player-name"]')) e.target.blur();
+});
+
+/* ---------------------------------------------------------------------
+   Boot
+--------------------------------------------------------------------- */
+onAuthStateChanged(auth, (user) => {
+  USER = user;
+  authReady = true;
+  if (!user){ HOME = { loaded:false, items:[] }; UI = { ...UI, view:'home', form:null }; render(); return; }
+  const nav = loadNav();
+  if (nav && nav.view === 'season' && nav.teamId && nav.seasonId){
+    openSeason(nav.teamId, nav.seasonId);
+    if (nav.tab){ UI.tab = nav.tab; render(); }
+  } else {
+    goHome();
+  }
+});
+
+window.addEventListener('online', () => { offlineMode = false; render(); });
+window.addEventListener('offline', () => { offlineMode = true; render(); });
+render();
+
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
