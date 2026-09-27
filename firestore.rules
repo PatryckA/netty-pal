@@ -87,10 +87,35 @@ service cloud.firestore {
         }
 
         // Fixtures, availability and lineup plans: admin or Coach.
-        // (Live scoring in step 2b will add what Scorers can write.)
+        // Scorers can run the game (clock, status, who's scoring, the
+        // lineup plan and the saved summary) but not change the fixture.
+        // Once a game is finalised only the admin can change it (to unlock).
         match /games/{gameId} {
+          function canRunGame() {
+            return isAdmin(teamId) || hasRole(teamId, seasonId, 'coach') || hasRole(teamId, seasonId, 'scorer');
+          }
+          function notFinal() { return resource.data.get('status', 'scheduled') != 'final'; }
+
           allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
-          allow write: if isAdmin(teamId) || hasRole(teamId, seasonId, 'coach');
+          allow create, delete: if isAdmin(teamId) || hasRole(teamId, seasonId, 'coach');
+          allow update: if (isAdmin(teamId) || (notFinal() && (
+              hasRole(teamId, seasonId, 'coach')
+              || (hasRole(teamId, seasonId, 'scorer')
+                  && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'plan', 'summary'])))));
+
+          // Everything that happens in a game. Events are never deleted:
+          // undo and corrections mark them undone or change the player.
+          match /events/{eventId} {
+            function gameNotFinal() {
+              return get(/databases/$(database)/documents/teams/$(teamId)/seasons/$(seasonId)/games/$(gameId)).data.get('status', 'scheduled') != 'final';
+            }
+            allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
+            allow create: if canRunGame() && gameNotFinal() && request.resource.data.by == me();
+            allow update: if canRunGame() && gameNotFinal()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone', 'playerId']);
+            allow delete: if false;
+          }
         }
       }
     }
