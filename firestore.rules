@@ -89,7 +89,8 @@ service cloud.firestore {
         // Fixtures, availability and lineup plans: admin or Coach.
         // Scorers can run the game (clock, status, who's scoring, the
         // lineup plan and the saved summary) but not change the fixture.
-        // Once a game is finalised only the admin can change it (to unlock).
+        // Once a game is finalised only the admin can change it (to unlock),
+        // except that Coaches can still archive or restore it.
         match /games/{gameId} {
           function canRunGame() {
             return isAdmin(teamId) || hasRole(teamId, seasonId, 'coach') || hasRole(teamId, seasonId, 'scorer');
@@ -102,7 +103,9 @@ service cloud.firestore {
               hasRole(teamId, seasonId, 'coach')
               || (hasRole(teamId, seasonId, 'scorer')
                   && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'plan', 'summary'])))));
+                       .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'plan', 'summary']))))
+            || (hasRole(teamId, seasonId, 'coach')
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived'])));
 
           // Everything that happens in a game. Events are never deleted:
           // undo and corrections mark them undone or change the player.
