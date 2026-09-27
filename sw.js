@@ -1,8 +1,8 @@
 // Minimal offline cache for the app shell only. Firebase and Google Fonts
 // requests are left alone (different origin) so live data always goes
 // straight to the network. Bump CACHE when shipping a change.
-const CACHE = 'netty-pal-v17';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-ball-192.png', './icon-ball-512.png'];
+const CACHE = 'netty-pal-v18';
+const ASSETS = ['./', './index.html', './manifest.json', './icon-netball-192.png', './icon-netball-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
