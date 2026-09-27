@@ -422,6 +422,9 @@ button.log-row:hover{background:var(--surface-2);}
 .undo-bar{position:fixed; right:max(1rem, calc(50% - 320px + 1rem)); bottom:calc(1rem + env(safe-area-inset-bottom)); display:flex; gap:0.5rem; z-index:20;}
 .undo-btn{width:3.1rem; height:3.1rem; border-radius:12px; border:1px solid var(--line); background:var(--surface); color:var(--ink); box-shadow:0 4px 14px var(--shadow); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .undo-btn:disabled{opacity:0.4; cursor:default;}
+.mic-btn{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(1rem + env(safe-area-inset-bottom)); z-index:20; width:3.6rem; height:3.6rem; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink); box-shadow:0 4px 14px var(--shadow); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.mic-btn.on{background:var(--critical); border-color:var(--critical); color:#fff;}
+.mic-hint{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(5.2rem + env(safe-area-inset-bottom)); z-index:20; background:var(--ink); color:var(--paper); padding:0.4rem 0.8rem; border-radius:8px; font-size:0.85rem; font-weight:600; white-space:nowrap;}
 /* ---- Summaries ---- */
 .result-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:0.8rem 1rem; margin-bottom:0.6rem; text-align:center;}
 .result-card.won{border-color:var(--ok); background:var(--ok-bg);}
@@ -1583,7 +1586,8 @@ function livePlayHtml(g, st, scoring){
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
-    ${scoring ? undoBarHtml(g) : ''}`;
+    ${scoring ? undoBarHtml(g) : ''}
+    ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? '<div class="mic-hint" role="status">Listening... say "GS goal"</div>' : ''}` : ''}`;
 }
 
 // The last few goals and misses, newest first. Anyone who can run the game
@@ -1729,7 +1733,9 @@ function guideSheetHtml(g){
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Clock at 0:00? Tap Start ${q2}.`],
     ['<span class="g-btn go">Finalise</span>',
-      'Full time? Tap Finalise.']
+      'Full time? Tap Finalise.'],
+    ...(voiceSupported() ? [[`<span class="g-round">${micSvg()}</span>`,
+      'Or tap the mic and say "GS goal", "GA miss", "their goal" or "undo".']] : [])
   ];
   return `<div class="sheet-backdrop" data-action="close-guide"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="guide-title">
@@ -3059,6 +3065,127 @@ async function recordShot(g, side, pos, stat){
   else await recordStat(g, pos, stat);
 }
 
+/* ---------------------------------------------------------------------
+   Voice scoring (beta). Push-to-talk: the scorer taps the mic and says a
+   short phrase like "GS goal", "their miss" or "undo". Uses the phone
+   browser's built-in speech recognition (Chrome on Android, Safari on
+   iPhone), which sends the audio to Google or Apple to turn into text.
+   Nothing is recorded or stored by Netty Pal.
+--------------------------------------------------------------------- */
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let voiceRec = null;
+function voiceSupported(){ return !!SpeechRec; }
+
+// Turns what was heard into { side, pos, stat }, { undo:true } or { error }.
+// pos is 'GS' or 'GA', or '' for an opposition shot with no position.
+function parseVoice(g, heard, lineup){
+  let t = ' ' + String(heard || '').toLowerCase().replace(/[.,!?'"-]/g, ' ').replace(/\s+/g, ' ') + ' ';
+  if (/\b(undo|scratch that|cancel that|delete that|take that back)\b/.test(t)) return { undo:true };
+
+  // Which side: words for the other team, or their name.
+  const oppWords = nameKey(g.opponent).split(' ').filter(w => w.length >= 3 && !['the', 'team', 'netball', 'club'].includes(w));
+  let side = 'us';
+  if (/\b(their|theirs|them|they|opposition|opponents?|other team|away|visitors?)\b/.test(t)
+    || oppWords.some(w => new RegExp(`\\b${w}\\b`).test(t))) side = 'them';
+
+  // Position, checked before the event, since "goal shooter" contains "goal".
+  let pos = null;
+  const posRules = [
+    ['GS', /\b(goal shooter|shooter|g ?s|gee ess|gs)\b/],
+    ['GA', /\b(goal attack|g ?a|gee ay|ga)\b/]
+  ];
+  for (const [p, re] of posRules){
+    const m = t.match(re);
+    if (m){ pos = p; t = t.replace(m[0], ' '); break; }
+  }
+  // Or one of our shooters by name ("Rianne goal").
+  if (!pos && side === 'us'){
+    for (const p of SHOOTERS){
+      const first = nameKey(lineup[p] ? playerName(lineup[p]) : '').split(' ')[0];
+      if (first && first.length >= 2 && new RegExp(`\\b${first}\\b`).test(t)){ pos = p; t = t.replace(new RegExp(`\\b${first}\\b`), ' '); break; }
+    }
+  }
+  if (!pos && /\b(wing attack|wing defen[cs]e|centre|center|goal defen[cs]e|goal ?keeper|keeper|w a|w d|g d|g k|wa|wd|gd|gk)\b/.test(t))
+    return { error:'Only GS and GA can shoot.' };
+
+  let stat = null;
+  if (/\b(miss|missed|misses|missing|no goal|off target)\b/.test(t)) stat = 'miss';
+  else if (/\b(goal|goals|scored|scores|score|in)\b/.test(t)) stat = 'goal';
+  if (!stat) return { error:'Say "goal" or "miss".' };
+  if (side === 'us' && !pos) return { error:'Say who: "GS goal" or "GA miss".' };
+  return { side, pos:pos || '', stat };
+}
+
+function voiceErrorText(code){
+  if (code === 'not-allowed' || code === 'service-not-allowed')
+    return "Voice isn't allowed yet. Allow the microphone when asked. On iPhone, also turn on Settings > General > Keyboard > Enable Dictation. If it still won't work from the home screen icon, open Netty Pal in Safari.";
+  if (code === 'network') return 'Voice needs an internet connection.';
+  if (code === 'audio-capture') return "Couldn't use the microphone.";
+  if (code === 'no-speech') return "Didn't hear anything. Tap the mic and try again.";
+  if (code === 'language-not-supported') return "Voice isn't available in this language on this phone.";
+  return "Voice didn't work that time. Try again, or tap instead.";
+}
+
+// Tap the mic to listen; tap again to stop. Listening ends by itself after
+// one phrase.
+function toggleVoice(){
+  if (voiceRec){ try { voiceRec.stop(); } catch(e){} return; }
+  const g = findGame(UI.gameId);
+  if (!g || !isInPlay(g) || !amScorer(g) || !SpeechRec) return;
+  const rec = new SpeechRec();
+  rec.lang = 'en-AU';
+  rec.interimResults = false;
+  rec.continuous = false;
+  rec.maxAlternatives = 5;
+  let done = false;
+  rec.onresult = (e) => {
+    done = true;
+    const alts = Array.from((e.results && e.results[0]) || []).map(a => a.transcript).filter(Boolean);
+    handleVoice(alts).catch(fail);
+  };
+  rec.onerror = (e) => {
+    done = true;
+    if (e.error !== 'aborted') toast(voiceErrorText(e.error), true);
+  };
+  rec.onend = () => {
+    voiceRec = null; UI.voiceListening = false; render();
+    if (!done) toast(voiceErrorText('no-speech'), true);
+  };
+  voiceRec = rec;
+  UI.voiceListening = true;
+  render();
+  try { rec.start(); }
+  catch (err){ voiceRec = null; UI.voiceListening = false; render(); toast(voiceErrorText(err && err.name), true); }
+}
+
+// Tries each of the recogniser's guesses until one makes sense.
+async function handleVoice(alts){
+  const g = findGame(UI.gameId);
+  if (!g || !isInPlay(g)) return;
+  const lineup = computeGame(g, CUR.events).lineup || {};
+  let heard = alts[0] || '';
+  let parsed = null, error = null;
+  for (const a of alts){
+    const p = parseVoice(g, a, lineup);
+    if (!p.error){ parsed = p; heard = a; break; }
+    if (!error) error = p.error;
+  }
+  if (!parsed){ toast(`Heard "${heard}". ${error || "Didn't understand."}`, true); return; }
+  if (parsed.undo){ await undoLast(); return; }
+  if (parsed.side === 'us' && !lineup[parsed.pos]){ toast(`Heard "${heard}", but nobody is playing ${parsed.pos}.`, true); return; }
+  await recordShot(g, parsed.side, parsed.pos, parsed.stat);
+  const what = parsed.stat === 'goal' ? 'Goal' : 'Miss';
+  const who = parsed.side === 'them'
+    ? `${teamLabel(g, 'them')}${parsed.pos ? ' ' + parsed.pos : ''}`
+    : `${playerName(lineup[parsed.pos])} (${parsed.pos})`;
+  toast(`Heard "${heard}": ${what}, ${who}`);
+}
+
+function micSvg(){
+  return `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/>
+    <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+}
+
 async function swapCentre(g){
   const st = computeGame(g, CUR.events);
   await writeGame(g, [newEvent({ type:'centre', team:otherTeam(st.centre || 'us'), period:g.live.period, t:elapsedMs(g) })]);
@@ -3269,6 +3396,8 @@ document.addEventListener('click', async (e) => {
       if (!g || !stat || !isInPlay(g)) return;
       UI.pendingEvent = null; render();
       await recordShot(g, btn.dataset.side, btn.dataset.pos, stat);
+    } else if (a === 'voice'){
+      toggleVoice();
     } else if (a === 'redo'){
       await redoLast();
     } else if (a === 'log-select'){
@@ -3407,6 +3536,8 @@ let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
   const g = UI.view === 'game' ? findGame(UI.gameId) : null;
   syncWakeLock(g);
+  // Stop listening if the scorer leaves the Live tab or play stops.
+  if (voiceRec && !(g && UI.gameTab === 'live' && isInPlay(g))){ try { voiceRec.abort(); } catch(e){} }
   if (!g || UI.gameTab !== 'live' || g.status !== 'live' || !g.live) return;
   const el = document.querySelector('[data-clock]');
   if (el) el.textContent = fmtClock(periodMs(g) - elapsedMs(g));
