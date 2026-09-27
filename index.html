@@ -1931,7 +1931,152 @@ function renderSummaryTab(g){
     ${courtTimeTable(rows, fmtMins, playing)}
     <p class="hint">Minutes and seconds in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
 
-  return head + byPeriod + shooting + court;
+  prepareShare(g, st);
+  const share = `<div class="lineup-tools" style="justify-content:center">
+      <button class="btn" data-action="share-summary">Share result</button>
+    </div>`;
+  return head + share + byPeriod + shooting + court;
+}
+
+/* ---- Sharing a game result ----
+   A picture card plus a short text version, for team group chats. Court
+   time is deliberately left out of what's shared. The picture is made in
+   advance (while the Summary tab is open), because iPhones only allow
+   sharing straight after a tap. */
+function summaryShareText(g, st){
+  const n = periodCount(g), over = isGameOver(g);
+  const lines = [`${teamLabel(g, 'us')} ${st.us} : ${st.them} ${teamLabel(g, 'them')}`];
+  lines.push([over ? resultWord(st.us, st.them) : 'In progress', g.round ? 'Round ' + g.round : '', g.date ? shareDate(g) : '']
+    .filter(Boolean).join(' · '));
+  const periods = [];
+  for (let p = 1; p <= n; p++) if (st.byPeriod[p]) periods.push(`${periodName(g, p)} ${st.byPeriod[p].us}:${st.byPeriod[p].them}`);
+  if (periods.length) lines.push(periods.join(' · '));
+  const shooters = shareShooters(st);
+  if (shooters.length){
+    const shots = shooters.reduce((s, x) => s + x.shots, 0);
+    lines.push(`Shooting: ${shooters.map(x => `${x.name} ${x.goals}/${x.shots}`).join(', ')} (${st.us}/${shots}, ${pctText(st.us, shots)})`);
+  }
+  return lines.join('\n');
+}
+
+// e.g. "Sat 1 May" (no year or time), for the shared result.
+function shareDate(g){
+  const d = parseIsoDate(g.date);
+  return d ? d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short' }).replace(/,/g, '') : '';
+}
+
+function shareShooters(st){
+  return Object.entries(st.players).filter(([, r]) => r.goal + r.miss)
+    .map(([id, r]) => ({ name:playerName(id), goals:r.goal, shots:r.goal + r.miss }))
+    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
+}
+
+// Draws the result card as a 1080 x 1080 picture and returns it as a PNG.
+async function summaryImage(g, st){
+  try {
+    await Promise.all([
+      document.fonts.load('800 100px "Barlow Condensed"'),
+      document.fonts.load('700 40px Manrope'),
+      document.fonts.load('800 40px Manrope')
+    ]);
+  } catch(e){ /* falls back to system fonts */ }
+  const W = 1080, c = document.createElement('canvas');
+  c.width = W; c.height = W;
+  const x = c.getContext('2d');
+  const display = (size, weight) => `${weight || 800} ${size}px "Barlow Condensed", "Arial Narrow", sans-serif`;
+  const body = (size, weight) => `${weight || 700} ${size}px Manrope, "Segoe UI", sans-serif`;
+  const fit = (text, max) => { let t = String(text); while (t.length > 1 && x.measureText(t).width > max) t = t.slice(0, -2) + '…'; return t; };
+  const over = isGameOver(g), res = resultWord(st.us, st.them);
+
+  // Background and header band.
+  x.fillStyle = '#F2F0EA'; x.fillRect(0, 0, W, W);
+  x.fillStyle = '#1F4E8C'; x.fillRect(0, 0, W, 150);
+  // Ball: white with pink markings.
+  x.save(); x.translate(95, 75);
+  x.fillStyle = '#FFFFFF'; x.beginPath(); x.arc(0, 0, 42, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = '#E0457B'; x.lineWidth = 4; x.lineCap = 'round';
+  x.beginPath(); x.arc(0, 0, 42, 0, Math.PI * 2); x.stroke();
+  x.beginPath(); x.moveTo(0, -42); x.bezierCurveTo(-18, -14, -18, 14, 0, 42); x.moveTo(0, -42); x.bezierCurveTo(18, -14, 18, 14, 0, 42);
+  x.moveTo(-40, -12); x.bezierCurveTo(-14, -3, 14, -3, 40, -12); x.moveTo(-40, 12); x.bezierCurveTo(-14, 3, 14, 3, 40, 12); x.stroke();
+  x.restore();
+  x.fillStyle = '#FFFFFF'; x.textBaseline = 'middle'; x.textAlign = 'left';
+  x.font = display(58); x.fillText('NETTY PAL', 160, 78);
+  x.textAlign = 'right'; x.font = body(34);
+  x.fillText(fit([g.round ? 'Round ' + g.round : '', g.date ? shareDate(g) : ''].filter(Boolean).join(' · '), 560), W - 60, 78);
+
+  // Result word.
+  x.textAlign = 'center';
+  x.fillStyle = !over ? '#C8641C' : res === 'Won' ? '#2E7550' : res === 'Lost' ? '#B3261E' : '#172033';
+  x.font = display(90); x.fillText((over ? res : 'In progress').toUpperCase(), W / 2, 250);
+
+  // Teams and score.
+  x.fillStyle = '#586072'; x.font = body(40, 800);
+  x.fillText(fit(teamLabel(g, 'us').toUpperCase(), 420), 290, 370);
+  x.fillText(fit(teamLabel(g, 'them').toUpperCase(), 420), 790, 370);
+  x.fillStyle = '#172033'; x.font = display(240);
+  x.fillText(String(st.us), 290, 520); x.fillText(String(st.them), 790, 520);
+  x.fillStyle = '#9AA0AC'; x.font = display(150); x.fillText(':', W / 2, 505);
+
+  // Score by period.
+  const n = periodCount(g), boxW = 200, gap = 20, left = (W - (n * boxW + (n - 1) * gap)) / 2;
+  for (let p = 1; p <= n; p++){
+    const bx = left + (p - 1) * (boxW + gap);
+    x.fillStyle = '#FFFFFF'; x.strokeStyle = '#DAD5C8'; x.lineWidth = 3;
+    x.beginPath(); x.roundRect(bx, 660, boxW, 150, 20); x.fill(); x.stroke();
+    x.fillStyle = '#1F4E8C'; x.font = display(44); x.fillText(periodName(g, p).toUpperCase(), bx + boxW / 2, 705);
+    x.fillStyle = '#172033'; x.font = display(64);
+    x.fillText(st.byPeriod[p] ? `${st.byPeriod[p].us} : ${st.byPeriod[p].them}` : '-', bx + boxW / 2, 770);
+  }
+
+  // Shooters.
+  const shooters = shareShooters(st);
+  if (shooters.length){
+    x.fillStyle = '#586072'; x.font = body(32, 800); x.fillText('SHOOTING', W / 2, 880);
+    x.fillStyle = '#172033'; x.font = body(40);
+    const shots = shooters.reduce((s, y) => s + y.shots, 0);
+    x.fillText(fit(shooters.map(s => `${s.name} ${s.goals}/${s.shots}`).join('   ·   '), W - 120), W / 2, 940);
+    x.fillStyle = '#586072'; x.font = body(32);
+    x.fillText(`Team ${st.us}/${shots} (${pctText(st.us, shots)})`, W / 2, 1000);
+  }
+  return await new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('No image')), 'image/png'));
+}
+
+function prepareShare(g, st){
+  const text = summaryShareText(g, st);
+  const key = g.id + '|' + text;
+  if (CUR.share && CUR.share.key === key) return;
+  CUR.share = { key, text, file:null };
+  summaryImage(g, st).then(blob => {
+    if (!CUR.share || CUR.share.key !== key) return;
+    const name = `netty-pal-${nameKey(teamLabel(g, 'us')).replace(/ /g, '-')}-v-${nameKey(teamLabel(g, 'them')).replace(/ /g, '-')}.png`;
+    CUR.share.file = new File([blob], name, { type:'image/png' });
+  }).catch(err => console.warn('Netty Pal: share image', err));
+}
+
+async function shareSummary(g){
+  const st = computeGame(g, CUR.events);
+  prepareShare(g, st);
+  const { text, file } = CUR.share;
+  const title = `${teamLabel(g, 'us')} v ${teamLabel(g, 'them')}`;
+  // Phones: the share menu, with the picture if the phone allows it.
+  if (file && navigator.canShare && navigator.canShare({ files:[file] })){
+    try { await navigator.share({ files:[file], text, title }); } catch(e){ if (e.name !== 'AbortError') throw e; }
+    return;
+  }
+  if (navigator.share){
+    try { await navigator.share({ title, text }); } catch(e){ if (e.name !== 'AbortError') throw e; }
+    return;
+  }
+  // Computers: copy the text and save the picture.
+  let copied = false;
+  try { await navigator.clipboard.writeText(text); copied = true; } catch(e){}
+  if (file){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  toast(copied ? `Result copied${file ? ' and picture saved' : ''}. Paste it into a message.` : (file ? 'Picture saved.' : text));
 }
 
 // Loads the events of every game played so far this season (only while
@@ -3300,6 +3445,8 @@ document.addEventListener('click', async (e) => {
       goHome();
     } else if (a === 'reload-home'){
       loadHome();
+    } else if (a === 'share-summary'){
+      const g = findGame(UI.gameId); if (g) await shareSummary(g);
     } else if (a === 'reload-stats'){
       CUR.seasonEvents = null; loadSeasonEvents(true); render();
     } else if (a === 'import-open'){
