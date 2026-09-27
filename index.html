@@ -7,8 +7,8 @@
 <meta name="description" content="Court time, positions and live scoring for junior netball teams.">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1F4E8C">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-ball-192.png">
+<link rel="apple-touch-icon" href="icon-ball-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Netty Pal">
@@ -378,6 +378,13 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .event-log{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:0.35rem; margin:0.7rem 0 1rem;}
 .log-row{display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0.5rem; border-radius:8px; font-size:0.9rem;}
 .log-row.latest{background:var(--warm-bg);}
+button.log-row{width:100%; border:none; background:none; color:var(--ink); text-align:left; cursor:pointer; font-family:var(--font-body);}
+button.log-row.latest{background:var(--warm-bg);}
+button.log-row:hover{background:var(--surface-2);}
+.log-item.sel{background:var(--surface-2); border-radius:8px;}
+.log-item.sel button.log-row{background:none;}
+.log-actions{display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; padding:0.1rem 0.5rem 0.5rem; font-size:0.85rem;}
+.log-actions span{flex:1; min-width:6rem; color:var(--ink-soft);}
 .log-badge{min-width:2.7rem; text-align:center; font-family:var(--font-display); font-weight:800; font-size:0.88rem; padding:0.15rem 0.45rem; border-radius:7px; background:var(--accent); color:var(--accent-contrast); white-space:nowrap;}
 .log-badge.opp{background:var(--surface); color:var(--ink); border:1.5px solid var(--line);}
 .log-what{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -1546,25 +1553,46 @@ function livePlayHtml(g, st, scoring){
     ${scoring ? undoBarHtml(g) : ''}`;
 }
 
-// The last few goals and misses, newest first.
+// The last few goals and misses, newest first. Anyone who can run the game
+// can tap a row to undo that particular entry (not just the latest).
 function eventLogHtml(g){
   const pms = periodMs(g);
   const evs = CUR.events.filter(e => !e.undone && (e.type === 'goal' || e.type === 'miss' || e.type === 'oppGoal' || e.type === 'oppMiss'))
     .sort((a,b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
   if (!evs.length) return '';
+  const tappable = canScore();
   return `<div class="event-log" aria-label="Latest">
     ${evs.map((e, i) => {
       const opp = e.type === 'oppGoal' || e.type === 'oppMiss';
       const what = e.type === 'goal' || e.type === 'oppGoal' ? 'Goal' : 'Miss';
       const badge = opp ? `Opp ${e.pos || 'team'}` : (e.pos || '?');
       const who = opp ? '' : (e.playerId ? ' · ' + escapeHtml(playerName(e.playerId)) : '');
-      return `<div class="log-row ${i === 0 ? 'latest' : ''}">
-          <span class="log-badge ${opp ? 'opp' : ''}">${escapeHtml(badge)}</span>
+      const inner = `<span class="log-badge ${opp ? 'opp' : ''}">${escapeHtml(badge)}</span>
           <span class="log-what">${what}${who}</span>
-          <span class="log-when">${escapeHtml(periodName(g, e.period))} · ${fmtClock(pms - e.t)}</span>
+          <span class="log-when">${escapeHtml(periodName(g, e.period))} · ${fmtClock(pms - e.t)}</span>`;
+      if (!tappable) return `<div class="log-row ${i === 0 ? 'latest' : ''}">${inner}</div>`;
+      const sel = UI.logSel === e.id;
+      return `<div class="log-item ${sel ? 'sel' : ''}">
+          <button class="log-row ${i === 0 ? 'latest' : ''}" data-action="log-select" data-event="${escapeHtml(e.id)}" aria-expanded="${sel}"
+            aria-label="${escapeHtml(eventText(g, e))}. Tap for options">${inner}</button>
+          ${sel ? `<div class="log-actions">
+              <span>Undo this ${what.toLowerCase()}?</span>
+              <button class="btn danger small" data-action="log-undo" data-event="${escapeHtml(e.id)}">Undo</button>
+              <button class="btn ghost small" data-action="log-cancel">Keep</button>
+            </div>` : ''}
         </div>`;
     }).join('')}
   </div>`;
+}
+
+// Undoes one entry from the log. Goes on the Redo list like any undo.
+async function undoEvent(id){
+  const e = CUR.events.find(x => x.id === id && !x.undone);
+  if (!e) return;
+  redoStack.push(id);
+  try { await updateDoc(doc(eventsRef(UI.gameId), id), { undone:true }); }
+  catch (err){ redoStack.pop(); throw err; }
+  toast('Undone: ' + eventText(findGame(UI.gameId), e));
 }
 
 // Floating Undo / Redo for the scorer.
@@ -3172,6 +3200,13 @@ document.addEventListener('click', async (e) => {
       await recordShot(g, btn.dataset.side, btn.dataset.pos, stat);
     } else if (a === 'redo'){
       await redoLast();
+    } else if (a === 'log-select'){
+      UI.logSel = UI.logSel === btn.dataset.event ? null : btn.dataset.event; render();
+    } else if (a === 'log-cancel'){
+      UI.logSel = null; render();
+    } else if (a === 'log-undo'){
+      UI.logSel = null; render();
+      await undoEvent(btn.dataset.event);
     } else if (a === 'swap-centre'){
       const g = findGame(UI.gameId);
       if (g && isInPlay(g)) await swapCentre(g);
