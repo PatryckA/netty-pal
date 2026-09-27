@@ -239,9 +239,9 @@ main{flex:1; padding:1rem 1rem 4rem;}
 }
 .follow-note.own{border-style:solid;}
 /* ---- Court ---- */
-:root{ --court-bg:#CDE2D5; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#1A3027; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
-:root[data-theme="dark"]{ --court-bg:#1A3027; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; }
+:root{ --court-bg:#CFE4F5; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#172B42; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
+:root[data-theme="dark"]{ --court-bg:#172B42; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; }
 .sheet .grow{flex:1; min-width:0;}
 .court-wrap{max-width:320px; margin:0 auto 1rem;}
 .court-end{
@@ -377,10 +377,11 @@ const POSITIONS = ['GS','GA','WA','C','WD','GD','GK'];
 const POS_ZONE = { GS:'att', GA:'att', WA:'mid', C:'mid', WD:'mid', GD:'def', GK:'def' };
 const POS_NAMES = { GS:'Goal Shooter', GA:'Goal Attack', WA:'Wing Attack', C:'Centre', WD:'Wing Defence', GD:'Goal Defence', GK:'Goal Keeper' };
 // Where each bib sits on the court drawing, as % across and % down, with
-// the attacking end at the top: GS in the goal circle, GA and WA in the
-// attacking third, C in the centre, WD and GD in the defensive third, GK in
+// the attacking end at the top: GS in the goal circle, GA in the attacking
+// third, WA, C and WD in the centre third (WA and WD near the transverse
+// lines), GD in the defensive third, GK in
 // the defending goal circle.
-const COURT_SPOTS = { GS:[50,9], GA:[26,19], WA:[74,22], C:[50,48], WD:[26,71], GD:[74,74], GK:[50,89] };
+const COURT_SPOTS = { GS:[50,9], GA:[28,20], WA:[76,39], C:[50,50], WD:[24,54], GD:[72,76], GK:[50,89] };
 
 let USER = null;
 let authReady = false;
