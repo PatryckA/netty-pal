@@ -354,12 +354,32 @@ span.cp-wrap{cursor:default;}
   width:2rem; height:2rem; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--surface);
   color:var(--accent); font-weight:800; font-size:0.95rem; cursor:pointer; margin-left:auto; font-family:var(--font-body);
 }
-.guide-steps{margin:0.9rem 0 0.4rem; padding-left:1.4rem; display:flex; flex-direction:column; gap:0.7rem;}
-.guide-steps li{padding-left:0.2rem;}
-.guide-steps li::marker{font-family:var(--font-display); font-weight:800; color:var(--accent);}
-.guide-title{display:block; font-size:0.95rem;}
-.guide-steps span{font-size:0.9rem; color:var(--ink-soft);}
-.guide-steps span b{color:var(--ink);}
+/* Picture-first scoring guide: mini copies of the real buttons and tiles. */
+.guide{display:flex; flex-direction:column; margin:0.8rem 0 0.4rem;}
+.g-row{display:grid; grid-template-columns:9.5rem 1fr; align-items:center; gap:0.8rem; padding:0.55rem 0; border-top:1px solid var(--line);}
+.g-row:first-child{border-top:none;}
+.g-row p{margin:0; font-size:0.92rem; font-weight:600;}
+.g-demo{display:flex; align-items:center; gap:0.25rem; flex-wrap:nowrap;}
+.g-tile{
+  display:inline-flex; align-items:center; justify-content:center; min-width:2.2rem; height:2rem; padding:0 0.35rem;
+  border-radius:8px; border:1.5px solid var(--line); background:var(--surface); font-family:var(--font-display);
+  font-weight:800; font-size:0.95rem;
+}
+.g-tile.shooter{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+.g-tile.opp{background:var(--surface-2); min-width:1.9rem; font-size:0.85rem;}
+.g-btn{
+  display:inline-flex; align-items:center; height:1.8rem; padding:0 0.5rem; border-radius:7px; border:1px solid var(--line);
+  background:var(--surface); font-size:0.75rem; font-weight:800; white-space:nowrap;
+}
+.g-btn.goal,.g-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
+.g-round{
+  display:inline-flex; align-items:center; justify-content:center; width:2.1rem; height:2.1rem; border-radius:10px;
+  border:1px solid var(--line); background:var(--surface); box-shadow:0 2px 6px var(--shadow);
+}
+.g-round svg{width:18px; height:18px;}
+.g-pills{display:inline-flex; gap:0.15rem; background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:2px;}
+.g-pills .cp{padding:0.15rem 0.55rem; font-size:0.68rem;}
+.g-arrow{color:var(--ink-soft); font-weight:800; font-size:1.1rem; margin:0 0.05rem;}
 .sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
 .sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
 .pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
@@ -1687,17 +1707,29 @@ function eventText(g, e){
   return e.type;
 }
 
-// A short, plain-English guide for parents who are scoring.
+// A picture-first guide for parents who are scoring: each row shows a
+// small copy of what to tap, with a few words beside it.
 function guideSheetHtml(g){
-  const q1 = escapeHtml(periodName(g, 1)), q2 = escapeHtml(periodName(g, 2)), noun = escapeHtml(periodNoun(g));
-  const steps = [
-    ['Start', `Pick who takes the first centre pass, check the lineup, then tap <b>Start ${q1}</b>. The clock starts.`],
-    ['Record a shot', `Tap <b>GS</b> or <b>GA</b>, then <b>Goal</b> or <b>Miss</b>. For the other team, tap their GS, GA or Team. Rather pick Goal or Miss first? Swipe left.`],
-    ['Fix a mistake', 'Tap the <b>undo arrow</b> at the bottom to undo the last entry, or tap any entry in the list and choose <b>Undo</b>.'],
-    ['Play stops', 'Injury or umpire stoppage? Tap <b>pause</b>. Tap <b>play</b> to restart the clock.'],
-    ['Substitution', 'Tap the position (e.g. WA) and pick who is coming on. For GS or GA, tap them, then <b>Substitution</b>.'],
-    ['Centre pass', 'It switches by itself after every goal. If it looks wrong, tap <b>Us / Them</b> to switch it.'],
-    [`End of a ${noun}`, `At 0:00 the ${noun} ends by itself. Check the lineup, then tap <b>Start ${q2}</b>. At full time, check the list and tap <b>Finalise</b>.`]
+  const q2 = escapeHtml(periodName(g, 2));
+  const arrow = '<span class="g-arrow" aria-hidden="true">›</span>';
+  const pauseIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
+  const rows = [
+    [`<span class="g-tile shooter">GS</span>${arrow}<span class="g-btn goal">Goal</span><span class="g-btn">Miss</span>`,
+      'Our shot: tap the shooter, then Goal or Miss.'],
+    ['<span class="g-tile opp">GS</span><span class="g-tile opp">GA</span><span class="g-tile opp">Team</span>',
+      'Their shot: tap their shooter.'],
+    [`<span class="g-round">${undoSvg()}</span>`,
+      'Mistake? Tap undo, or tap the entry in the list.'],
+    [`<span class="g-round">${pauseIcon}</span>`,
+      'Play stopped? Pause the clock.'],
+    [`<span class="g-tile">WA</span>${arrow}<span class="g-btn">Lily</span>`,
+      'Sub? Tap the position, pick the player.'],
+    ['<span class="g-pills"><span class="cp on">Us</span><span class="cp">Them</span></span>',
+      'Centre pass wrong? Tap to switch.'],
+    [`<span class="g-btn go">Start ${q2}</span>`,
+      `Clock at 0:00? Tap Start ${q2}.`],
+    ['<span class="g-btn go">Finalise</span>',
+      'Full time? Tap Finalise.']
   ];
   return `<div class="sheet-backdrop" data-action="close-guide"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="guide-title">
@@ -1706,8 +1738,9 @@ function guideSheetHtml(g){
         <button class="btn ghost small" data-action="close-guide">Close</button>
       </div>
       <div class="sheet-body">
-        <ol class="guide-steps">${steps.map(([title, text]) => `<li><b class="guide-title">${title}</b><span>${text}</span></li>`).join('')}</ol>
-        <p class="hint">Need to leave early? Anyone else with the Scorer or Coach role can open this game and tap <b>Take over scoring</b>. Nothing is lost.</p>
+        <div class="guide">${rows.map(([demo, text]) =>
+          `<div class="g-row"><div class="g-demo" aria-hidden="true">${demo}</div><p>${text}</p></div>`).join('')}</div>
+        <p class="hint">Tip: swipe left to pick Goal or Miss first. Have to leave? Someone else can tap Take over scoring.</p>
       </div>
     </div>`;
 }
