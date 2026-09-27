@@ -57,11 +57,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 ## 4. Fixtures
 
 - Admin can add fixtures for the season: round, date, time, venue/court, opponent.
-- **Import**: upload a PDF or paste text from the competition draw. The app pulls
-  out rows that look like fixtures and shows an **editable table to review** before
-  saving. Nothing is saved without review.
-- Import is built last and needs a real fixture file from the competition to design
-  against (not yet supplied).
+- **Import** (built, option A: no AI): upload a PDF or CSV, or paste text from the
+  competition draw. Only games involving our team are kept (the name in the draw is
+  editable, with a pick-list of teams found). Understands round headings with games
+  under them, one game per line, and tables with a heading row (PDF columns are
+  matched by position). Byes are skipped; games already added are unticked. The
+  app shows an **editable list to review** before saving. Nothing is saved without
+  review. PDFs are read in the browser with PDF.js from the jsDelivr CDN.
+- Built without a real fixture from the competition; tune it once one is available.
+  Screenshot import (AI, option B) was considered and deferred.
 - Manual "add fixture" and "new game on the day" are always available.
 - Each game inherits the season's format and period length, and can override both.
 

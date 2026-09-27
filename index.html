@@ -350,6 +350,14 @@ button.court-token:hover .pos-chip{transform:scale(1.06);}
 .live-play .clock{font-size:2rem;}
 .live-play .control-row{margin-bottom:0.5rem;}
 .live-play .control-row .btn{padding-top:0.6rem; padding-bottom:0.6rem;}
+/* ---- Fixture import ---- */
+textarea.text-input{font-family:var(--font-body); font-size:0.9rem; resize:vertical;}
+.imp-row{border-top:1px solid var(--line); padding-top:0.7rem; display:flex; flex-direction:column; gap:0.5rem;}
+.imp-row.dup{opacity:0.75;}
+.imp-inc{font-weight:700;}
+.imp-grid{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.5rem;}
+.imp-grid .imp-wide{grid-column:1 / -1;}
+.imp-grid .text-input{padding:0.45rem 0.55rem; font-size:0.9rem;}
 .big-note{text-align:center; font-family:var(--font-display); font-size:1.3rem; font-weight:700; text-transform:uppercase; margin:0 0 0.6rem;}
 .pos-chip{
   width:2.6rem; height:2.6rem; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
@@ -715,7 +723,7 @@ function gameSummary(g, events){
 --------------------------------------------------------------------- */
 function captureInputs(){
   const saved = {};
-  document.querySelectorAll('#app input[id], #app select[id]').forEach(el => {
+  document.querySelectorAll('#app input[id]:not([type=file]), #app select[id], #app textarea[id]').forEach(el => {
     saved[el.id] = (el.type === 'checkbox' || el.type === 'radio') ? { checked:el.checked } : { value:el.value };
   });
   const active = document.activeElement;
@@ -935,12 +943,15 @@ function renderGamesTab(){
   const upcoming = games.filter(g => !g.date || g.date >= today);
   const earlier = games.filter(g => g.date && g.date < today).reverse();
 
-  const form = UI.form === 'add-game'
-    ? gameFormHtml('ag', { round:nextRound(), format:CUR.season.format, periodMinutes:CUR.season.periodMinutes }, 'add-game', 'Add fixture')
-    : '';
+  let form = '';
+  if (UI.form === 'add-game') form = gameFormHtml('ag', { round:nextRound(), format:CUR.season.format, periodMinutes:CUR.season.periodMinutes }, 'add-game', 'Add fixture');
+  else if (UI.form === 'import' && editable) form = importHtml();
 
   const addBtn = editable && !UI.form
-    ? `<div class="home-actions"><button class="btn" data-action="show-form" data-form-name="add-game">Add fixture</button></div>` : '';
+    ? `<div class="home-actions">
+        <button class="btn" data-action="show-form" data-form-name="add-game">Add fixture</button>
+        <button class="btn ghost" data-action="import-open">Import season fixtures</button>
+      </div>` : '';
 
   let body;
   if (!games.length){
@@ -2150,6 +2161,371 @@ async function availAll(){
   await updateDoc(gameRef(g.id), { available: CUR.players.filter(p => p.active !== false).map(p => p.id) });
 }
 
+/* ---------------------------------------------------------------------
+   Fixture import. Reads a pasted draw, a PDF or a spreadsheet (CSV) into
+   rows to check before saving. Competition draws usually list every game
+   in the division, so only games involving our team are kept.
+--------------------------------------------------------------------- */
+const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const MONTH_RE = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?';
+const WEEKDAY_RE = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?,?/gi;
+const VS_RE = /\s+(?:vs?\.?|versus|v\/s)\s+/i;
+// Cell breaks: a pipe, tab, two or more spaces, a spaced hyphen or en dash, or a comma.
+const CELL_SPLIT = /\s*(?:\||\t| {2,}| - | – |, )\s*/;
+const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296/build/pdf.min.mjs';
+const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs';
+
+function nameKey(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+// A day and month with no year: the year in the season's name (e.g.
+// "Winter 2027") if it has one, otherwise this year, or next year if that
+// date has already passed by more than a month.
+function seasonYear(){
+  const m = `${(CUR.season && CUR.season.name) || ''} ${(CUR.season && CUR.season.competition) || ''}`.match(/\b(20\d\d)\b/);
+  return m ? +m[1] : 0;
+}
+function isoDate(y, m, d){
+  if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) return '';
+  if (!y) y = seasonYear();
+  if (!y){
+    const now = new Date();
+    y = now.getFullYear();
+    if (new Date(y, m - 1, d) < new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)) y++;
+  } else if (y < 100) y += 2000;
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+// Finds a date in the text; returns { iso, match } or null.
+function findDate(text){
+  let m;
+  if ((m = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/))) return { iso:isoDate(+m[1], +m[2], +m[3]), match:m[0] };
+  // (Not preceded by ":" or ".", so a time like "9:30 May Park" isn't read as 30 May.)
+  if ((m = text.match(new RegExp(`(?<![:.\\d])\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${MONTH_RE}(?:,?\\s+(\\d{4}))?`, 'i'))))
+    return { iso:isoDate(m[3] ? +m[3] : 0, MONTHS.indexOf(m[2].toLowerCase()) + 1, +m[1]), match:m[0] };
+  if ((m = text.match(new RegExp(`\\b${MONTH_RE}\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b`, 'i'))))
+    return { iso:isoDate(m[3] ? +m[3] : 0, MONTHS.indexOf(m[1].toLowerCase()) + 1, +m[2]), match:m[0] };
+  // Australian day/month order.
+  if ((m = text.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) return { iso:isoDate(m[3] ? +m[3] : 0, +m[2], +m[1]), match:m[0] };
+  if ((m = text.match(/\b(\d{1,2})[-.](\d{1,2})[-.](\d{2,4})\b/))) return { iso:isoDate(+m[3], +m[2], +m[1]), match:m[0] };
+  return null;
+}
+
+// Finds a time; returns { hhmm, match } or null. Without am/pm, times
+// before 8 are taken as afternoon (junior netball rarely starts before 8am).
+function findTime(text){
+  let m = text.match(/\b(\d{1,2})[:.](\d{2})\s*(a\.?m\.?|p\.?m\.?)?(?![\d/])/i);
+  let h, min, ap;
+  if (m){ h = +m[1]; min = +m[2]; ap = m[3]; }
+  else if ((m = text.match(/\b(\d{1,2})\s*(a\.?m\.?|p\.?m\.?)(?![a-z])/i))){ h = +m[1]; min = 0; ap = m[2]; }
+  else return null;
+  if (h > 23 || min > 59) return null;
+  const pm = ap && /p/i.test(ap), am = ap && /a/i.test(ap);
+  if (pm && h < 12) h += 12;
+  if (am && h === 12) h = 0;
+  if (!ap && h >= 1 && h < 8) h += 12;
+  return { hhmm:`${pad2(h)}:${pad2(min)}`, match:m[0] };
+}
+
+// Reads one line of a draw. Matched pieces are cut out and replaced with a
+// cell break, so what's left splits cleanly into team names and venue.
+function parseFixtureLine(raw){
+  let text = ' ' + raw.replace(/ /g, ' ') + ' ';
+  const cut = (s) => { text = text.replace(s, ' | '); };
+  const out = { date:'', time:'', round:'', court:'', venue:'', home:'', away:'', bye:/\bbye\b/i.test(raw) };
+  const d = findDate(text); if (d && d.iso){ out.date = d.iso; cut(d.match); }
+  text = text.replace(WEEKDAY_RE, ' | ');
+  let m = text.match(/\b(?:round|rnd|rd|week|wk)\s*\.?\s*(\d{1,2})\b/i) || text.match(/\bR(\d{1,2})\b/);
+  if (m){ out.round = m[1]; cut(m[0]); }
+  const t = findTime(text); if (t){ out.time = t.hhmm; cut(t.match); }
+  m = text.match(/\b(?:court|ct)\s*\.?\s*#?\s*([a-z]?\d{1,2}[a-z]?)\b/i);
+  if (m){ out.court = 'Court ' + m[1].toUpperCase(); cut(m[0]); }
+  m = text.match(/\bvenue\s*:\s*([^|]+)/i);
+  if (m){ out.venue = m[1].trim(); cut(m[0]); }
+  const vs = text.match(VS_RE);
+  if (vs){
+    const left = text.slice(0, vs.index).split(CELL_SPLIT).map(s => s.trim()).filter(Boolean);
+    const right = text.slice(vs.index + vs[0].length).split(CELL_SPLIT).map(s => s.trim()).filter(Boolean);
+    out.home = left.pop() || '';
+    out.away = right.shift() || '';
+    const rest = [...left, ...right].filter(s => /[a-z]{3,}/i.test(s));
+    if (!out.venue && rest.length) out.venue = rest.join(', ');
+  }
+  return out;
+}
+
+// Splits a CSV or tab-separated line, respecting "quoted, cells".
+function splitDelimited(line, delim){
+  const cells = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++){
+    const c = line[i];
+    if (c === '"'){ if (q && line[i + 1] === '"'){ cur += '"'; i++; } else q = !q; }
+    else if (c === delim && !q){ cells.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
+// A table with a header row (Date, Time, Home, Away, ...), from a
+// spreadsheet (commas or tabs) or a PDF table (cells joined with " | ").
+// The header can come after title lines. Returns null if there isn't one.
+function tableDelim(line){
+  if (line.includes('\t')) return '\t';
+  if (line.includes(' | ')) return '|';
+  return line.includes(',') ? ',' : null;
+}
+function tableColumns(line){
+  const delim = tableDelim(line);
+  if (!delim) return null;
+  const head = splitDelimited(line, delim).map(h => h.toLowerCase().trim());
+  if (head.length < 3) return null;
+  const col = (re) => head.findIndex(h => re.test(h));
+  const c = { date:col(/^(date|day)/), time:col(/time|start/), round:col(/^(round|rnd|rd|week|wk)\b/), court:col(/^(court|ct)\b/),
+    venue:col(/venue|location|ground|field/), home:col(/home/), away:col(/away|visitor/),
+    opp:col(/opponent|opposition|against/), match:col(/match|game|fixture|teams/) };
+  const known = Object.values(c).filter(i => i >= 0).length;
+  if (known < 3 || (c.home < 0 && c.opp < 0 && c.match < 0)) return null;
+  return { delim, c, headKey:nameKey(line) };
+}
+function parseFixtureTable(lines){
+  const at = lines.findIndex(l => tableColumns(l));
+  if (at < 0) return null;
+  const { delim, c, headKey } = tableColumns(lines[at]);
+  return lines.slice(at + 1).filter(l => nameKey(l) !== headKey).map(line => {
+    const cells = splitDelimited(line, delim);
+    const get = (i) => (i >= 0 ? cells[i] || '' : '');
+    // A "v" printed between the team names can end up stuck to one of them.
+    const team = (i) => get(i).replace(/^(?:vs?\.?|versus)\s+|\s+(?:vs?\.?|versus)$/i, '').trim();
+    const d = findDate(get(c.date)), t = findTime(get(c.time));
+    const court = get(c.court);
+    const row = { date:d ? d.iso : '', time:t ? t.hhmm : '', round:(get(c.round).match(/\d+/) || [''])[0],
+      court:court ? (/court/i.test(court) ? court : 'Court ' + court) : '',
+      venue:get(c.venue), home:team(c.home), away:team(c.away), bye:/\bbye\b/i.test(line), opponent:team(c.opp) };
+    if (!row.home && c.match >= 0){
+      const parts = get(c.match).split(VS_RE);
+      if (parts.length === 2){ row.home = parts[0].trim(); row.away = parts[1].trim(); }
+    }
+    return row;
+  });
+}
+
+// Turns the whole draw into our games. Returns { rows, teams, total, byes }.
+function parseFixtures(text, ourName){
+  const lines = String(text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const games = [];
+  let byes = 0;
+  const ourKey = nameKey(ourName);
+  const isUs = (name) => {
+    const k = nameKey(name);
+    return !!k && !!ourKey && (k === ourKey || (k.length >= 3 && (k.includes(ourKey) || ourKey.includes(k))));
+  };
+  const table = lines.length > 1 ? parseFixtureTable(lines) : null;
+  if (table){
+    // Tables sometimes show the round, date or venue only once per group.
+    const last = { date:'', round:'', venue:'' };
+    table.forEach(r => {
+      ['date', 'round', 'venue'].forEach(k => { if (r[k]) last[k] = r[k]; else r[k] = last[k]; });
+      if (r.bye){ if (isUs(r.home) || isUs(r.away) || isUs(r.opponent)) byes++; return; }
+      if (r.opponent) games.push({ ...r, home:ourName, away:r.opponent });
+      else if (r.home && r.away) games.push(r);
+    });
+  } else {
+    // Headings like "Round 3, Saturday 10 May" apply to the games under them.
+    const ctx = { date:'', round:'', venue:'' };
+    lines.forEach(line => {
+      const p = parseFixtureLine(line);
+      if (!p.home || !p.away){
+        if (p.bye && isUs(line)) byes++;
+        if (p.date) ctx.date = p.date;
+        if (p.round) ctx.round = p.round;
+        if (p.venue) ctx.venue = p.venue;
+        return;
+      }
+      games.push({ ...p, date:p.date || ctx.date, round:p.round || ctx.round, venue:p.venue || ctx.venue });
+    });
+  }
+  const teams = new Set();
+  games.forEach(g => { teams.add(g.home); teams.add(g.away); });
+  const rows = games.filter(g => isUs(g.home) || isUs(g.away)).map(g => {
+    const opponent = isUs(g.home) ? g.away : g.home;
+    const dup = CUR.games.some(x => x.date && x.date === g.date && nameKey(x.opponent) === nameKey(opponent));
+    return { round:g.round, date:g.date, time:g.time, court:g.court, venue:g.venue, opponent, dup };
+  });
+  return { rows, teams:Array.from(teams).filter(Boolean).sort(), total:games.length, byes };
+}
+
+// Reads a PDF's text in the browser with PDF.js (loaded only when needed).
+// Text is grouped into lines by height on the page. If a row of column
+// headings is found (Date, Time, Home, Away...), each later line is split
+// into those columns by where the text sits, so blank cells stay blank.
+// Otherwise gaps between words become cell breaks.
+const HEADING_RE = /^(date|day|time|start|round|rnd|rd|court|ct|venue|location|home|away|visitor|opponent|match|game|teams?)$/i;
+async function pdfToText(file){
+  const pdfjs = await import(PDFJS_URL);
+  pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+  const pdf = await pdfjs.getDocument({ data:new Uint8Array(await file.arrayBuffer()) }).promise;
+  const out = [];
+  let columns = null; // x positions of the column headings, carried across pages
+  for (let i = 1; i <= pdf.numPages; i++){
+    const content = await (await pdf.getPage(i)).getTextContent();
+    const rows = [];
+    content.items.forEach(it => {
+      if (!it.str || !it.str.trim()) return;
+      const x = it.transform[4], y = it.transform[5];
+      let row = rows.find(r => Math.abs(r.y - y) < 3);
+      if (!row){ row = { y, items:[] }; rows.push(row); }
+      row.items.push({ x, w:it.width || 0, s:it.str.trim() });
+    });
+    rows.sort((a,b) => b.y - a.y).forEach(r => {
+      r.items.sort((a,b) => a.x - b.x);
+      const headings = r.items.filter(it => HEADING_RE.test(it.s)).length;
+      if (headings >= 3 && headings >= r.items.length - 1){
+        columns = r.items.map(it => it.x);
+        out.push(r.items.map(it => it.s).join(' | '));
+        return;
+      }
+      if (columns){
+        const cells = columns.map(() => []);
+        r.items.forEach(it => {
+          let c = 0;
+          columns.forEach((x, k) => { if (it.x >= x - 4) c = k; });
+          cells[c].push(it.s);
+        });
+        out.push(cells.map(parts => parts.join(' ')).join(' | '));
+        return;
+      }
+      let line = '', end = null;
+      r.items.forEach(it => {
+        if (end !== null){ const gap = it.x - end; line += gap > 6 ? ' | ' : ' '; }
+        line += it.s;
+        end = it.x + it.w;
+      });
+      out.push(line.trim());
+    });
+  }
+  return out.join('\n');
+}
+
+async function readImportFile(file){
+  if (!file) return;
+  const teamEl = document.getElementById('imp-team');
+  if (teamEl) UI.importTeam = teamEl.value.trim();
+  UI.importBusy = 'Reading ' + file.name + '…';
+  render();
+  try {
+    const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+    UI.importText = isPdf ? await pdfToText(file) : await file.text();
+    UI.importBusy = null;
+    runImport(true);
+  } catch (err){
+    console.warn('Netty Pal: import file', err);
+    UI.importBusy = null;
+    toast("Couldn't read that file. Try copying the text from it and pasting it instead.", true);
+    render();
+  }
+}
+
+// fromFile: the text has just been read from an upload, rather than typed.
+function runImport(fromFile){
+  const teamEl = document.getElementById('imp-team');
+  if (teamEl) UI.importTeam = teamEl.value.trim();
+  if (!fromFile){
+    const textEl = document.getElementById('imp-text');
+    if (textEl) UI.importText = textEl.value;
+  }
+  if (!String(UI.importText || '').trim()){ toast('Paste the fixture or choose a file first.', true); return; }
+  UI.importResult = parseFixtures(UI.importText, UI.importTeam || CUR.team.name);
+  render();
+  window.scrollTo(0, 0);
+}
+
+async function saveImport(fd){
+  const rows = UI.importResult ? UI.importResult.rows : [];
+  const batch = writeBatch(db);
+  let n = 0;
+  fd.getAll('inc').map(Number).forEach(i => {
+    if (!rows[i]) return;
+    const opponent = String(fd.get(`opponent-${i}`) || '').trim();
+    if (!opponent) return;
+    batch.set(doc(collection(seasonRef(), 'games')), {
+      round:String(fd.get(`round-${i}`) || '').trim(), opponent,
+      date:String(fd.get(`date-${i}`) || ''), time:String(fd.get(`time-${i}`) || ''),
+      venue:String(fd.get(`venue-${i}`) || '').trim(), court:String(fd.get(`court-${i}`) || '').trim(),
+      format:CUR.season.format || 'quarters', periodMinutes:CUR.season.periodMinutes || DEFAULT_PERIOD_MINUTES,
+      status:'scheduled', plan:{}, createdAt:serverTimestamp()
+    });
+    n++;
+  });
+  if (!n){ toast('Tick at least one game to add.', true); return; }
+  await batch.commit();
+  closeImport();
+  toast(`${n} fixture${n === 1 ? '' : 's'} added.`);
+}
+
+function closeImport(){
+  UI.form = null; UI.importText = ''; UI.importResult = null; UI.importTeam = ''; UI.importBusy = null;
+}
+
+function importHtml(){
+  const teamName = UI.importTeam || CUR.team.name;
+  const res = UI.importResult;
+  if (!res){
+    return `<div class="form-card">
+        <h3>Import fixtures</h3>
+        <p class="hint" style="margin:0">Upload the draw as a PDF or spreadsheet (CSV), or copy the text from it and paste it below. You'll check everything before it's saved.</p>
+        <div class="field">
+          <label for="imp-team">Your team's name in the draw</label>
+          <input class="text-input" id="imp-team" maxlength="60" value="${escapeHtml(teamName)}">
+          <span class="hint">Draws usually list every game in the division. Only games with this team are kept.</span>
+        </div>
+        <div class="field">
+          <label for="imp-file">Upload a file</label>
+          <input class="text-input" type="file" id="imp-file" data-field="import-file" accept=".pdf,.csv,.tsv,.txt,application/pdf,text/csv,text/plain">
+        </div>
+        <div class="field">
+          <label for="imp-text">Or paste the fixture</label>
+          <textarea class="text-input" id="imp-text" rows="7" placeholder="e.g. Round 1  Sat 3 May  9:30am  Court 4  Hawks 11U v Kestrels 11U">${escapeHtml(UI.importText || '')}</textarea>
+        </div>
+        ${UI.importBusy ? `<p class="hint" role="status" style="margin:0">${escapeHtml(UI.importBusy)}</p>` : ''}
+        <div class="form-actions">
+          <button type="button" class="btn ghost" data-action="import-cancel">Cancel</button>
+          <button type="button" class="btn" data-action="import-read" ${UI.importBusy ? 'disabled' : ''}>Find our games</button>
+        </div>
+      </div>`;
+  }
+
+  const pickTeam = !res.rows.length && res.teams.length ? `<div class="chip-wrap">${res.teams.slice(0, 40).map(t =>
+      `<button type="button" class="btn ghost small" data-action="import-pick-team" data-team="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}</div>` : '';
+  let summary;
+  if (res.rows.length) summary = `Found <b>${res.rows.length}</b> game${res.rows.length === 1 ? '' : 's'} for <b>${escapeHtml(teamName)}</b>${res.total > res.rows.length ? ` (out of ${res.total} in the draw)` : ''}.${res.byes ? ` ${res.byes} bye${res.byes === 1 ? '' : 's'} skipped.` : ''} Check each one, fix anything that's wrong, and untick any you don't want.`;
+  else if (res.total) summary = `Found ${res.total} games in the draw, but none for <b>${escapeHtml(teamName)}</b>. Tap your team's name as it appears in the draw:`;
+  else summary = `Couldn't find any games in that text. Games need to look something like "Hawks v Kestrels", with a date on the same line or in a heading above. Try copying the fixture from the competition website instead, or add games one at a time.`;
+
+  const rows = res.rows.map((r, i) => `<div class="imp-row ${r.dup ? 'dup' : ''}">
+      <label class="check-row imp-inc"><input type="checkbox" name="inc" value="${i}" id="imp-${i}-inc" ${r.dup ? '' : 'checked'}>
+        <span>${r.dup ? 'Already added (tick to add again)' : 'Add this game'}</span></label>
+      <div class="imp-grid">
+        <div class="field imp-wide"><label for="imp-${i}-opp">Opponent</label><input class="text-input" id="imp-${i}-opp" name="opponent-${i}" value="${escapeHtml(r.opponent)}" maxlength="60"></div>
+        <div class="field"><label for="imp-${i}-round">Round</label><input class="text-input" id="imp-${i}-round" name="round-${i}" value="${escapeHtml(r.round)}" maxlength="12"></div>
+        <div class="field"><label for="imp-${i}-date">Date</label><input class="text-input" type="date" id="imp-${i}-date" name="date-${i}" value="${escapeHtml(r.date)}"></div>
+        <div class="field"><label for="imp-${i}-time">Time</label><input class="text-input" type="time" id="imp-${i}-time" name="time-${i}" value="${escapeHtml(r.time)}"></div>
+        <div class="field"><label for="imp-${i}-court">Court</label><input class="text-input" id="imp-${i}-court" name="court-${i}" value="${escapeHtml(r.court)}" maxlength="30"></div>
+        <div class="field imp-wide"><label for="imp-${i}-venue">Venue</label><input class="text-input" id="imp-${i}-venue" name="venue-${i}" value="${escapeHtml(r.venue)}" maxlength="80"></div>
+      </div>
+    </div>`).join('');
+
+  return `<form class="form-card" data-form="import-save">
+      <h3>Check the fixtures</h3>
+      <p style="margin:0">${summary}</p>
+      ${pickTeam}
+      ${rows}
+      <div class="form-actions">
+        <button type="button" class="btn ghost" data-action="import-back">Back</button>
+        ${res.rows.length ? `<button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Add fixtures</button>` : ''}
+      </div>
+    </form>`;
+}
+
 /* ---- Live game ---- */
 function eventsRef(gameId){ return collection(gameRef(gameId), 'events'); }
 
@@ -2344,6 +2720,18 @@ document.addEventListener('click', async (e) => {
       goHome();
     } else if (a === 'reload-home'){
       loadHome();
+    } else if (a === 'import-open'){
+      closeImport(); UI.form = 'import'; render();
+    } else if (a === 'import-cancel'){
+      closeImport(); render();
+    } else if (a === 'import-read'){
+      runImport(false);
+    } else if (a === 'import-back'){
+      UI.importResult = null; render();
+    } else if (a === 'import-pick-team'){
+      UI.importTeam = btn.dataset.team;
+      UI.importResult = parseFixtures(UI.importText, UI.importTeam);
+      render();
     } else if (a === 'accept-invite'){
       const inv = HOME.invite;
       if (!inv) return;
@@ -2479,6 +2867,7 @@ document.addEventListener('submit', (e) => {
   else if (name === 'new-season') runBusy(async () => { await createNewSeason(fd); done(); });
   else if (name === 'add-game') runBusy(async () => { await addGame(fd); done(); });
   else if (name === 'edit-game') runBusy(() => saveGame(fd));
+  else if (name === 'import-save') runBusy(() => saveImport(fd));
   else if (name === 'add-correction'){ const g = findGame(UI.gameId); if (g) runBusy(() => addCorrection(g, fd)); }
 });
 
@@ -2486,6 +2875,7 @@ document.addEventListener('submit', (e) => {
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
+  if (el.matches('input[data-field="import-file"]') && el.files && el.files[0]) readImportFile(el.files[0]);
   if (el.matches('select[data-field="event-player"]')){
     const g = findGame(UI.gameId);
     if (g) correctEvent(g, el.dataset.event, { playerId:el.value }).catch(err => { fail(err); render(); });
