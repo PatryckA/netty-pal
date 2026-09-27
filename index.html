@@ -291,26 +291,8 @@ button.court-token:hover .pos-chip{transform:scale(1.06);}
 .pick-count.zero{color:var(--warm);}
 
 /* ---- Live game ---- */
-.scoreboard{
-  display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:0.5rem; background:var(--surface);
-  border:1px solid var(--line); border-radius:12px; padding:0.8rem 0.6rem; margin-bottom:0.8rem;
-}
-.sb-team{text-align:center; min-width:0;}
-.sb-name{
-  font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.sb-score{font-family:var(--font-display); font-size:3.2rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums;}
-.sb-mid{text-align:center; min-width:5.5rem;}
-.sb-period{font-family:var(--font-display); font-weight:700; font-size:1.15rem; text-transform:uppercase;}
 .clock{font-family:var(--font-display); font-size:2.3rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.05;}
 .clock.stopped{color:var(--warm);}
-.sb-phase{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft);}
-.centre-row{
-  grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:0.5rem; flex-wrap:wrap;
-  border-top:1px solid var(--line); padding-top:0.6rem; margin-top:0.2rem; font-size:0.88rem;
-}
-.centre-row b{color:var(--accent);}
 .scorer-bar{
   display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;
   font-size:0.82rem; color:var(--ink-soft); margin-bottom:0.8rem;
@@ -319,9 +301,6 @@ button.court-token:hover .pos-chip{transform:scale(1.06);}
 .control-row .btn{flex:1; min-width:8rem; padding-top:0.75rem; padding-bottom:0.75rem; font-size:0.95rem;}
 .btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
 .btn.go:hover{filter:brightness(0.95); background:var(--ok);}
-.sb-opp{display:flex; gap:0.3rem; justify-content:center; margin-top:0.35rem;}
-.sb-opp .btn{padding:0.3rem 0.5rem; font-size:0.75rem;}
-.live-play .control-row .btn{min-width:0;}
 .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:0.9rem;}
 .stat-btn{
   padding:0.95rem 0.5rem; font-size:1.02rem; font-weight:800; border-radius:10px; border:1px solid var(--line);
@@ -343,13 +322,69 @@ button.court-token:hover .pos-chip{transform:scale(1.06);}
 .stats-table tr.opp td{color:var(--ink-soft); font-style:italic;}
 .game-head.compact{margin-bottom:0.5rem;}
 .game-head.compact h2{font-size:1.4rem;}
-.live-play .court-wrap{max-width:275px; margin-bottom:0.6rem;}
-.live-play .court-end{padding:0.15rem 0;}
-.live-play .scoreboard{padding:0.55rem 0.5rem; margin-bottom:0.6rem;}
-.live-play .sb-score{font-size:2.6rem;}
-.live-play .clock{font-size:2rem;}
-.live-play .control-row{margin-bottom:0.5rem;}
-.live-play .control-row .btn{padding-top:0.6rem; padding-bottom:0.6rem;}
+.live-play{padding-bottom:3rem;}
+
+/* Scoreboard card */
+.sb2{background:var(--surface); border:1px solid var(--line); border-radius:14px; margin-bottom:0.7rem; box-shadow:0 2px 8px var(--shadow);}
+.sb2-top{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; padding:0.45rem 0.8rem; border-bottom:1px solid var(--line); min-height:2.4rem;}
+.sb2-period{font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:var(--accent); text-transform:uppercase; min-width:3.5rem;}
+.sb2-phase{font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); min-width:3.5rem; text-align:right;}
+.cp-wrap{display:inline-flex; align-items:center; gap:0.25rem; background:none; border:none; padding:0; cursor:pointer; color:var(--ink); font-family:var(--font-body);}
+span.cp-wrap{cursor:default;}
+.cp-label{font-size:0.64rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin-right:0.15rem;}
+.cp{font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; padding:0.25rem 0.75rem; border-radius:20px; color:var(--ink-soft);}
+.cp.on{background:var(--accent); color:var(--accent-contrast);}
+.sb2-main{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:0.5rem; padding:0.55rem 0.8rem 0.65rem;}
+.sb2-clock .clock{font-size:1.6rem; font-weight:700;}
+.sb2-score{display:flex; align-items:flex-end; gap:0.6rem;}
+.sb2-team{display:flex; flex-direction:column; align-items:center; min-width:0;}
+.sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:5.5rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.sb2-team b{font-family:var(--font-display); font-size:2.9rem; line-height:1; font-variant-numeric:tabular-nums;}
+.sb2-sep{width:1rem; height:4px; background:var(--line); border-radius:2px; margin-bottom:1.3rem;}
+.sb2-play{display:flex; justify-content:flex-end;}
+.play-btn{width:3.1rem; height:3.1rem; border-radius:12px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.play-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
+
+/* Scoring modes and position tiles */
+.mode-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem;}
+.mode-tabs{display:flex; background:var(--surface-2); border:1px solid var(--line); border-radius:20px; padding:2px;}
+.mode-tab{border:none; background:none; padding:0.35rem 0.75rem; border-radius:18px; font-size:0.78rem; font-weight:800; color:var(--ink-soft); cursor:pointer; font-family:var(--font-body);}
+.mode-tab.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px var(--shadow);}
+.sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
+.sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
+.pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
+.pos-row.two{grid-template-columns:1fr 1fr;}
+.pos-row.three{grid-template-columns:1fr 1fr 1fr;}
+.ptile{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.1rem; min-height:4.5rem; min-width:0;
+  padding:0.45rem 0.3rem; border-radius:12px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink);
+  cursor:pointer; font-family:var(--font-body);
+}
+div.ptile{cursor:default;}
+.ptile.shooter{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+.ptile.opp{background:var(--surface-2); min-height:3.4rem;}
+.ptile:disabled{opacity:0.4; cursor:default;}
+button.ptile:not(:disabled):active{transform:scale(0.97);}
+.pt-pos{font-family:var(--font-display); font-size:1.5rem; font-weight:800; line-height:1;}
+.pt-name{font-size:0.85rem; font-weight:700; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.pt-name.empty{font-style:italic; opacity:0.7;}
+.pt-time{font-size:0.72rem; font-variant-numeric:tabular-nums; opacity:0.8; min-height:0.9rem;}
+.ev-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;}
+.evbtn{padding:1rem; font-size:1.2rem; font-weight:800; border-radius:12px; border:2px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:var(--font-body);}
+.evbtn.goal.on{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
+.evbtn.miss.on{background:var(--warm); border-color:var(--warm); color:var(--chip-ink);}
+
+/* Event log and floating undo */
+.event-log{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:0.35rem; margin:0.7rem 0 1rem;}
+.log-row{display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0.5rem; border-radius:8px; font-size:0.9rem;}
+.log-row.latest{background:var(--warm-bg);}
+.log-badge{min-width:2.7rem; text-align:center; font-family:var(--font-display); font-weight:800; font-size:0.88rem; padding:0.15rem 0.45rem; border-radius:7px; background:var(--accent); color:var(--accent-contrast); white-space:nowrap;}
+.log-badge.opp{background:var(--surface); color:var(--ink); border:1.5px solid var(--line);}
+.log-what{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.log-when{font-size:0.75rem; color:var(--ink-soft); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.undo-bar{position:fixed; right:max(1rem, calc(50% - 320px + 1rem)); bottom:calc(1rem + env(safe-area-inset-bottom)); display:flex; gap:0.5rem; z-index:20;}
+.undo-btn{width:3.1rem; height:3.1rem; border-radius:12px; border:1px solid var(--line); background:var(--surface); color:var(--ink); box-shadow:0 4px 14px var(--shadow); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.undo-btn:disabled{opacity:0.4; cursor:default;}
 /* ---- Fixture import ---- */
 textarea.text-input{font-family:var(--font-body); font-size:0.9rem; resize:vertical;}
 .imp-row{border-top:1px solid var(--line); padding-top:0.7rem; display:flex; flex-direction:column; gap:0.5rem;}
@@ -463,7 +498,9 @@ let offlineMode = !navigator.onLine;
 // What the screen is showing. form is the name of an open inline form.
 // view is 'home', 'season' or 'game'; gameTab and period belong to the game screen.
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
-  gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null };
+  gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null, statSide:'us',
+  liveMode:'player', pendingEvent:null };
+try { if (localStorage.getItem('nettyPalLiveMode') === 'event') UI.liveMode = 'event'; } catch(e){}
 
 // Home screen: one entry per season the user belongs to.
 let HOME = { loaded:false, items:[] };
@@ -633,15 +670,11 @@ function gameFormatLabel(g){ return formatLabel({ format:g.format, periodMinutes
        periodEnd
      undone: true marks an event as undone or removed.
 --------------------------------------------------------------------- */
-const STATS = [
-  { key:'goal', label:'Goal', shooters:true },
-  { key:'miss', label:'Miss', shooters:true },
-  { key:'intercept', label:'Intercept' },
-  { key:'held', label:'Held ball', penalty:true },
-  { key:'obstruction', label:'Obstruction', penalty:true },
-  { key:'contact', label:'Contact', penalty:true }
-];
-const STAT_LABEL = Object.fromEntries(STATS.map(s => [s.key, s.label]));
+// Only goals and misses are recorded (by GS and GA, for both teams).
+// Games scored before this change may contain other stats; they keep
+// their labels here but are no longer offered.
+const STATS = [{ key:'goal', label:'Goal' }, { key:'miss', label:'Miss' }];
+const STAT_LABEL = { goal:'Goal', miss:'Miss', intercept:'Intercept', held:'Held ball', obstruction:'Obstruction', contact:'Contact' };
 const SHOOTERS = ['GS','GA'];
 
 // Anyone who can run a game: admin, Coach or Scorer.
@@ -654,7 +687,7 @@ function elapsedMs(g){
   const run = L.phase === 'running' && L.startedAt ? Date.now() - L.startedAt : 0;
   return Math.max(0, Math.min(periodMs(g), (L.elapsedMs || 0) + run));
 }
-function fmtClock(ms){ const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${pad2(s % 60)}`; }
+function fmtClock(ms){ const s = Math.max(0, Math.ceil(ms / 1000)); return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`; }
 function fmtMins(ms){ const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${pad2(s % 60)}`; }
 function otherTeam(t){ return t === 'us' ? 'them' : 'us'; }
 function teamLabel(g, t){ return t === 'us' ? (CUR.team ? CUR.team.name : 'Us') : (g.opponent || 'Opposition'); }
@@ -1174,10 +1207,9 @@ function gamePeriodCounts(g, ids){
 
 // A simple netball court, attacking end at the top. Each position's bib
 // sits in the area of the court that position plays in.
-// action is what tapping a bib does: 'pick-pos' (choose a player for the
-// plan) or 'live-pos' (record a stat or make a substitution in play).
-function courtHtml(plan, editable, g, p, action){
-  action = action || 'pick-pos';
+// Used for planning lineups (before a game and between periods); tapping a
+// bib opens the player picker.
+function courtHtml(plan, editable, g, p){
   const tokens = POSITIONS.map(pos => {
     const pid = plan[pos];
     const [x, y] = COURT_SPOTS[pos];
@@ -1186,10 +1218,8 @@ function courtHtml(plan, editable, g, p, action){
       <span class="token-name ${pid ? '' : 'empty'}">${escapeHtml(name)}</span>`;
     const style = `style="left:${x}%; top:${y}%"`;
     if (!editable) return `<div class="court-token" ${style} aria-label="${POS_NAMES[pos]}: ${escapeHtml(name)}">${inner}</div>`;
-    const label = action === 'live-pos' ? `${POS_NAMES[pos]}, ${escapeHtml(name)}`
-      : `${POS_NAMES[pos]}, ${escapeHtml(name)}. Change who plays ${pos} in ${escapeHtml(periodName(g, p))}`;
-    return `<button class="court-token ${UI.pickPos === pos || UI.statPos === pos ? 'picking' : ''}" ${style} data-action="${action}" data-pos="${pos}"
-        aria-label="${label}">${inner}</button>`;
+    return `<button class="court-token ${UI.pickPos === pos ? 'picking' : ''}" ${style} data-action="pick-pos" data-pos="${pos}"
+        aria-label="${POS_NAMES[pos]}, ${escapeHtml(name)}. Change who plays ${pos} in ${escapeHtml(periodName(g, p))}">${inner}</button>`;
   }).join('');
   return `<div class="court-wrap">
       <div class="court-end">Attacking end</div>
@@ -1355,7 +1385,7 @@ function renderLiveTab(g){
         <p class="hint" style="margin:0">Starting makes you the scorer and starts the clock.</p>
       </div>
       <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
-      ${courtHtml(plan, true, g, 1, 'pick-pos')}`
+      ${courtHtml(plan, true, g, 1)}`
       : `<div class="placeholder-card">This game hasn't started yet.</div>
       <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>${courtHtml(plan, false, g, 1)}`;
     if (canScore() && UI.pickPos){
@@ -1370,23 +1400,7 @@ function renderLiveTab(g){
 
   if (isInPlay(g)){
     const lineup = st.lineup || {};
-    if (scoring){
-      const last = lastUndoable();
-      body += `<div class="control-row">
-          ${L.phase === 'running'
-            ? '<button class="btn" data-action="pause-clock">Pause</button>'
-            : '<button class="btn go" data-action="resume-clock">Resume</button>'}
-          <button class="btn ghost" data-action="undo" ${last ? `aria-label="Undo ${escapeHtml(eventText(g, last))}"` : 'disabled'}>Undo</button>
-          <button class="btn ghost ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
-            ${isArmed('end-period') ? 'Tap again' : 'End ' + escapeHtml(periodName(g, L.period))}</button>
-        </div>`;
-    }
-    body += courtHtml(lineup, canScore(), g, L.period, 'live-pos');
-    if (scoring){
-      body += '<p class="hint">Tap a player to record a stat or make a substitution. Opposition goals and misses are under their score.</p>';
-    } else if (canScore()){
-      body += '<p class="hint">Tap a position to make a substitution.</p>';
-    }
+    body += livePlayHtml(g, st, scoring);
     if (UI.statPos && scoring) body += statSheetHtml(g, st);
     else if (UI.pickPos && canScore()){
       UI.pickMode = 'live';
@@ -1403,8 +1417,8 @@ function renderLiveTab(g){
     body += `<p class="big-note">End of ${escapeHtml(periodName(g, L.period))}</p>
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
       <p class="hint" style="text-align:center">${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' Tap a bib to change the lineup before it starts.' : ''}</p>
-      ${courtHtml(plan, canScore(), g, next, 'pick-pos')}`;
-    if (scoring) body += undoHtml(g);
+      ${courtHtml(plan, canScore(), g, next)}`;
+    if (scoring) body += undoBarHtml(g);
     if (canScore() && UI.pickPos){
       UI.pickMode = 'plan';
       const posOf = {}; POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
@@ -1427,36 +1441,148 @@ function renderLiveTab(g){
   }
 
   body += liveStatsHtml(g, st);
-  body += timelineHtml(g, isGameOver(g), isGameOver(g) && canScore() && status !== 'final');
+  if (isGameOver(g)) body += timelineHtml(g, true, canScore() && status !== 'final');
   return scoreboardHtml(g, st) + body;
 }
 
+// The in-play screen: position tiles for recording goals and misses, in
+// one of two modes the scorer swipes between. "Player first": tap a
+// shooter, then Goal or Miss. "Event first": tap Goal or Miss, then who.
+function livePlayHtml(g, st, scoring){
+  const L = g.live;
+  const lineup = st.lineup || {};
+  const mode = scoring ? UI.liveMode : 'player';
+  const ms = id => (id && st.players[id] ? st.players[id].ms : 0);
+  const tile = (pos, side, action, opts) => {
+    opts = opts || {};
+    const pid = side === 'us' ? lineup[pos] : null;
+    const shooter = SHOOTERS.includes(pos);
+    const cls = `ptile ${side === 'them' ? 'opp' : ''} ${side === 'us' && shooter ? 'shooter' : ''} ${opts.wide ? 'wide' : ''} ${opts.dim ? 'dim' : ''}`;
+    const label = side === 'them' ? (pos ? `${teamLabel(g, 'them')} ${pos}` : `${teamLabel(g, 'them')}, team`) : `${POS_NAMES[pos]}, ${pid ? playerName(pid) : 'empty'}`;
+    const inner = `<span class="pt-pos">${pos || 'Team'}</span>
+      ${side === 'us' ? `<span class="pt-name ${pid ? '' : 'empty'}">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</span>
+        <span class="pt-time" data-ptime="${escapeHtml(pid || '')}">${pid ? fmtMins(ms(pid)) : ''}</span>` : ''}`;
+    if (!action) return `<div class="${cls}" aria-label="${escapeHtml(label)}">${inner}</div>`;
+    return `<button class="${cls}" data-action="${action}" data-side="${side}" data-pos="${pos}" aria-label="${escapeHtml(label)}" ${opts.disabled ? 'disabled' : ''}>${inner}</button>`;
+  };
+
+  let controls = '';
+  if (scoring){
+    controls = `<div class="mode-row">
+        <div class="mode-tabs" role="tablist" aria-label="Scoring mode">
+          <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
+          <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Event first</button>
+        </div>
+        <button class="btn ghost small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
+          ${isArmed('end-period') ? 'Tap again' : 'End ' + escapeHtml(periodName(g, L.period))}</button>
+      </div>`;
+  }
+
+  let pane;
+  if (mode === 'event'){
+    const ev = UI.pendingEvent;
+    pane = `<div class="sec-label">1. What happened</div>
+      <div class="ev-grid">
+        <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
+        <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
+      </div>
+      <div class="sec-label">2. Who${ev ? '' : ' <span class="hint">(choose Goal or Miss first)</span>'}</div>
+      <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
+      <div class="sec-label">${escapeHtml(teamLabel(g, 'them'))}</div>
+      <div class="pos-row three">${tile('GS', 'them', 'ef-who', { disabled:!ev })}${tile('GA', 'them', 'ef-who', { disabled:!ev })}${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
+      <p class="hint">For substitutions, swipe back to Player first.</p>`;
+  } else {
+    const ourAction = scoring || canScore() ? 'tile' : null;
+    const oppAction = scoring ? 'tile' : null;
+    pane = `<div class="sec-label">Your positions</div>
+      <div class="pos-row two">${tile('GS', 'us', ourAction)}${tile('GA', 'us', ourAction)}</div>
+      <div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
+      <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>
+      <div class="sec-label">${escapeHtml(teamLabel(g, 'them'))}</div>
+      <div class="pos-row three">${tile('GS', 'them', oppAction)}${tile('GA', 'them', oppAction)}${tile('', 'them', oppAction)}</div>
+      ${scoring ? '<p class="hint">Tap a shooter to record a goal or miss. Tap anyone else for a substitution. Swipe left to choose the event first.</p>'
+        : canScore() ? '<p class="hint">Tap a position to make a substitution.</p>' : ''}`;
+  }
+  return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
+    ${eventLogHtml(g)}
+    ${scoring ? undoBarHtml(g) : ''}`;
+}
+
+// The last few goals and misses, newest first.
+function eventLogHtml(g){
+  const pms = periodMs(g);
+  const evs = CUR.events.filter(e => !e.undone && (e.type === 'goal' || e.type === 'miss' || e.type === 'oppGoal' || e.type === 'oppMiss'))
+    .sort((a,b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
+  if (!evs.length) return '';
+  return `<div class="event-log" aria-label="Latest">
+    ${evs.map((e, i) => {
+      const opp = e.type === 'oppGoal' || e.type === 'oppMiss';
+      const what = e.type === 'goal' || e.type === 'oppGoal' ? 'Goal' : 'Miss';
+      const badge = opp ? `Opp ${e.pos || 'team'}` : (e.pos || '?');
+      const who = opp ? '' : (e.playerId ? ' · ' + escapeHtml(playerName(e.playerId)) : '');
+      return `<div class="log-row ${i === 0 ? 'latest' : ''}">
+          <span class="log-badge ${opp ? 'opp' : ''}">${escapeHtml(badge)}</span>
+          <span class="log-what">${what}${who}</span>
+          <span class="log-when">${escapeHtml(periodName(g, e.period))} · ${fmtClock(pms - e.t)}</span>
+        </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// Floating Undo / Redo for the scorer.
+function undoBarHtml(g){
+  const last = lastUndoable();
+  return `<div class="undo-bar">
+      <button class="undo-btn" data-action="undo" ${last ? `aria-label="Undo ${escapeHtml(eventText(g, last))}"` : 'disabled aria-label="Undo"'}>${undoSvg()}</button>
+      <button class="undo-btn" data-action="redo" ${redoStack.length ? 'aria-label="Redo"' : 'disabled aria-label="Redo"'}>${undoSvg(true)}</button>
+    </div>`;
+}
+function undoSvg(flip){
+  return `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" ${flip ? 'style="transform:scaleX(-1)"' : ''}>
+    <path d="M9 14 4 9l5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+}
+
+// Score, clock, period and centre pass, with play/pause for the scorer.
 function scoreboardHtml(g, st){
   const L = g.live || {};
-  let mid;
+  const scoring = amScorer(g);
+  let period, phase = '', clock = '';
   if (!g.live || g.status === 'scheduled'){
-    mid = `<div class="sb-period">${escapeHtml(periodName(g, 1))}</div><div class="clock stopped">${fmtClock(periodMs(g))}</div><div class="sb-phase">Not started</div>`;
+    period = periodName(g, 1); phase = 'Not started';
+    clock = `<div class="clock stopped">${fmtClock(periodMs(g))}</div>`;
   } else if (isGameOver(g)){
-    mid = `<div class="sb-period">${g.status === 'final' ? 'Final' : 'Full time'}</div>`;
+    period = g.status === 'final' ? 'Final' : 'Full time';
   } else {
-    const phase = L.phase === 'running' ? 'Playing' : L.phase === 'paused' ? 'Paused' : 'Break';
-    mid = `<div class="sb-period">${escapeHtml(periodName(g, L.period))}</div>
-      <div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>
-      <div class="sb-phase">${phase}</div>`;
+    period = periodName(g, L.period);
+    phase = L.phase === 'running' ? 'Playing' : L.phase === 'paused' ? 'Paused' : 'Break';
+    clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
-  const centre = isInPlay(g) && st.centre ? `<div class="centre-row">
-      <span>Centre pass: <b>${escapeHtml(teamLabel(g, st.centre))}</b></span>
-      ${amScorer(g) ? '<button class="btn ghost small" data-action="swap-centre">Switch</button>' : ''}
-    </div>` : '';
-  const opp = amScorer(g) && isInPlay(g) ? `<div class="sb-opp">
-      <button class="btn ghost small" data-action="record-opp" data-stat="oppGoal" aria-label="${escapeHtml(teamLabel(g, 'them'))} goal">Goal</button>
-      <button class="btn ghost small" data-action="record-opp" data-stat="oppMiss" aria-label="${escapeHtml(teamLabel(g, 'them'))} miss">Miss</button>
-    </div>` : '';
-  return `<div class="scoreboard">
-      <div class="sb-team"><div class="sb-name">${escapeHtml(teamLabel(g, 'us'))}</div><div class="sb-score">${st.us}</div></div>
-      <div class="sb-mid">${mid}</div>
-      <div class="sb-team"><div class="sb-name">${escapeHtml(teamLabel(g, 'them'))}</div><div class="sb-score">${st.them}</div>${opp}</div>
-      ${centre}
+  let centre = '';
+  if (isInPlay(g) && st.centre){
+    const pill = (t, label) => `<span class="cp ${st.centre === t ? 'on' : ''}">${label}</span>`;
+    const inner = `<span class="cp-label">Centre</span>${pill('us', 'Us')}${pill('them', 'Them')}`;
+    centre = scoring
+      ? `<button class="cp-wrap" data-action="swap-centre" aria-label="Centre pass: ${escapeHtml(teamLabel(g, st.centre))}. Tap to switch.">${inner}</button>`
+      : `<span class="cp-wrap" aria-label="Centre pass: ${escapeHtml(teamLabel(g, st.centre))}">${inner}</span>`;
+  }
+  let play = '';
+  if (scoring && isInPlay(g)){
+    play = L.phase === 'running'
+      ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></button>`
+      : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></button>`;
+  }
+  return `<div class="sb2">
+      <div class="sb2-top"><span class="sb2-period">${escapeHtml(period)}</span>${centre}<span class="sb2-phase">${phase}</span></div>
+      <div class="sb2-main">
+        <div class="sb2-clock">${clock}</div>
+        <div class="sb2-score">
+          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'us'))}</span><b>${pad2(st.us)}</b></div>
+          <span class="sb2-sep" aria-hidden="true"></span>
+          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'them'))}</span><b>${pad2(st.them)}</b></div>
+        </div>
+        <div class="sb2-play">${play}</div>
+      </div>
     </div>`;
 }
 
@@ -1473,40 +1599,37 @@ function lastUndoable(){
   return CUR.events.filter(e => !e.undone && e.by === (USER && USER.uid) && e.type !== 'periodEnd' && !e.start)
     .sort((a,b) => (b.at || 0) - (a.at || 0))[0];
 }
-function undoHtml(g){
-  const e = lastUndoable();
-  if (!e) return '';
-  return `<div class="lineup-tools" style="justify-content:center"><button class="btn ghost small" data-action="undo">Undo: ${escapeHtml(eventText(g, e))}</button></div>`;
-}
-
 function eventText(g, e){
   if (STAT_LABEL[e.type]) return `${STAT_LABEL[e.type]}, ${e.playerId ? playerName(e.playerId) : 'unknown'}${e.pos ? ' (' + e.pos + ')' : ''}`;
-  if (e.type === 'oppGoal') return `${teamLabel(g, 'them')} goal`;
-  if (e.type === 'oppMiss') return `${teamLabel(g, 'them')} miss`;
+  if (e.type === 'oppGoal') return `${teamLabel(g, 'them')}${e.pos ? ' ' + e.pos : ''} goal`;
+  if (e.type === 'oppMiss') return `${teamLabel(g, 'them')}${e.pos ? ' ' + e.pos : ''} miss`;
   if (e.type === 'centre') return `Centre pass to ${teamLabel(g, e.team)}`;
   if (e.type === 'lineup') return 'Lineup change';
   return e.type;
 }
 
+// Goal / Miss for a shooter (ours or theirs), in Player first mode.
 function statSheetHtml(g, st){
-  const pos = UI.statPos;
-  const pid = st.lineup && st.lineup[pos];
-  const stats = STATS.filter(s => !s.shooters || SHOOTERS.includes(pos));
+  const pos = UI.statPos, side = UI.statSide || 'us';
+  const opp = side === 'them';
+  const pid = !opp && st.lineup && st.lineup[pos];
+  const title = opp ? `${teamLabel(g, 'them')} ${pos === 'Team' ? '' : pos}`.trim() : (pid ? playerName(pid) : 'Empty');
+  const sub = opp ? (pos === 'Team' ? 'Team shot' : 'Opposition ' + POS_NAMES[pos]) : POS_NAMES[pos];
+  const canShoot = opp || !!pid;
   return `<div class="sheet-backdrop" data-action="close-picker"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
       <div class="sheet-head">
-        <span class="pos-chip ${POS_ZONE[pos]}" aria-hidden="true">${pos}</span>
+        <span class="pos-chip ${opp ? 'unfilled' : POS_ZONE[pos]}" aria-hidden="true">${pos === 'Team' ? 'T' : pos}</span>
         <div class="grow">
-          <h3 id="sheet-title">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</h3>
-          <div class="psub">${POS_NAMES[pos]} · ${escapeHtml(periodName(g, g.live.period))}</div>
+          <h3 id="sheet-title">${escapeHtml(title)}</h3>
+          <div class="psub">${escapeHtml(sub)} · ${escapeHtml(periodName(g, g.live.period))}</div>
         </div>
         <button class="btn ghost small" data-action="close-picker">Close</button>
       </div>
       <div class="sheet-body">
-        ${pid ? `<div class="stat-grid">${stats.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">
-            ${s.label}${s.penalty ? '<small>Penalty</small>' : ''}</button>`).join('')}</div>`
+        ${canShoot ? `<div class="stat-grid">${STATS.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>`
           : `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>`}
-        <button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Substitution: change ${pos}</button>
+        ${opp ? '' : `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Substitution: change ${pos}</button>`}
       </div>
     </div>`;
 }
@@ -1517,22 +1640,20 @@ function liveStatsHtml(g, st){
   if (!list.length) return '';
   const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '·';
   const rows = list.map(id => {
-    const r = st.players[id] || { ms:0, goal:0, miss:0, intercept:0, held:0, obstruction:0, contact:0 };
-    const shots = r.goal + r.miss, pens = r.held + r.obstruction + r.contact;
+    const r = st.players[id] || { ms:0, goal:0, miss:0 };
+    const shots = r.goal + r.miss;
     return `<tr><td>${escapeHtml(playerName(id))}</td><td>${fmtMins(r.ms)}</td>
-      <td>${shots ? r.goal + '/' + shots : '·'}</td><td>${pct(r.goal, shots)}</td>
-      <td>${r.intercept || '·'}</td><td>${pens || '·'}</td></tr>`;
+      <td>${shots ? r.goal + '/' + shots : '·'}</td><td>${pct(r.goal, shots)}</td></tr>`;
   }).join('');
   const oppShots = st.them + st.oppMiss;
   return `<h3 class="subhead">Stats</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Time</th><th scope="col">Goals</th><th scope="col">%</th>
-        <th scope="col">Int</th><th scope="col">Pen</th></tr></thead>
+      <thead><tr><th scope="col">Player</th><th scope="col">Court time</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
       <tbody>${rows}
         <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${oppShots ? st.them + '/' + oppShots : '·'}</td>
-          <td>${pct(st.them, oppShots)}</td><td></td><td></td></tr></tbody>
+          <td>${pct(st.them, oppShots)}</td></tr></tbody>
     </table></div>
-    <p class="hint">Time is court time. Goals shows goals out of shots. Int is intercepts. Pen is penalties against (held ball, obstruction, contact).</p>`;
+    <p class="hint">Goals shows goals out of shots.</p>`;
 }
 
 // Recent events during play; the full timeline (with corrections) at full time.
@@ -2562,6 +2683,9 @@ async function writeGame(g, events, gameUpdates){
   const batch = writeBatch(db);
   events.forEach(ev => batch.set(doc(eventsRef(g.id)), ev));
   if (gameUpdates) batch.update(gameRef(g.id), gameUpdates);
+  // Anything new means there's nothing to redo. Cleared before saving, since
+  // the screen redraws as soon as the change lands.
+  if (events.length) redoStack = [];
   await batch.commit();
 }
 
@@ -2617,8 +2741,17 @@ async function recordStat(g, pos, type){
   await writeGame(g, [newEvent({ type, pos, playerId:pid, period:g.live.period, t:elapsedMs(g) })]);
 }
 
-async function recordOpp(g, type){
-  await writeGame(g, [newEvent({ type, period:g.live.period, t:elapsedMs(g) })]);
+// pos is the opposition's GS or GA, or empty when it's just "Team".
+async function recordOpp(g, type, pos){
+  const fields = { type, period:g.live.period, t:elapsedMs(g) };
+  if (pos === 'GS' || pos === 'GA') fields.pos = pos;
+  await writeGame(g, [newEvent(fields)]);
+}
+
+// Records "goal" or "miss" for either side, from either scoring mode.
+async function recordShot(g, side, pos, stat){
+  if (side === 'them') await recordOpp(g, stat === 'goal' ? 'oppGoal' : 'oppMiss', pos);
+  else await recordStat(g, pos, stat);
 }
 
 async function swapCentre(g){
@@ -2640,11 +2773,26 @@ async function setLiveSlot(g, pos, pid){
   await writeGame(g, [newEvent({ type:'lineup', lineup:next, period:g.live.period, t:elapsedMs(g) })]);
 }
 
+// Undo marks the scorer's last action as undone; Redo brings back the most
+// recently undone one. Recording anything new clears the Redo list.
+let redoStack = [];
+// The Redo list is updated before saving, so the buttons are right when the
+// screen redraws; if saving fails the change to the list is put back.
 async function undoLast(){
   const e = lastUndoable();
   if (!e) return;
-  await updateDoc(doc(eventsRef(UI.gameId), e.id), { undone:true });
+  redoStack.push(e.id);
+  try { await updateDoc(doc(eventsRef(UI.gameId), e.id), { undone:true }); }
+  catch (err){ redoStack.pop(); throw err; }
   toast('Undone: ' + eventText(findGame(UI.gameId), e));
+}
+async function redoLast(){
+  const id = redoStack.pop();
+  const e = id && CUR.events.find(x => x.id === id);
+  if (!e) return;
+  try { await updateDoc(doc(eventsRef(UI.gameId), id), { undone:false }); }
+  catch (err){ redoStack.push(id); throw err; }
+  toast('Redone: ' + eventText(findGame(UI.gameId), e));
 }
 
 async function takeOverScoring(g){
@@ -2786,25 +2934,36 @@ document.addEventListener('click', async (e) => {
       else await setPlanSlot(pos, btn.dataset.player);
       const token = document.querySelector(`.court-token[data-pos="${pos}"]`);
       if (token) token.focus();
-    } else if (a === 'live-pos'){
+    } else if (a === 'tile'){
+      // Player first: a shooter opens Goal / Miss, anyone else a substitution.
       const g = findGame(UI.gameId);
       if (!g || !isInPlay(g)) return;
-      if (amScorer(g)){ UI.statPos = btn.dataset.pos; UI.pickPos = null; }
-      else { UI.pickPos = btn.dataset.pos; UI.pickMode = 'live'; UI.statPos = null; }
+      const side = btn.dataset.side, pos = btn.dataset.pos || 'Team';
+      if (amScorer(g) && (side === 'them' || SHOOTERS.includes(pos))){ UI.statPos = pos; UI.statSide = side; UI.pickPos = null; }
+      else if (side === 'us'){ UI.pickPos = pos; UI.pickMode = 'live'; UI.statPos = null; }
       render(); focusSheet();
     } else if (a === 'stat-change-player'){
       UI.pickPos = UI.statPos; UI.pickMode = 'live'; UI.statPos = null; render(); focusSheet();
     } else if (a === 'record-stat'){
-      const g = findGame(UI.gameId), pos = UI.statPos;
+      const g = findGame(UI.gameId), pos = UI.statPos, side = UI.statSide || 'us';
       UI.statPos = null; render();
       if (g && pos && isInPlay(g)){
-        await recordStat(g, pos, btn.dataset.stat);
-        const token = document.querySelector(`.court-token[data-pos="${pos}"]`);
-        if (token) token.focus();
+        await recordShot(g, side, pos === 'Team' ? '' : pos, btn.dataset.stat);
+        const tile = document.querySelector(`.ptile[data-side="${side}"][data-pos="${pos === 'Team' ? '' : pos}"]`);
+        if (tile) tile.focus();
       }
-    } else if (a === 'record-opp'){
-      const g = findGame(UI.gameId);
-      if (g && isInPlay(g)) await recordOpp(g, btn.dataset.stat);
+    } else if (a === 'live-mode'){
+      setLiveMode(btn.dataset.mode);
+    } else if (a === 'ef-event'){
+      UI.pendingEvent = UI.pendingEvent === btn.dataset.stat ? null : btn.dataset.stat; render();
+    } else if (a === 'ef-who'){
+      // Event first: the chosen Goal or Miss goes to whoever is tapped.
+      const g = findGame(UI.gameId), stat = UI.pendingEvent;
+      if (!g || !stat || !isInPlay(g)) return;
+      UI.pendingEvent = null; render();
+      await recordShot(g, btn.dataset.side, btn.dataset.pos, stat);
+    } else if (a === 'redo'){
+      await redoLast();
     } else if (a === 'swap-centre'){
       const g = findGame(UI.gameId);
       if (g && isInPlay(g)) await swapCentre(g);
@@ -2888,18 +3047,39 @@ function focusSheet(){
 function closePicker(){
   const pos = UI.pickPos || UI.statPos;
   UI.pickPos = null; UI.statPos = null; render();
-  const token = pos && document.querySelector(`.court-token[data-pos="${pos}"]`);
+  const token = pos && document.querySelector(`.court-token[data-pos="${pos}"], .ptile[data-pos="${pos === 'Team' ? '' : pos}"]`);
   if (token) token.focus();
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && (UI.pickPos || UI.statPos)) closePicker();
 });
 
+// Scoring mode (Player first / Event first), remembered on this phone.
+function setLiveMode(mode){
+  if (mode !== 'player' && mode !== 'event') return;
+  UI.liveMode = mode; UI.pendingEvent = null;
+  try { localStorage.setItem('nettyPalLiveMode', mode); } catch(e){}
+  render();
+}
+// Swiping left or right across the positions switches mode.
+let swipeStart = null;
+document.addEventListener('touchstart', (e) => {
+  const zone = e.target.closest('[data-swipe]');
+  swipeStart = zone && e.touches.length === 1 ? { x:e.touches[0].clientX, y:e.touches[0].clientY } : null;
+}, { passive:true });
+document.addEventListener('touchend', (e) => {
+  if (!swipeStart || !e.changedTouches.length) return;
+  const dx = e.changedTouches[0].clientX - swipeStart.x, dy = e.changedTouches[0].clientY - swipeStart.y;
+  swipeStart = null;
+  if (Math.abs(dx) < 60 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+  setLiveMode(dx < 0 ? 'event' : 'player');
+}, { passive:true });
+
 /* ---------------------------------------------------------------------
    Game clock. Ticks the clock on screen, and on the scorer's phone ends
    the period at 0:00 (with a vibration) and keeps the screen awake.
 --------------------------------------------------------------------- */
-let autoEndedKey = null;
+let autoEndedKey = null, tickCount = 0;
 let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
   const g = UI.view === 'game' ? findGame(UI.gameId) : null;
@@ -2907,6 +3087,12 @@ setInterval(() => {
   if (!g || UI.gameTab !== 'live' || g.status !== 'live' || !g.live) return;
   const el = document.querySelector('[data-clock]');
   if (el) el.textContent = fmtClock(periodMs(g) - elapsedMs(g));
+  // Court time on the position tiles, refreshed about once a second.
+  const tiles = document.querySelectorAll('[data-ptime]');
+  if (tiles.length && g.live.phase === 'running' && (tickCount++ % 4 === 0)){
+    const st = computeGame(g, CUR.events);
+    tiles.forEach(t => { const id = t.dataset.ptime; if (id) t.textContent = fmtMins((st.players[id] || {}).ms || 0); });
+  }
   const key = g.id + ':' + g.live.period;
   if (g.live.phase === 'running' && amScorer(g) && elapsedMs(g) >= periodMs(g) && autoEndedKey !== key){
     autoEndedKey = key;
