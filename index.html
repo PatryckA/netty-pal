@@ -558,7 +558,13 @@ function renderSignedOut(){
 /* ---- Home ---- */
 function renderHome(){
   let list;
+  const retry = HOME.loaded && HOME.failed
+    ? `<div class="panel" role="alert">
+        <p style="margin:0 0 0.6rem">${HOME.items.length ? 'Some of your teams' : 'Your teams'} couldn't be loaded just now. This is usually a connection hiccup.</p>
+        <button class="btn small" data-action="reload-home">Try again</button>
+      </div>` : '';
   if (!HOME.loaded) list = '<div class="loading-state">Loading your teams…</div>';
+  else if (!HOME.items.length && HOME.failed) list = retry;
   else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a season code from your coach, or create your own team.</div>';
   else list = `<div class="team-list">${HOME.items.map(it => `
       <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
@@ -567,7 +573,7 @@ function renderHome(){
           <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
         </div>
         <div class="badges">${roleBadges(it.roles, it.isAdmin)}</div>
-      </button>`).join('')}</div>`;
+      </button>`).join('')}</div>${retry}`;
 
   let form = '';
   if (UI.form === 'join') form = `
@@ -600,6 +606,7 @@ function renderHome(){
     </form>`;
 
   return `<h2 class="section-title">Your teams</h2>
+    <p class="hint" style="margin:-0.4rem 0 0.9rem">Signed in as ${escapeHtml(USER.email || USER.displayName || '')}</p>
     ${form}
     ${list}
     ${UI.form ? '' : `<div class="home-actions">
@@ -1073,39 +1080,63 @@ function renderSettingsTab(){
 --------------------------------------------------------------------- */
 async function loadHome(){
   HOME.loaded = false;
+  HOME.failed = 0;
   render();
   try {
     const snaps = await getMembershipDocs();
     const items = await Promise.all(snaps.map(async (ms) => {
-      const { teamId, seasonId } = ms;
-      try {
-        const [teamSnap, seasonSnap, memberSnap] = await Promise.all([
-          getDoc(doc(db, 'teams', teamId)),
-          getDoc(doc(db, 'teams', teamId, 'seasons', seasonId)),
-          getDoc(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid))
-        ]);
-        if (!teamSnap.exists() || !seasonSnap.exists() || !memberSnap.exists()) throw { code:'permission-denied' };
-        const team = teamSnap.data(), season = seasonSnap.data();
-        return { teamId, seasonId, teamName:team.name, seasonName:season.name, competition:season.competition,
-          roles:memberSnap.data().roles || [], isAdmin:team.adminUid === USER.uid };
-      } catch (err){
-        // Removed from this season (or it no longer exists): tidy up our
-        // own pointer to it so it stops appearing here.
-        if (String(err && err.code).includes('permission-denied')){
-          deleteDoc(doc(db, 'users', USER.uid, 'memberships', seasonId)).catch(() => {});
-          return null;
-        }
-        throw err;
+      try { return await loadHomeItem(ms); }
+      catch (err){
+        // Keep going with the other teams; this one gets a retry prompt.
+        console.warn('Netty Pal: could not load team', err);
+        HOME.failed++;
+        return null;
       }
     }));
     HOME.items = items.filter(Boolean).sort((a,b) =>
       a.teamName.localeCompare(b.teamName) || b.seasonName.localeCompare(a.seasonName));
   } catch (err){
-    fail(err);
+    console.warn('Netty Pal: could not load teams', err);
+    HOME.failed++;
     HOME.items = [];
   }
   HOME.loaded = true;
   render();
+}
+
+async function loadHomeItem(ms){
+  const { teamId, seasonId } = ms;
+  // Our own member record can always be read, so this is a reliable
+  // test of whether we still belong to the season.
+  const memberSnap = await getDoc(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid));
+  if (!memberSnap.exists()){
+    // Definitely removed (or left): tidy up our pointer to it.
+    await forgetMembershipIfGone(teamId, seasonId);
+    return null;
+  }
+  const [teamSnap, seasonSnap] = await Promise.all([
+    getDoc(doc(db, 'teams', teamId)),
+    getDoc(doc(db, 'teams', teamId, 'seasons', seasonId))
+  ]);
+  if (!teamSnap.exists() || !seasonSnap.exists()) return null;
+  const team = teamSnap.data(), season = seasonSnap.data();
+  return { teamId, seasonId, teamName:team.name, seasonName:season.name, competition:season.competition,
+    roles:memberSnap.data().roles || [], isAdmin:team.adminUid === USER.uid };
+}
+
+// Only forgets a season once we've confirmed our member record is really
+// gone. A temporary error (bad connection, rules being updated) must never
+// cost someone their link to a team.
+async function forgetMembershipIfGone(teamId, seasonId){
+  try {
+    const snap = await getDoc(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid));
+    if (snap.exists()) return false;
+    await deleteDoc(doc(db, 'users', USER.uid, 'memberships', seasonId));
+    return true;
+  } catch (err){
+    console.warn('Netty Pal: membership check failed', err);
+    return false;
+  }
 }
 
 async function getMembershipDocs(){
@@ -1124,13 +1155,16 @@ function openSeason(teamId, seasonId){
   saveNav();
   render();
   const seasonRef = doc(db, 'teams', teamId, 'seasons', seasonId);
-  const lostAccess = (err) => {
+  let leaving = false;
+  const lostAccess = async (err) => {
     console.warn('Netty Pal: season listener', err);
-    if (String(err && err.code).includes('permission-denied') && UI.view !== 'home' && UI.seasonId === seasonId){
-      deleteDoc(doc(db, 'users', USER.uid, 'memberships', seasonId)).catch(() => {});
-      toast("You're no longer a member of that season.", true);
-      goHome();
-    }
+    if (leaving || UI.view === 'home' || UI.seasonId !== seasonId) return;
+    if (!String(err && err.code).includes('permission-denied')){ fail(err); return; }
+    leaving = true;
+    const gone = await forgetMembershipIfGone(teamId, seasonId);
+    toast(gone ? "You're no longer a member of that season."
+      : "Couldn't load that team just now. Please try again in a moment.", true);
+    goHome();
   };
   CUR.unsubs.push(onSnapshot(doc(db, 'teams', teamId), (snap) => {
     CUR.team = snap.exists() ? { id:snap.id, ...snap.data() } : null; render();
@@ -1498,6 +1532,8 @@ document.addEventListener('click', async (e) => {
       openSeason(btn.dataset.team, btn.dataset.season);
     } else if (a === 'go-home'){
       goHome();
+    } else if (a === 'reload-home'){
+      loadHome();
     } else if (a === 'tab'){
       UI.tab = btn.dataset.tab; UI.form = null; saveNav(); render();
     } else if (a === 'toggle-player'){
