@@ -1733,7 +1733,9 @@ function guideSheetHtml(g){
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Clock at 0:00? Tap Start ${q2}.`],
     ['<span class="g-btn go">Finalise</span>',
-      'Full time? Tap Finalise.']
+      'Full time? Tap Finalise.'],
+    ...(voiceSupported() ? [[`<span class="g-round">${micSvg()}</span>`,
+      'Or tap the mic and say "GS goal", "GA miss", "their goal" or "undo".']] : [])
   ];
   return `<div class="sheet-backdrop" data-action="close-guide"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="guide-title">
@@ -3161,11 +3163,11 @@ async function handleVoice(alts){
   const g = findGame(UI.gameId);
   if (!g || !isInPlay(g)) return;
   const lineup = computeGame(g, CUR.events).lineup || {};
-  const heard = alts[0] || '';
+  let heard = alts[0] || '';
   let parsed = null, error = null;
   for (const a of alts){
     const p = parseVoice(g, a, lineup);
-    if (!p.error){ parsed = p; break; }
+    if (!p.error){ parsed = p; heard = a; break; }
     if (!error) error = p.error;
   }
   if (!parsed){ toast(`Heard "${heard}". ${error || "Didn't understand."}`, true); return; }
@@ -3534,6 +3536,8 @@ let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
   const g = UI.view === 'game' ? findGame(UI.gameId) : null;
   syncWakeLock(g);
+  // Stop listening if the scorer leaves the Live tab or play stops.
+  if (voiceRec && !(g && UI.gameTab === 'live' && isInPlay(g))){ try { voiceRec.abort(); } catch(e){} }
   if (!g || UI.gameTab !== 'live' || g.status !== 'live' || !g.live) return;
   const el = document.querySelector('[data-clock]');
   if (el) el.textContent = fmtClock(periodMs(g) - elapsedMs(g));
