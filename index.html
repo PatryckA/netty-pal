@@ -350,6 +350,16 @@ span.cp-wrap{cursor:default;}
 .mode-tabs{display:flex; background:var(--surface-2); border:1px solid var(--line); border-radius:20px; padding:2px;}
 .mode-tab{border:none; background:none; padding:0.35rem 0.75rem; border-radius:18px; font-size:0.78rem; font-weight:800; color:var(--ink-soft); cursor:pointer; font-family:var(--font-body);}
 .mode-tab.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px var(--shadow);}
+.help-btn{
+  width:2rem; height:2rem; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--surface);
+  color:var(--accent); font-weight:800; font-size:0.95rem; cursor:pointer; margin-left:auto; font-family:var(--font-body);
+}
+.guide-steps{margin:0.9rem 0 0.4rem; padding-left:1.4rem; display:flex; flex-direction:column; gap:0.7rem;}
+.guide-steps li{padding-left:0.2rem;}
+.guide-steps li::marker{font-family:var(--font-display); font-weight:800; color:var(--accent);}
+.guide-title{display:block; font-size:0.95rem;}
+.guide-steps span{font-size:0.9rem; color:var(--ink-soft);}
+.guide-steps span b{color:var(--ink);}
 .sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
 .sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
 .pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
@@ -1148,6 +1158,7 @@ function renderGame(){
   else if (UI.gameTab === 'avail') content = renderAvailTab(g);
   else if (UI.gameTab === 'fair') content = renderFairTab(g);
   else if (UI.gameTab === 'details') content = renderDetailsTab(g);
+  if (UI.showGuide && UI.gameTab === 'live') content += guideSheetHtml(g);
 
   const where = [g.venue, g.court].filter(Boolean).join(', ');
   // While a period is being played, keep the header short so the scorer's
@@ -1428,6 +1439,7 @@ function renderLiveTab(g){
         ${empty ? `<p class="hint" style="margin:0">${empty} position${empty === 1 ? ' is' : 's are'} empty in the ${escapeHtml(periodName(g, 1))} lineup. Tap a bib below to fill it, or start anyway.</p>` : ''}
         <button class="btn go big" data-action="start-game" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, 1))}</button>
         <p class="hint" style="margin:0">Starting makes you the scorer and starts the clock.</p>
+        <button class="btn ghost small" style="align-self:flex-start" data-action="show-guide">New to scoring? How to score</button>
       </div>
       <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
       ${courtHtml(plan, true, g, 1)}`
@@ -1518,6 +1530,7 @@ function livePlayHtml(g, st, scoring){
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
           <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Event first</button>
         </div>
+        <button class="help-btn" data-action="show-guide" aria-label="How to score">?</button>
         <button class="btn ghost small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
           ${isArmed('end-period') ? 'Tap again' : 'End ' + escapeHtml(periodName(g, L.period))}</button>
       </div>`;
@@ -1672,6 +1685,31 @@ function eventText(g, e){
   if (e.type === 'centre') return `Centre pass to ${teamLabel(g, e.team)}`;
   if (e.type === 'lineup') return 'Lineup change';
   return e.type;
+}
+
+// A short, plain-English guide for parents who are scoring.
+function guideSheetHtml(g){
+  const q1 = escapeHtml(periodName(g, 1)), q2 = escapeHtml(periodName(g, 2)), noun = escapeHtml(periodNoun(g));
+  const steps = [
+    ['Start', `Pick who takes the first centre pass, check the lineup, then tap <b>Start ${q1}</b>. The clock starts.`],
+    ['Record a shot', `Tap <b>GS</b> or <b>GA</b>, then <b>Goal</b> or <b>Miss</b>. For the other team, tap their GS, GA or Team. Rather pick Goal or Miss first? Swipe left.`],
+    ['Fix a mistake', 'Tap the <b>undo arrow</b> at the bottom to undo the last entry, or tap any entry in the list and choose <b>Undo</b>.'],
+    ['Play stops', 'Injury or umpire stoppage? Tap <b>pause</b>. Tap <b>play</b> to restart the clock.'],
+    ['Substitution', 'Tap the position (e.g. WA) and pick who is coming on. For GS or GA, tap them, then <b>Substitution</b>.'],
+    ['Centre pass', 'It switches by itself after every goal. If it looks wrong, tap <b>Us / Them</b> to switch it.'],
+    [`End of a ${noun}`, `At 0:00 the ${noun} ends by itself. Check the lineup, then tap <b>Start ${q2}</b>. At full time, check the list and tap <b>Finalise</b>.`]
+  ];
+  return `<div class="sheet-backdrop" data-action="close-guide"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="guide-title">How to score</h3></div>
+        <button class="btn ghost small" data-action="close-guide">Close</button>
+      </div>
+      <div class="sheet-body">
+        <ol class="guide-steps">${steps.map(([title, text]) => `<li><b class="guide-title">${title}</b><span>${text}</span></li>`).join('')}</ol>
+        <p class="hint">Need to leave early? Anyone else with the Scorer or Coach role can open this game and tap <b>Take over scoring</b>. Nothing is lost.</p>
+      </div>
+    </div>`;
 }
 
 // Goal / Miss for a shooter (ours or theirs), in Player first mode.
@@ -3204,6 +3242,14 @@ document.addEventListener('click', async (e) => {
       UI.logSel = UI.logSel === btn.dataset.event ? null : btn.dataset.event; render();
     } else if (a === 'log-cancel'){
       UI.logSel = null; render();
+    } else if (a === 'show-guide'){
+      UI.showGuide = true; render();
+      const close = document.querySelector('.sheet [data-action="close-guide"]');
+      if (close) close.focus();
+    } else if (a === 'close-guide'){
+      UI.showGuide = false; render();
+      const help = document.querySelector('[data-action="show-guide"]');
+      if (help) help.focus();
     } else if (a === 'log-undo'){
       UI.logSel = null; render();
       await undoEvent(btn.dataset.event);
@@ -3294,6 +3340,7 @@ function closePicker(){
   if (token) token.focus();
 }
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && UI.showGuide){ UI.showGuide = false; render(); return; }
   if (e.key === 'Escape' && (UI.pickPos || UI.statPos)) closePicker();
 });
 
