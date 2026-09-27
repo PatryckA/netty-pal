@@ -107,21 +107,20 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Coach does this normally; Scorer can also do it.
 - Swap a bench player on, or swap two players' positions.
 
-### Scoring
-- Two taps: **position bib, then stat**. The stat is credited to whoever is in that
-  position at that moment.
-- Our team stats (starting set):
-  - Goal
-  - Miss (missed shot)
-  - Intercept
-  - Held ball (penalty against)
-  - Obstruction (penalty against)
-  - Contact (penalty against)
-- **Goal and Miss only for GS and GA** (netball shooting rules). Other stats for any
-  position.
-- Opposition: **goal** and **miss** (team-level, no players).
-- **Undo** for every action.
-- More stats can be added later (rebounds, deflections, turnovers were discussed).
+### Scoring (revised by the owner after step 2b)
+- **Only goals and misses are recorded**, by GS and GA, for both teams. Intercepts
+  and penalties were dropped. (Older games may still hold them; they are ignored.)
+- The in-play screen shows **position tiles**: GS and GA (highlighted shooters),
+  then WA, C, WD, then GD, GK, each with the player's name and court time this game;
+  then the opposition's GS, GA and Team. Below is an event log, newest first.
+- Two scoring modes; the scorer swipes left/right (or taps the tabs) to switch, and
+  the choice is remembered on that phone:
+  - **Player first**: tap a shooter, then Goal or Miss.
+  - **Event first**: tap Goal or Miss, then who (our GS/GA, their GS/GA/Team).
+- Tapping a non-shooter (or "Substitution" under a shooter) makes a substitution.
+- The stat is credited to whoever is in that position at that moment. Opposition
+  shots record GS, GA or just the team.
+- Floating **Undo** and **Redo**.
 
 ### After the game
 - Scorer or Coach can **correct the timeline** (add, remove or reassign events),
@@ -144,9 +143,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 ### Per game
 - Final score, by period.
 - Court time per player, split by position.
-- Per player: goals, misses, shooting % (goals / (goals + misses)), intercepts,
-  penalties against (held ball + obstruction + contact, with breakdown).
-- Opposition goals, misses and shooting %.
+- Per player: goals, misses, shooting % (goals / (goals + misses)).
+- Opposition goals, misses and shooting % (by GS / GA where recorded).
 
 ### Season to date
 - The same figures totalled across all completed games.
