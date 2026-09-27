@@ -676,8 +676,20 @@ function renderSeason(){
     ${content}`;
 }
 
+function gamesErrorHtml(){
+  const denied = String(CUR.gamesError && CUR.gamesError.code).includes('permission-denied');
+  return `<div class="panel" role="alert">
+      <p style="margin:0">${denied
+        ? (isAdmin()
+          ? "Games can't be loaded because the database's security rules are out of date. Publish the latest firestore.rules in Firebase (Firestore Database > Rules), then refresh this page."
+          : "Games can't be loaded right now. Please let your team admin know.")
+        : "Games couldn't be loaded. Check your connection and refresh the page."}</p>
+    </div>`;
+}
+
 function renderGamesTab(){
   const editable = canEditGames();
+  if (CUR.gamesError) return gamesErrorHtml();
   if (!CUR.loaded.games) return '<div class="loading-state">Loading games…</div>';
   const games = sortGames(CUR.games);
   const today = todayIso();
@@ -782,6 +794,7 @@ function gameFormHtml(prefix, g, formName, submitLabel){
 /* ---- Game screen ---- */
 function renderGame(){
   const back = `<button class="back-link" data-action="back-to-games">‹ ${CUR.team ? escapeHtml(CUR.team.name) : 'Games'}</button>`;
+  if (CUR.gamesError) return back + gamesErrorHtml();
   if (!CUR.team || !CUR.season || !CUR.loaded.members || !CUR.loaded.games || !CUR.loaded.players)
     return back + '<div class="loading-state">Loading…</div>';
   const g = findGame(UI.gameId);
@@ -1184,11 +1197,19 @@ function openSeason(teamId, seasonId){
     CUR.loaded.players = true;
     render();
   }, lostAccess));
+  // A problem reading games (for example security rules that haven't been
+  // updated for a new feature yet) is shown on the Games tab rather than
+  // throwing the user out of the whole team.
   CUR.unsubs.push(onSnapshot(collection(seasonRef, 'games'), (snap) => {
     CUR.games = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     CUR.loaded.games = true;
+    CUR.gamesError = null;
     render();
-  }, lostAccess));
+  }, (err) => {
+    console.warn('Netty Pal: games listener', err);
+    CUR.gamesError = err;
+    render();
+  }));
 }
 
 function openGame(gameId){
