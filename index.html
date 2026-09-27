@@ -59,7 +59,8 @@ a{color:inherit;}
   backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:0.75rem 1rem;
   display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
 }
-.brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase;}
+.brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase; white-space:nowrap;}
+@media (max-width:520px){ .user-chip .uname{display:none;} }
 .brand span{color:var(--warm);}
 .user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--ink-soft); min-width:0;}
 .user-chip .uname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:9rem;}
@@ -201,6 +202,80 @@ main{flex:1; padding:1rem 1rem 4rem;}
 }
 .toast.error{background:var(--critical); color:#fff;}
 .danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
+
+/* ---- Games ---- */
+.game-list{display:flex; flex-direction:column; gap:0.6rem; margin-bottom:1rem;}
+.game-card{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:0.75rem 0.9rem;
+  text-align:left; color:var(--ink); cursor:pointer; width:100%; display:flex; gap:0.85rem; align-items:center;
+}
+.game-card:hover{border-color:var(--accent);}
+.game-card.past{opacity:0.8;}
+.game-date{flex:none; width:3rem; text-align:center; font-family:var(--font-display); line-height:1;}
+.game-date .dw{font-size:0.7rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700; letter-spacing:0.05em;}
+.game-date .dd{font-size:1.7rem; font-weight:800;}
+.game-date .dm{font-size:0.7rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700;}
+.game-date.tbc .dd{font-size:1.1rem; color:var(--ink-soft);}
+.gopp{font-weight:800; font-size:1rem;}
+.gmeta{font-size:0.78rem; color:var(--ink-soft);}
+.gstatus{font-size:0.75rem; font-weight:700; margin-top:0.15rem;}
+.gstatus.todo{color:var(--warm);}
+.gstatus.ok{color:var(--ok);}
+.list-label{font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); margin:1.1rem 0 0.5rem;}
+.game-head h2{font-size:1.9rem; text-transform:uppercase; line-height:1.05;}
+.period-picker{display:flex; gap:0.35rem; margin-bottom:0.8rem; flex-wrap:wrap;}
+.period-btn{
+  background:var(--surface); border:1px solid var(--line); color:var(--ink); border-radius:8px;
+  padding:0.45rem 0.8rem; font-family:var(--font-display); font-size:1.05rem; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; gap:0.35rem;
+}
+.period-btn.active{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+.period-btn .pdot{width:7px; height:7px; border-radius:50%; background:var(--ok);}
+.period-btn .pdot.none{background:transparent; border:1.5px solid var(--line);}
+.court-row{display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0.9rem; border-top:1px solid var(--line);}
+.court-row:first-child{border-top:none;}
+.court-row .select-input{flex:1; min-width:0;}
+.court-row .pname{flex:1;}
+.court-row .pname.empty{color:var(--ink-soft); font-weight:500; font-style:italic;}
+.pos-chip{
+  width:2.6rem; height:2.6rem; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:#fff;
+}
+.pos-chip.att{background:var(--warm);}
+.pos-chip.mid{background:var(--accent); color:var(--accent-contrast);}
+.pos-chip.def{background:var(--ok);}
+.pos-chip.unfilled{background:var(--surface-2); color:var(--ink-soft); border:1.5px dashed var(--line);}
+.chip-wrap{display:flex; gap:0.35rem; flex-wrap:wrap;}
+.chip{
+  display:inline-flex; align-items:center; gap:0.3rem; font-size:0.8rem; font-weight:600;
+  padding:0.25rem 0.6rem; border-radius:20px; background:var(--surface-2); border:1px solid var(--line);
+}
+.chip b{font-variant-numeric:tabular-nums;}
+.chip.zero{border-color:var(--warm); color:var(--warm);}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:0.8rem 0.9rem; margin-bottom:1rem;}
+.panel h4{margin:0 0 0.5rem; font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft);}
+.lineup-tools{display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:1rem;}
+.avail-row{
+  display:flex; align-items:center; gap:0.7rem; width:100%; padding:0.65rem 0.9rem; border:none;
+  border-top:1px solid var(--line); background:none; color:var(--ink); font-size:0.95rem; text-align:left; cursor:pointer;
+}
+.avail-row:first-child{border-top:none;}
+.avail-row[disabled]{cursor:default;}
+.avail-row.off .pname{color:var(--ink-soft); text-decoration:line-through;}
+.tick{
+  width:24px; height:24px; border-radius:6px; border:1.5px solid var(--line); flex:none;
+  display:flex; align-items:center; justify-content:center; background:var(--surface); color:#fff; font-size:0.85rem;
+}
+.avail-row.on .tick{background:var(--ok); border-color:var(--ok);}
+.fair-wrap{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:0.6rem;}
+table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant-numeric:tabular-nums;}
+.fair th,.fair td{padding:0.5rem 0.3rem; text-align:center; border-top:1px solid var(--line);}
+.fair thead th:last-child{padding-right:0.6rem; line-height:1.05;}
+.fair thead th{border-top:none; font-family:var(--font-display); font-size:0.95rem; font-weight:700;}
+.fair th:first-child,.fair td:first-child{text-align:left; position:sticky; left:0; background:var(--surface); white-space:nowrap; padding-left:0.8rem; font-weight:600;}
+.fair td.total{font-weight:800;}
+.fair td.this{font-weight:800; color:var(--accent);}
+.fair td.zero-this{color:var(--warm);}
 </style>
 </head>
 <body>
@@ -213,7 +288,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  collection, onSnapshot, writeBatch, serverTimestamp
+  collection, onSnapshot, writeBatch, serverTimestamp, deleteField
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 /* ---------------------------------------------------------------------
@@ -239,25 +314,33 @@ const db = getFirestore(firebaseApp);
        seasons/{seasonId}                         name, competition, format, periodMinutes, joinCode
          members/{uid}                            name, email, photoURL, roles[], code
          players/{playerId}                       name, active
+         games/{gameId}                           round, date, time, opponent, venue, court,
+                                                  format, periodMinutes, status,
+                                                  available[] (player ids; missing = all active),
+                                                  plan { "1": { GS: playerId, ... }, "2": ... }
      joinCodes/{code}                             teamId, seasonId
      users/{uid}/memberships/{seasonId}           teamId, seasonId (so "my teams" can be listed)
 --------------------------------------------------------------------- */
 const DEFAULT_PERIOD_MINUTES = 7;
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
 const CODE_LENGTH = 6;
+const POSITIONS = ['GS','GA','WA','C','WD','GD','GK'];
+const POS_ZONE = { GS:'att', GA:'att', WA:'mid', C:'mid', WD:'mid', GD:'def', GK:'def' };
 
 let USER = null;
 let authReady = false;
 let offlineMode = !navigator.onLine;
 
 // What the screen is showing. form is the name of an open inline form.
-let UI = { view:'home', teamId:null, seasonId:null, tab:'players', form:null, busy:false };
+// view is 'home', 'season' or 'game'; gameTab and period belong to the game screen.
+let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
+  gameId:null, gameTab:'lineup', period:1 };
 
 // Home screen: one entry per season the user belongs to.
 let HOME = { loaded:false, items:[] };
 
 // The season currently open, kept live by onSnapshot listeners.
-let CUR = { team:null, season:null, members:[], players:[], unsubs:[], loaded:{} };
+let CUR = { team:null, season:null, members:[], players:[], games:[], unsubs:[], loaded:{} };
 
 let armed = new Map(); // key -> timeout id, for "tap again to confirm" buttons
 
@@ -331,6 +414,66 @@ function isAdmin(){ return !!(USER && CUR.team && CUR.team.adminUid === USER.uid
 function myMember(){ return USER ? CUR.members.find(m => m.id === USER.uid) : null; }
 function myRoles(){ const m = myMember(); return (m && m.roles) || []; }
 function canEditRoster(){ return isAdmin() || myRoles().includes('coach'); }
+// Fixtures, availability and lineup plans: admin or Coach.
+function canEditGames(){ return isAdmin() || myRoles().includes('coach'); }
+
+/* ---------------------------------------------------------------------
+   Game helpers
+--------------------------------------------------------------------- */
+function findGame(id){ return CUR.games.find(g => g.id === id); }
+function playerName(id){ const p = CUR.players.find(p => p.id === id); return p ? p.name : 'Unknown player'; }
+function periodCount(g){ return g && g.format === 'halves' ? 2 : 4; }
+function periodName(g, p){ return g.format === 'halves' ? (p === 1 ? '1st half' : '2nd half') : 'Q' + p; }
+function periodNoun(g, plural){
+  if (g.format === 'halves') return plural ? 'halves' : 'half';
+  return plural ? 'quarters' : 'quarter';
+}
+function planFor(g, p){ return (g.plan && g.plan[p]) || {}; }
+function isPeriodPlanned(g, p){ return POSITIONS.some(pos => planFor(g, p)[pos]); }
+function plannedCount(g){
+  let n = 0;
+  for (let p = 1; p <= periodCount(g); p++) if (isPeriodPlanned(g, p)) n++;
+  return n;
+}
+// Players ticked as playing this game. Until the coach sets it, that's
+// every active player.
+function availableIds(g){
+  if (Array.isArray(g.available)) return g.available.filter(id => CUR.players.some(p => p.id === id));
+  return CUR.players.filter(p => p.active !== false).map(p => p.id);
+}
+function byName(ids){ return ids.slice().sort((a,b) => playerName(a).localeCompare(playerName(b))); }
+function pad2(n){ return String(n).padStart(2, '0'); }
+function todayIso(){ const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function parseIsoDate(iso){
+  if (!iso) return null;
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function fmtTime(t){
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return `${((h + 11) % 12) + 1}:${pad2(m)}${h >= 12 ? 'pm' : 'am'}`;
+}
+function fmtGameWhen(g){
+  const d = parseIsoDate(g.date);
+  const date = d ? d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short' }) : 'Date TBC';
+  return g.time ? `${date}, ${fmtTime(g.time)}` : date;
+}
+// Dated games in date/time order, undated ones last.
+function sortGames(games){
+  return games.slice().sort((a,b) => {
+    if (!a.date && !b.date) return String(a.round || '').localeCompare(String(b.round || ''), undefined, { numeric:true });
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '');
+  });
+}
+function nextRound(){
+  const nums = CUR.games.map(g => parseInt(g.round, 10)).filter(n => !isNaN(n));
+  return nums.length ? Math.max(...nums) + 1 : 1;
+}
+function gameTitle(g){ return `vs ${g.opponent || 'TBC'}`; }
+function gameFormatLabel(g){ return formatLabel({ format:g.format, periodMinutes:g.periodMinutes }); }
 
 /* ---------------------------------------------------------------------
    Rendering. Live updates re-render the whole screen, so any half-typed
@@ -369,6 +512,7 @@ function render(){
   else {
     let main;
     if (UI.view === 'season') main = renderSeason();
+    else if (UI.view === 'game') main = renderGame();
     else main = renderHome();
     body = `<div class="app-shell">
       ${offlineMode ? '<div class="offline-banner">You\'re offline. Changes will sync when you reconnect.</div>' : ''}
@@ -505,7 +649,7 @@ function renderSeason(){
 
   const tabs = [['games','Games'], ['players','Players'], ['people','People']];
   if (isAdmin()) tabs.push(['settings','Settings']);
-  if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'players';
+  if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'games';
 
   let content = '';
   if (UI.tab === 'games') content = renderGamesTab();
@@ -526,9 +670,276 @@ function renderSeason(){
 }
 
 function renderGamesTab(){
-  return `<div class="placeholder-card">
-    Fixtures, the game clock, the court board and live scoring are coming in the next build step.
+  const editable = canEditGames();
+  if (!CUR.loaded.games) return '<div class="loading-state">Loading games…</div>';
+  const games = sortGames(CUR.games);
+  const today = todayIso();
+  const upcoming = games.filter(g => !g.date || g.date >= today);
+  const earlier = games.filter(g => g.date && g.date < today).reverse();
+
+  const form = UI.form === 'add-game'
+    ? gameFormHtml('ag', { round:nextRound(), format:CUR.season.format, periodMinutes:CUR.season.periodMinutes }, 'add-game', 'Add fixture')
+    : '';
+
+  const addBtn = editable && !UI.form
+    ? `<div class="home-actions"><button class="btn" data-action="show-form" data-form-name="add-game">Add fixture</button></div>` : '';
+
+  let body;
+  if (!games.length){
+    body = `<div class="empty-state">No games yet.${editable ? ' Add this season\'s fixtures to start planning lineups.' : ' Your coach will add them.'}</div>`;
+  } else {
+    body = `${upcoming.length ? `<div class="list-label">Upcoming</div><div class="game-list">${upcoming.map(g => gameCardHtml(g, false)).join('')}</div>` : ''}
+      ${earlier.length ? `<div class="list-label">Earlier</div><div class="game-list">${earlier.map(g => gameCardHtml(g, true)).join('')}</div>` : ''}`;
+  }
+  return `${form}${addBtn}${body}`;
+}
+
+function gameCardHtml(g, past){
+  const d = parseIsoDate(g.date);
+  const dateBlock = d
+    ? `<div class="game-date"><div class="dw">${d.toLocaleDateString('en-AU', { weekday:'short' })}</div>
+        <div class="dd">${d.getDate()}</div><div class="dm">${d.toLocaleDateString('en-AU', { month:'short' })}</div></div>`
+    : `<div class="game-date tbc"><div class="dd">TBC</div></div>`;
+  const n = periodCount(g), planned = plannedCount(g);
+  const status = planned === n
+    ? `<div class="gstatus ok">Lineup planned</div>`
+    : `<div class="gstatus ${past ? '' : 'todo'}">Lineup: ${planned} of ${n} ${periodNoun(g, true)} planned</div>`;
+  const meta = [g.round ? 'Round ' + g.round : '', fmtTime(g.time), g.venue, g.court].filter(Boolean).join(' · ');
+  return `<button class="game-card ${past ? 'past' : ''}" data-action="open-game" data-game="${escapeHtml(g.id)}">
+      ${dateBlock}
+      <div class="grow">
+        <div class="gopp">${escapeHtml(gameTitle(g))}</div>
+        ${meta ? `<div class="gmeta">${escapeHtml(meta)}</div>` : ''}
+        ${status}
+      </div>
+    </button>`;
+}
+
+// Shared fixture fields for "add fixture" and the game's Details tab.
+function gameFormHtml(prefix, g, formName, submitLabel){
+  const fmt = g.format || 'quarters';
+  return `<form class="form-card" data-form="${formName}">
+      ${formName === 'add-game' ? '<h3>Add fixture</h3>' : ''}
+      <div class="field-row">
+        <div class="field" style="max-width:6rem">
+          <label for="${prefix}-round">Round</label>
+          <input class="text-input" id="${prefix}-round" name="round" maxlength="12" value="${escapeHtml(g.round || '')}">
+        </div>
+        <div class="field">
+          <label for="${prefix}-opp">Opponent</label>
+          <input class="text-input" id="${prefix}-opp" name="opponent" maxlength="60" required
+            placeholder="e.g. Kestrels 11U" value="${escapeHtml(g.opponent || '')}">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="${prefix}-date">Date</label>
+          <input class="text-input" id="${prefix}-date" name="date" type="date" value="${escapeHtml(g.date || '')}">
+        </div>
+        <div class="field">
+          <label for="${prefix}-time">Time</label>
+          <input class="text-input" id="${prefix}-time" name="time" type="time" value="${escapeHtml(g.time || '')}">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="${prefix}-venue">Venue <span class="hint">(optional)</span></label>
+          <input class="text-input" id="${prefix}-venue" name="venue" maxlength="80" value="${escapeHtml(g.venue || '')}">
+        </div>
+        <div class="field">
+          <label for="${prefix}-court">Court <span class="hint">(optional)</span></label>
+          <input class="text-input" id="${prefix}-court" name="court" maxlength="30" placeholder="e.g. Court 3" value="${escapeHtml(g.court || '')}">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <span class="label" id="${prefix}-fmt-label">Game format</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="${prefix}-fmt-label">
+            <label><input type="radio" id="${prefix}-fmt-q" name="format" value="quarters" ${fmt === 'quarters' ? 'checked' : ''}><span>Quarters</span></label>
+            <label><input type="radio" id="${prefix}-fmt-h" name="format" value="halves" ${fmt === 'halves' ? 'checked' : ''}><span>Halves</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="${prefix}-mins">Minutes per period</label>
+          <input class="text-input" id="${prefix}-mins" name="periodMinutes" type="number" min="1" max="30" required
+            value="${escapeHtml(g.periodMinutes || DEFAULT_PERIOD_MINUTES)}" style="max-width:7rem">
+        </div>
+      </div>
+      <div class="form-actions">
+        ${formName === 'add-game' ? '<button type="button" class="btn ghost" data-action="close-form">Cancel</button>' : ''}
+        <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>${submitLabel}</button>
+      </div>
+    </form>`;
+}
+
+/* ---- Game screen ---- */
+function renderGame(){
+  const back = `<button class="back-link" data-action="back-to-games">‹ ${CUR.team ? escapeHtml(CUR.team.name) : 'Games'}</button>`;
+  if (!CUR.team || !CUR.season || !CUR.loaded.members || !CUR.loaded.games || !CUR.loaded.players)
+    return back + '<div class="loading-state">Loading…</div>';
+  const g = findGame(UI.gameId);
+  if (!g) return back + '<div class="empty-state">This game has been deleted.</div>';
+
+  const tabs = [['lineup','Lineup'], ['avail','Players'], ['fair','Fairness']];
+  if (canEditGames()) tabs.push(['details','Details']);
+  if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = 'lineup';
+
+  let content = '';
+  if (UI.gameTab === 'lineup') content = renderLineupTab(g);
+  else if (UI.gameTab === 'avail') content = renderAvailTab(g);
+  else if (UI.gameTab === 'fair') content = renderFairTab(g);
+  else if (UI.gameTab === 'details') content = renderDetailsTab(g);
+
+  const where = [g.venue, g.court].filter(Boolean).join(', ');
+  return `<div class="season-head game-head">
+      ${back}
+      <h2>${escapeHtml(gameTitle(g))}</h2>
+      <div class="season-meta">${g.round ? 'Round ' + escapeHtml(g.round) + ' · ' : ''}${escapeHtml(fmtGameWhen(g))}</div>
+      <div class="season-meta">${where ? escapeHtml(where) + ' · ' : ''}${escapeHtml(gameFormatLabel(g))}</div>
+    </div>
+    <nav class="tabs" aria-label="Game sections">
+      ${tabs.map(([k, label]) => `<button class="tab ${UI.gameTab === k ? 'active' : ''}" data-action="game-tab" data-tab="${k}" ${UI.gameTab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
+    </nav>
+    ${content}`;
+}
+
+function renderLineupTab(g){
+  const n = periodCount(g);
+  if (UI.period > n) UI.period = 1;
+  const p = UI.period;
+  const plan = planFor(g, p);
+  const avail = byName(availableIds(g));
+  const editable = canEditGames();
+
+  const picker = `<div class="period-picker" role="tablist" aria-label="${escapeHtml(periodNoun(g, true))}">
+    ${Array.from({ length:n }, (_, i) => i + 1).map(k => `
+      <button class="period-btn ${k === p ? 'active' : ''}" data-action="period" data-period="${k}" role="tab" aria-selected="${k === p}"
+        aria-label="${escapeHtml(periodName(g, k))}, ${isPeriodPlanned(g, k) ? 'planned' : 'not planned'}">
+        <span class="pdot ${isPeriodPlanned(g, k) ? '' : 'none'}" aria-hidden="true"></span>${escapeHtml(periodName(g, k))}
+      </button>`).join('')}
   </div>`;
+
+  // Where each player sits this period, so the dropdown can show it.
+  const posOf = {};
+  POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
+
+  const rows = POSITIONS.map(pos => {
+    const pid = plan[pos];
+    const chip = `<span class="pos-chip ${pid ? POS_ZONE[pos] : 'unfilled'}" aria-hidden="true">${pos}</span>`;
+    if (!editable){
+      return `<div class="court-row">${chip}<span class="pname ${pid ? '' : 'empty'}">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</span></div>`;
+    }
+    const ids = avail.includes(pid) || !pid ? avail : [pid, ...avail];
+    const opts = ids.map(id => {
+      const elsewhere = posOf[id] && posOf[id] !== pos ? ` (now ${posOf[id]}, will swap)` : '';
+      const unavailable = !avail.includes(id) ? ' (not playing)' : '';
+      return `<option value="${escapeHtml(id)}" ${id === pid ? 'selected' : ''}>${escapeHtml(playerName(id))}${elsewhere}${unavailable}</option>`;
+    }).join('');
+    return `<div class="court-row">${chip}
+      <select class="select-input" data-field="plan-slot" data-pos="${pos}" aria-label="${pos} for ${escapeHtml(periodName(g, p))}">
+        <option value="" ${pid ? '' : 'selected'}>Empty</option>${opts}
+      </select></div>`;
+  }).join('');
+
+  const bench = avail.filter(id => !posOf[id]);
+  const benchHtml = `<div class="panel"><h4>Bench, ${escapeHtml(periodName(g, p))}</h4>
+    ${bench.length ? `<div class="chip-wrap">${bench.map(id => `<span class="chip">${escapeHtml(playerName(id))}</span>`).join('')}</div>`
+      : '<span class="hint">Nobody on the bench.</span>'}</div>`;
+
+  // Periods on court this game per playing player, to keep it even.
+  const counts = {};
+  avail.forEach(id => counts[id] = 0);
+  for (let k = 1; k <= n; k++) POSITIONS.forEach(pos => { const id = planFor(g, k)[pos]; if (id in counts) counts[id]++; });
+  const countsHtml = `<div class="panel"><h4>${escapeHtml(periodNoun(g, true))} on court this game</h4>
+    ${avail.length ? `<div class="chip-wrap">${avail.map(id =>
+      `<span class="chip ${counts[id] ? '' : 'zero'}">${escapeHtml(playerName(id))} <b>${counts[id]}</b></span>`).join('')}</div>`
+      : '<span class="hint">No players are marked as playing.</span>'}</div>`;
+
+  const tools = editable ? `<div class="lineup-tools">
+      ${p > 1 ? `<button class="btn ghost small" data-action="copy-period">Copy ${escapeHtml(periodName(g, p - 1))}</button>` : ''}
+      ${isPeriodPlanned(g, p) ? `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
+        ${isArmed('clear-period') ? 'Tap again to clear' : 'Clear ' + escapeHtml(periodName(g, p))}</button>` : ''}
+    </div>` : '';
+
+  return `${picker}
+    <div class="list-card">${rows}</div>
+    ${tools}
+    ${benchHtml}
+    ${countsHtml}
+    ${editable ? '<p class="hint">Picking someone who is already on court swaps the two players. You can still change everything on game day.</p>' : ''}`;
+}
+
+function renderAvailTab(g){
+  const editable = canEditGames();
+  const avail = new Set(availableIds(g));
+  const players = CUR.players.filter(p => p.active !== false || avail.has(p.id))
+    .sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+  const rows = players.map(p => {
+    const on = avail.has(p.id);
+    return `<button class="avail-row ${on ? 'on' : 'off'}" data-action="toggle-avail" data-player="${escapeHtml(p.id)}"
+        aria-pressed="${on}" ${editable ? '' : 'disabled'}>
+        <span class="tick" aria-hidden="true">${on ? '✓' : ''}</span>
+        <span class="pname grow">${escapeHtml(p.name)}</span>
+        <span class="hint">${on ? 'Playing' : 'Not playing'}</span>
+      </button>`;
+  }).join('');
+  return `<h3 class="subhead">Who's playing <span class="hint" style="font-family:var(--font-body); text-transform:none">${avail.size} of ${players.length}</span></h3>
+    <div class="list-card">${rows || '<div class="empty-state">No players on the roster yet.</div>'}</div>
+    ${editable ? `<div class="lineup-tools"><button class="btn ghost small" data-action="avail-all">Everyone's playing</button></div>
+      <p class="hint">Unticking a player also takes them out of this game's lineup plan.</p>` : ''}`;
+}
+
+// Periods played in each position, across this game and every game
+// before it this season. For now this counts planned lineups; once live
+// scoring exists, games that were actually played will use real court time.
+function renderFairTab(g){
+  const games = sortGames(CUR.games);
+  const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
+  const rows = {};
+  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0 });
+  CUR.players.filter(p => p.active !== false).forEach(p => ensure(p.id));
+  upto.forEach(game => {
+    for (let k = 1; k <= periodCount(game); k++){
+      const plan = planFor(game, k);
+      POSITIONS.forEach(pos => {
+        const id = plan[pos];
+        if (!id) return;
+        const r = ensure(id);
+        r.pos[pos] = (r.pos[pos] || 0) + 1;
+        r.total++;
+        if (game.id === g.id) r.thisGame++;
+      });
+    }
+  });
+  const list = Object.values(rows).sort((a,b) => playerName(a.id).localeCompare(playerName(b.id)));
+  const max = Math.max(1, ...list.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
+  const playing = new Set(availableIds(g));
+  const body = list.map(r => `<tr>
+      <td>${escapeHtml(playerName(r.id))}</td>
+      ${POSITIONS.map(pos => {
+        const v = r.pos[pos] || 0;
+        const shade = v ? `style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + 30 * v / max)}%, transparent)"` : '';
+        return `<td ${shade}>${v || '·'}</td>`;
+      }).join('')}
+      <td class="total">${r.total}</td>
+      <td class="this ${playing.has(r.id) && !r.thisGame ? 'zero-this' : ''}">${playing.has(r.id) ? r.thisGame : 'out'}</td>
+    </tr>`).join('');
+  return `<h3 class="subhead">Positions so far</h3>
+    <div class="fair-wrap"><table class="fair">
+      <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}
+        <th scope="col">Total</th><th scope="col">This game</th></tr></thead>
+      <tbody>${body || `<tr><td colspan="${POSITIONS.length + 3}">No players yet.</td></tr>`}</tbody>
+    </table></div>
+    <p class="hint">Number of ${escapeHtml(periodNoun(g, true))} each player has been planned in each position, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Darker means more often. Once live scoring is added, games that were actually played will use real court time instead of the plan.</p>`;
+}
+
+function renderDetailsTab(g){
+  const delKey = 'del-game';
+  return `${gameFormHtml('eg', g, 'edit-game', 'Save changes')}
+    <div class="danger-zone">
+      <button class="btn danger small ${isArmed(delKey) ? 'armed' : ''}" data-action="delete-game">
+        ${isArmed(delKey) ? 'Tap again to delete this game' : 'Delete game'}</button>
+    </div>`;
 }
 
 function renderPlayersTab(){
@@ -704,18 +1115,18 @@ async function getMembershipDocs(){
 
 function closeSeason(){
   CUR.unsubs.forEach(u => u());
-  CUR = { team:null, season:null, members:[], players:[], unsubs:[], loaded:{} };
+  CUR = { team:null, season:null, members:[], players:[], games:[], unsubs:[], loaded:{} };
 }
 
 function openSeason(teamId, seasonId){
   closeSeason();
-  UI = { ...UI, view:'season', teamId, seasonId, tab:'players', form:null };
+  UI = { ...UI, view:'season', teamId, seasonId, tab:'games', form:null, gameId:null };
   saveNav();
   render();
   const seasonRef = doc(db, 'teams', teamId, 'seasons', seasonId);
   const lostAccess = (err) => {
     console.warn('Netty Pal: season listener', err);
-    if (String(err && err.code).includes('permission-denied') && UI.view === 'season' && UI.seasonId === seasonId){
+    if (String(err && err.code).includes('permission-denied') && UI.view !== 'home' && UI.seasonId === seasonId){
       deleteDoc(doc(db, 'users', USER.uid, 'memberships', seasonId)).catch(() => {});
       toast("You're no longer a member of that season.", true);
       goHome();
@@ -736,13 +1147,32 @@ function openSeason(teamId, seasonId){
   }, lostAccess));
   CUR.unsubs.push(onSnapshot(collection(seasonRef, 'players'), (snap) => {
     CUR.players = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    CUR.loaded.players = true;
+    render();
+  }, lostAccess));
+  CUR.unsubs.push(onSnapshot(collection(seasonRef, 'games'), (snap) => {
+    CUR.games = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    CUR.loaded.games = true;
     render();
   }, lostAccess));
 }
 
+function openGame(gameId){
+  UI = { ...UI, view:'game', gameId, gameTab:'lineup', period:1, form:null };
+  saveNav();
+  render();
+  window.scrollTo(0, 0);
+}
+
+function backToGames(){
+  UI = { ...UI, view:'season', tab:'games', gameId:null, form:null };
+  saveNav();
+  render();
+}
+
 function goHome(){
   closeSeason();
-  UI = { ...UI, view:'home', teamId:null, seasonId:null, form:null };
+  UI = { ...UI, view:'home', teamId:null, seasonId:null, gameId:null, form:null };
   saveNav();
   loadHome();
 }
@@ -750,7 +1180,8 @@ function goHome(){
 // Remember which season was open so a refresh (or reopening the installed
 // app) lands back in the same place.
 function saveNav(){
-  try { localStorage.setItem('nettyPalNav', JSON.stringify({ view:UI.view, teamId:UI.teamId, seasonId:UI.seasonId, tab:UI.tab })); } catch(e){}
+  try { localStorage.setItem('nettyPalNav', JSON.stringify({ view:UI.view, teamId:UI.teamId, seasonId:UI.seasonId,
+    tab:UI.tab, gameId:UI.gameId, gameTab:UI.gameTab })); } catch(e){}
 }
 function loadNav(){
   try { return JSON.parse(localStorage.getItem('nettyPalNav') || 'null'); } catch(e){ return null; }
@@ -940,6 +1371,103 @@ async function createNewSeason(fd){
   render();
 }
 
+/* ---- Games ---- */
+function gameRef(id){ return doc(seasonRef(), 'games', id); }
+
+function readGameFields(fd){
+  const mins = parseInt(fd.get('periodMinutes'), 10);
+  return {
+    round: String(fd.get('round') || '').trim(),
+    opponent: String(fd.get('opponent') || '').trim(),
+    date: String(fd.get('date') || ''),
+    time: String(fd.get('time') || ''),
+    venue: String(fd.get('venue') || '').trim(),
+    court: String(fd.get('court') || '').trim(),
+    format: fd.get('format') === 'halves' ? 'halves' : 'quarters',
+    periodMinutes: (mins >= 1 && mins <= 30) ? mins : DEFAULT_PERIOD_MINUTES
+  };
+}
+
+async function addGame(fd){
+  const fields = readGameFields(fd);
+  if (!fields.opponent) return;
+  await setDoc(doc(collection(seasonRef(), 'games')), { ...fields, status:'scheduled', plan:{}, createdAt:serverTimestamp() });
+  toast('Fixture added.');
+}
+
+async function saveGame(fd){
+  const fields = readGameFields(fd);
+  if (!fields.opponent) return;
+  await updateDoc(gameRef(UI.gameId), fields);
+  toast('Game saved.');
+}
+
+async function deleteGame(){
+  const id = UI.gameId;
+  backToGames();
+  await deleteDoc(gameRef(id));
+  toast('Game deleted.');
+}
+
+// Puts a player in a position for the selected period. If they were
+// already somewhere else that period, whoever was in the target position
+// moves into their old spot (a swap), so nobody is ever in two places.
+async function setPlanSlot(pos, pid){
+  const g = findGame(UI.gameId);
+  if (!g) return;
+  const p = UI.period;
+  const plan = planFor(g, p);
+  const updates = {};
+  if (pid){
+    const from = POSITIONS.find(other => other !== pos && plan[other] === pid);
+    if (from) updates[`plan.${p}.${from}`] = plan[pos] || deleteField();
+    updates[`plan.${p}.${pos}`] = pid;
+  } else {
+    updates[`plan.${p}.${pos}`] = deleteField();
+  }
+  await updateDoc(gameRef(g.id), updates);
+}
+
+async function copyPreviousPeriod(){
+  const g = findGame(UI.gameId);
+  if (!g || UI.period < 2) return;
+  const avail = new Set(availableIds(g));
+  const prev = planFor(g, UI.period - 1);
+  const copy = {};
+  POSITIONS.forEach(pos => { if (prev[pos] && avail.has(prev[pos])) copy[pos] = prev[pos]; });
+  await updateDoc(gameRef(g.id), { [`plan.${UI.period}`]: copy });
+}
+
+async function clearPeriod(){
+  const g = findGame(UI.gameId);
+  if (!g) return;
+  await updateDoc(gameRef(g.id), { [`plan.${UI.period}`]: {} });
+}
+
+async function toggleAvail(pid){
+  const g = findGame(UI.gameId);
+  if (!g) return;
+  const avail = new Set(availableIds(g));
+  const updates = {};
+  if (avail.has(pid)){
+    avail.delete(pid);
+    // Take them out of every period of this game's plan too.
+    Object.entries(g.plan || {}).forEach(([k, slots]) => {
+      Object.entries(slots || {}).forEach(([pos, id]) => { if (id === pid) updates[`plan.${k}.${pos}`] = deleteField(); });
+    });
+  } else {
+    avail.add(pid);
+  }
+  updates.available = Array.from(avail);
+  await updateDoc(gameRef(g.id), updates);
+}
+
+async function availAll(){
+  const g = findGame(UI.gameId);
+  if (!g) return;
+  await updateDoc(gameRef(g.id), { available: CUR.players.filter(p => p.active !== false).map(p => p.id) });
+}
+
 /* ---------------------------------------------------------------------
    Event wiring
 --------------------------------------------------------------------- */
@@ -992,6 +1520,26 @@ document.addEventListener('click', async (e) => {
       disarm('regen-code'); await runBusy(regenerateCode);
     } else if (a === 'share-code'){
       await shareCode();
+    } else if (a === 'open-game'){
+      openGame(btn.dataset.game);
+    } else if (a === 'back-to-games'){
+      backToGames();
+    } else if (a === 'game-tab'){
+      UI.gameTab = btn.dataset.tab; saveNav(); render();
+    } else if (a === 'period'){
+      UI.period = parseInt(btn.dataset.period, 10) || 1; disarm('clear-period'); render();
+    } else if (a === 'copy-period'){
+      await copyPreviousPeriod();
+    } else if (a === 'clear-period'){
+      if (!isArmed('clear-period')) return arm('clear-period');
+      disarm('clear-period'); await clearPeriod();
+    } else if (a === 'toggle-avail'){
+      await toggleAvail(btn.dataset.player);
+    } else if (a === 'avail-all'){
+      await availAll();
+    } else if (a === 'delete-game'){
+      if (!isArmed('del-game')) return arm('del-game');
+      disarm('del-game'); await deleteGame();
     }
   } catch (err){ fail(err); render(); }
 });
@@ -1009,12 +1557,15 @@ document.addEventListener('submit', (e) => {
   else if (name === 'team-settings') saveTeamSettings(fd).catch(fail);
   else if (name === 'season-settings') saveSeasonSettings(fd).catch(fail);
   else if (name === 'new-season') runBusy(async () => { await createNewSeason(fd); done(); });
+  else if (name === 'add-game') runBusy(async () => { await addGame(fd); done(); });
+  else if (name === 'edit-game') runBusy(() => saveGame(fd));
 });
 
 // Player names save when the box loses focus (or Enter is pressed).
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
+  if (el.matches('select[data-field="plan-slot"]')) setPlanSlot(el.dataset.pos, el.value).catch(err => { fail(err); render(); });
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches('input[data-field="player-name"]')) e.target.blur();
@@ -1028,9 +1579,14 @@ onAuthStateChanged(auth, (user) => {
   authReady = true;
   if (!user){ HOME = { loaded:false, items:[] }; UI = { ...UI, view:'home', form:null }; render(); return; }
   const nav = loadNav();
-  if (nav && nav.view === 'season' && nav.teamId && nav.seasonId){
+  if (nav && (nav.view === 'season' || nav.view === 'game') && nav.teamId && nav.seasonId){
     openSeason(nav.teamId, nav.seasonId);
-    if (nav.tab){ UI.tab = nav.tab; render(); }
+    if (nav.tab) UI.tab = nav.tab;
+    if (nav.view === 'game' && nav.gameId){
+      UI = { ...UI, view:'game', gameId:nav.gameId, gameTab:nav.gameTab || 'lineup' };
+    }
+    saveNav();
+    render();
   } else {
     goHome();
   }

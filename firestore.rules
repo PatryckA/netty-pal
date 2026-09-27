@@ -85,6 +85,13 @@ service cloud.firestore {
           allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
           allow write: if isAdmin(teamId) || hasRole(teamId, seasonId, 'coach');
         }
+
+        // Fixtures, availability and lineup plans: admin or Coach.
+        // (Live scoring in step 2b will add what Scorers can write.)
+        match /games/{gameId} {
+          allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
+          allow write: if isAdmin(teamId) || hasRole(teamId, seasonId, 'coach');
+        }
       }
     }
   }
