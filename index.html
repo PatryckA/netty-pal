@@ -697,7 +697,7 @@ let offlineMode = !navigator.onLine;
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
   gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null, statSide:'us',
   liveMode:'event', pendingEvent:null };
-// Scoring mode: Result first unless this phone chose Player first.
+// Scoring mode: Goal/Miss first unless this phone chose Player first.
 try { if (localStorage.getItem('nettyPalLiveMode') === 'player') UI.liveMode = 'player'; } catch(e){}
 
 // Home screen: one entry per season the user belongs to.
@@ -1875,7 +1875,7 @@ function renderLiveTab(g){
 
 // The in-play screen: position tiles for recording goals and misses, in
 // one of two modes the scorer swipes between. "Player first": tap a
-// shooter, then Goal or Miss. "Result first": tap Goal or Miss, then who.
+// shooter, then Goal or Miss. "Goal/Miss first": tap Goal or Miss, then who.
 function livePlayHtml(g, st, scoring){
   const L = g.live;
   const lineup = st.lineup || {};
@@ -1898,7 +1898,7 @@ function livePlayHtml(g, st, scoring){
   if (scoring){
     controls = `<div class="mode-row">
         <div class="mode-tabs" role="tablist" aria-label="Scoring mode">
-          <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Result first</button>
+          <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Goal/Miss first</button>
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
         <button class="help-btn" data-action="show-guide" aria-label="How to score">?</button>
@@ -4028,7 +4028,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'ef-event'){
       UI.pendingEvent = UI.pendingEvent === btn.dataset.stat ? null : btn.dataset.stat; render();
     } else if (a === 'ef-who'){
-      // Result first: the chosen Goal or Miss goes to whoever is tapped.
+      // Goal/Miss first: the chosen Goal or Miss goes to whoever is tapped.
       const g = findGame(UI.gameId), stat = UI.pendingEvent;
       if (!g || !stat || !isInPlay(g)) return;
       UI.pendingEvent = null; render();
@@ -4278,7 +4278,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && (UI.pickPos || UI.statPos)) closePicker();
 });
 
-// Scoring mode (Player first / Result first), remembered on this phone.
+// Scoring mode (Player first / Goal/Miss first), remembered on this phone.
 function setLiveMode(mode){
   if (mode !== 'player' && mode !== 'event') return;
   UI.liveMode = mode; UI.pendingEvent = null;
