@@ -120,6 +120,11 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .signin-btn.facebook{background:#1877F2; border-color:#1877F2; color:#fff;}
 .signin-btn.facebook:hover{background:#166FE5; border-color:#166FE5;}
 .signin-btn.email{background:none; color:var(--ink); border-color:var(--line);}
+.inapp-note{width:100%; max-width:22rem; text-align:left; background:var(--warm-bg); border:1.5px solid var(--warm); border-radius:12px; padding:0.8rem 1rem; display:flex; flex-direction:column; gap:0.5rem;}
+.hero .inapp-note p{color:var(--ink); max-width:none;}
+.hero .inapp-note p.hint{color:var(--ink-soft);}
+.inapp-actions{display:flex; gap:0.5rem; flex-wrap:wrap;}
+.inapp-actions a.btn{text-decoration:none;}
 .signin-card{
   width:100%; max-width:22rem; text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:12px;
   padding:1rem; display:flex; flex-direction:column; gap:0.7rem;
@@ -375,6 +380,17 @@ span.cp-wrap{cursor:default;}
 .sb2-play{display:flex; justify-content:flex-end;}
 .play-btn{width:3.1rem; height:3.1rem; border-radius:12px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .play-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
+.play-btn{flex-direction:column; gap:0.05rem; width:3.4rem; height:3.4rem;}
+.play-label{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; line-height:1;}
+.cp-wrap.armed{background:var(--critical); color:#fff; border-radius:20px; padding:0.25rem 0.7rem;}
+.cp-confirm{font-size:0.72rem; font-weight:800; white-space:nowrap;}
+.sub-btn{width:100%; margin:0 0 0.4rem; padding-top:0.7rem; padding-bottom:0.7rem;}
+.head-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem;}
+.more-row .btn{padding-top:0.3rem; padding-bottom:0.3rem;}
+.practice-banner{display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; background:var(--accent-bg); border:1.5px dashed var(--accent); border-radius:12px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.88rem;}
+.practice-banner span{flex:1; min-width:12rem;}
+.guide-links{display:flex; gap:0.5rem; flex-wrap:wrap;}
+.practice-invite{margin-top:1rem;}
 
 /* Scoring modes and position tiles */
 .mode-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem;}
@@ -410,7 +426,6 @@ span.cp-wrap{cursor:default;}
 .g-round svg{width:18px; height:18px;}
 .g-pills{display:inline-flex; gap:0.15rem; background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:2px;}
 .g-pills .cp{padding:0.15rem 0.55rem; font-size:0.68rem;}
-.g-arrow{color:var(--ink-soft); font-weight:800; font-size:1.1rem; margin:0 0.05rem;}
 .g-num{
   display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%;
   background:var(--ink); color:var(--paper); font-family:var(--font-display); font-weight:800; font-size:0.9rem; margin-right:0.15rem;
@@ -561,8 +576,8 @@ import {
   sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  collection, onSnapshot, writeBatch, serverTimestamp, deleteField
+  getFirestore, doc, getDoc, getDocs, setDoc, updateDoc as fsUpdateDoc, deleteDoc,
+  collection, onSnapshot, writeBatch as fsWriteBatch, serverTimestamp, deleteField
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 /* ---------------------------------------------------------------------
@@ -581,6 +596,71 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+
+/* ---------------------------------------------------------------------
+   Practice game. A pretend game kept only in this phone's memory, so
+   parents can try scoring before a real game. Saves for it never reach
+   the database: updateDoc and writeBatch below send anything aimed at the
+   practice game to practiceWrite instead. It's gone when they leave it.
+--------------------------------------------------------------------- */
+const PRACTICE_ID = 'practice-game';
+const DELETE_FIELD = deleteField();
+let PRACTICE = null;   // { game, events } while a practice game is open
+function isPracticeRef(ref){ return !!(ref && ref.path && ref.path.split('/').includes(PRACTICE_ID)); }
+function isPractice(g){ return !!(g && g.id === PRACTICE_ID); }
+function inPractice(){ return UI.view === 'game' && UI.gameId === PRACTICE_ID && !!PRACTICE; }
+
+function updateDoc(ref, data){
+  return isPracticeRef(ref) ? practiceWrite([['update', ref, data]]) : fsUpdateDoc(ref, data);
+}
+function writeBatch(database){
+  const ops = [];
+  const b = {
+    set(ref, data){ ops.push(['set', ref, data]); return b; },
+    update(ref, data){ ops.push(['update', ref, data]); return b; },
+    delete(ref){ ops.push(['delete', ref]); return b; },
+    commit(){
+      if (ops.some(([, ref]) => isPracticeRef(ref))) return practiceWrite(ops);
+      const real = fsWriteBatch(database);
+      ops.forEach(([kind, ref, data]) => kind === 'delete' ? real.delete(ref) : real[kind](ref, data));
+      return real.commit();
+    }
+  };
+  return b;
+}
+// Applies saves to the practice game in memory, the same way the database
+// would ("live.phase" style keys, deleteField), then redraws.
+function practiceWrite(ops){
+  if (!PRACTICE) return Promise.resolve();
+  const setPath = (obj, key, val) => {
+    const parts = key.split('.');
+    let o = obj;
+    parts.slice(0, -1).forEach(k => { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; o = o[k]; });
+    const last = parts[parts.length - 1];
+    if (val && typeof val.isEqual === 'function' && val.isEqual(DELETE_FIELD)) delete o[last];
+    else o[last] = val;
+  };
+  ops.forEach(([kind, ref, data]) => {
+    const parts = ref.path.split('/');
+    if (parts[parts.length - 2] === 'events'){
+      const id = parts[parts.length - 1];
+      if (kind === 'set') PRACTICE.events = [...PRACTICE.events.filter(e => e.id !== id), { ...data, id }];
+      else if (kind === 'update') PRACTICE.events = PRACTICE.events.map(e => {
+        if (e.id !== id) return e;
+        const next = { ...e };
+        Object.keys(data).forEach(k => setPath(next, k, data[k]));
+        return next;
+      });
+    } else if (kind === 'update'){
+      const g = JSON.parse(JSON.stringify(PRACTICE.game));
+      Object.keys(data).forEach(k => setPath(g, k, data[k]));
+      PRACTICE.game = g;
+    }
+  });
+  if (CUR.eventsFor === PRACTICE_ID) CUR.events = PRACTICE.events;
+  render();
+  return Promise.resolve();
+}
 
 /* ---------------------------------------------------------------------
    Data layout (Firestore)
@@ -617,7 +697,7 @@ let offlineMode = !navigator.onLine;
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
   gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null, statSide:'us',
   liveMode:'event', pendingEvent:null };
-// Scoring mode: Event first unless this phone chose Player first.
+// Scoring mode: Result first unless this phone chose Player first.
 try { if (localStorage.getItem('nettyPalLiveMode') === 'player') UI.liveMode = 'player'; } catch(e){}
 
 // Home screen: one entry per season the user belongs to.
@@ -712,7 +792,7 @@ function canEditGames(){ return isAdmin() || myRoles().includes('coach'); }
 /* ---------------------------------------------------------------------
    Game helpers
 --------------------------------------------------------------------- */
-function findGame(id){ return CUR.games.find(g => g.id === id); }
+function findGame(id){ return id === PRACTICE_ID ? (PRACTICE && PRACTICE.game) : CUR.games.find(g => g.id === id); }
 function playerName(id){ const p = CUR.players.find(p => p.id === id); return p ? p.name : 'Unknown player'; }
 function periodCount(g){ return g && g.format === 'halves' ? 2 : 4; }
 function periodName(g, p){ return g.format === 'halves' ? (p === 1 ? '1st half' : '2nd half') : 'Q' + p; }
@@ -802,7 +882,7 @@ const STAT_LABEL = { goal:'Goal', miss:'Miss', intercept:'Intercept', held:'Held
 const SHOOTERS = ['GS','GA'];
 
 // Anyone who can run a game: admin, Coach or Scorer.
-function canScore(){ return isAdmin() || myRoles().includes('coach') || myRoles().includes('scorer'); }
+function canScore(){ return inPractice() || isAdmin() || myRoles().includes('coach') || myRoles().includes('scorer'); }
 function amScorer(g){ return !!(USER && g.scorerUid === USER.uid && canScore()); }
 function periodMs(g){ return (g.periodMinutes || DEFAULT_PERIOD_MINUTES) * 60000; }
 // Time played so far in the current period, never more than its length.
@@ -989,7 +1069,7 @@ function renderSignedOut(){
         </div>
       </form>`;
   } else {
-    panel = `<div class="signin-options">
+    panel = `${inAppBrowserHtml()}<div class="signin-options">
         <button class="btn big signin-btn google" data-action="sign-in">${googleSvg()}<span>Continue with Google</span></button>
         <button class="btn big signin-btn facebook" data-action="sign-in-facebook">${facebookSvg()}<span>Continue with Facebook</span></button>
         <button class="btn big signin-btn email" data-action="sign-in-email">${mailSvg()}<span>Continue with email</span></button>
@@ -1004,6 +1084,34 @@ function renderSignedOut(){
       ${panel}
     </div>
   </main></div>`;
+}
+
+// Links tapped in Facebook, Messenger, Instagram and some other apps open
+// in that app's own mini browser, where Google blocks signing in. Spot
+// that and explain how to get to the phone's real browser.
+function inAppBrowser(){
+  const ua = navigator.userAgent || '';
+  if (/FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(ua)) return 'Facebook';
+  if (/Instagram/i.test(ua)) return 'Instagram';
+  if (/MicroMessenger/i.test(ua)) return 'WeChat';
+  if (/\bLine\//.test(ua)) return 'LINE';
+  if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'another app';
+  return '';
+}
+function inAppBrowserHtml(){
+  const app = inAppBrowser();
+  if (!app) return '';
+  const android = /Android/.test(navigator.userAgent || '');
+  const chrome = `intent://${location.host}${location.pathname}${location.search}#Intent;scheme=https;package=com.android.chrome;end`;
+  return `<div class="inapp-note" role="alert">
+      <b>Open this in ${android ? 'Chrome' : 'Safari'} first</b>
+      <p>This page opened inside ${escapeHtml(app)}, where Google sign-in doesn't work. Tap <b>⋯</b> (top right) and choose <b>Open in browser</b>${android ? '' : ' or <b>Open in Safari</b>'}.</p>
+      <div class="inapp-actions">
+        ${android ? `<a class="btn small" href="${escapeHtml(chrome)}">Open in Chrome</a>` : ''}
+        <button class="btn ghost small" data-action="copy-link">Copy link</button>
+      </div>
+      <p class="hint" style="margin:0">Or use <b>Continue with email</b> below, which works here.</p>
+    </div>`;
 }
 
 function googleSvg(){
@@ -1225,7 +1333,11 @@ function renderGamesTab(){
          <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Hide archived games</button></div>`
       : `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Show archived games (${archived.length})</button></div>`;
   }
-  return `${form}${addBtn}${body}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+  if (canScore() && canPractise()) body += `<div class="panel practice-invite">
+      <p style="margin:0 0 0.5rem"><b>New to scoring?</b> Try a practice game first. Nothing is saved.</p>
+      <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
+    </div>`;
+  return `${form}${addBtn}${askToScoreHtml()}${body}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
 
 // Confirmation before archiving (or restoring) a game.
@@ -1346,11 +1458,14 @@ function renderGame(){
   const g = findGame(UI.gameId);
   if (!g) return back + '<div class="empty-state">This game has been deleted.</div>';
 
+  const practice = isPractice(g);
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
   if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Summary']);
-  tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']);
-  if (canEditGames()) tabs.push(['details','Details']);
-  if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = 'lineup';
+  if (!practice){
+    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']);
+    if (canEditGames()) tabs.push(['details','Details']);
+  }
+  if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
   watchEvents(g.id);
 
   let content = '';
@@ -1365,22 +1480,30 @@ function renderGame(){
   const where = [g.venue, g.court].filter(Boolean).join(', ');
   // While a period is being played, keep the header short so the scorer's
   // controls and the court fit on one phone screen.
+  const banner = practice ? practiceBannerHtml() : '';
   if (UI.gameTab === 'live' && isInPlay(g)){
-    return `<div class="season-head game-head compact">${back}<h2>${escapeHtml(gameTitle(g))}</h2></div>
-      <nav class="tabs" aria-label="Game sections">
+    // The scorer only needs this screen, so the other tabs fold away behind
+    // "More" while a period is being played (fewer mis-taps).
+    const nav = amScorer(g) && !UI.showTabs
+      ? `<div class="more-row"><button class="btn ghost small" data-action="show-tabs" aria-expanded="false">More ▾</button></div>`
+      : `<nav class="tabs" aria-label="Game sections">
         ${tabs.map(([k, label]) => `<button class="tab ${UI.gameTab === k ? 'active' : ''}" data-action="game-tab" data-tab="${k}" ${UI.gameTab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
-      </nav>
+      </nav>`;
+    return `<div class="season-head game-head compact"><div class="head-row">${back}${amScorer(g) && !UI.showTabs ? nav : ''}</div><h2>${escapeHtml(gameTitle(g))}</h2></div>
+      ${amScorer(g) && !UI.showTabs ? '' : nav}
+      ${banner}
       <div class="live-play">${content}</div>`;
   }
   return `<div class="season-head game-head">
       ${back}
       <h2>${escapeHtml(gameTitle(g))}</h2>
-      <div class="season-meta">${g.round ? 'Round ' + escapeHtml(g.round) + ' · ' : ''}${escapeHtml(fmtGameWhen(g))}</div>
+      ${practice ? '' : `<div class="season-meta">${g.round ? 'Round ' + escapeHtml(g.round) + ' · ' : ''}${escapeHtml(fmtGameWhen(g))}</div>`}
       <div class="season-meta">${where ? escapeHtml(where) + ' · ' : ''}${escapeHtml(gameFormatLabel(g))}</div>
     </div>
     <nav class="tabs" aria-label="Game sections">
       ${tabs.map(([k, label]) => `<button class="tab ${UI.gameTab === k ? 'active' : ''}" data-action="game-tab" data-tab="${k}" ${UI.gameTab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
     </nav>
+    ${banner}
     ${content}`;
 }
 
@@ -1680,12 +1803,16 @@ function renderLiveTab(g){
         </div>
         ${empty ? `<p class="hint" style="margin:0">${empty} position${empty === 1 ? ' is' : 's are'} empty in the ${escapeHtml(periodName(g, 1))} lineup. Tap a bib below to fill it, or start anyway.</p>` : ''}
         <button class="btn go big" data-action="start-game" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, 1))}</button>
-        <p class="hint" style="margin:0">Starting makes you the scorer and starts the clock.</p>
-        <button class="btn ghost small" style="align-self:flex-start" data-action="show-guide">New to scoring? How to score</button>
+        <p class="hint" style="margin:0">Tap it when the umpire starts play. The clock starts and you become the scorer.</p>
+        <div class="guide-links">
+          <button class="btn ghost small" data-action="show-guide">New to scoring? How to score</button>
+          ${isPractice(g) || !canPractise() ? '' : '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>'}
+        </div>
       </div>
       <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
       ${courtHtml(plan, true, g, 1, avail)}`
       : `<div class="placeholder-card">This game hasn't started yet.</div>
+      ${askToScoreHtml()}
       <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>${courtHtml(plan, false, g, 1)}`;
     if (canScore() && UI.pickPos){
       const posOf = {}; POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
@@ -1696,11 +1823,13 @@ function renderLiveTab(g){
   }
 
   body += scorerBarHtml(g);
+  if (status !== 'final') body += askToScoreHtml();
 
   if (isInPlay(g)){
     const lineup = st.lineup || {};
     body += livePlayHtml(g, st, scoring);
-    if (UI.statPos && scoring) body += statSheetHtml(g, st);
+    if (UI.subSheet && scoring) body += subSheetHtml(g, st);
+    else if (UI.statPos && scoring) body += statSheetHtml(g, st);
     else if (UI.pickPos && canScore()){
       UI.pickMode = 'live';
       const posOf = {}; POSITIONS.forEach(pos => { if (lineup[pos]) posOf[lineup[pos]] = pos; });
@@ -1715,7 +1844,7 @@ function renderLiveTab(g){
     const plan = startLineup(g, next);
     body += `<p class="big-note">End of ${escapeHtml(periodName(g, L.period))}</p>
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
-      <p class="hint" style="text-align:center">${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' Tap a bib to change the lineup before it starts.' : ''}</p>
+      <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' Tap a bib to change the lineup before it starts.' : ''}</p>
       ${courtHtml(plan, canScore(), g, next, avail)}`;
     if (scoring) body += undoBarHtml(g);
     if (canScore() && UI.pickPos){
@@ -1746,7 +1875,7 @@ function renderLiveTab(g){
 
 // The in-play screen: position tiles for recording goals and misses, in
 // one of two modes the scorer swipes between. "Player first": tap a
-// shooter, then Goal or Miss. "Event first": tap Goal or Miss, then who.
+// shooter, then Goal or Miss. "Result first": tap Goal or Miss, then who.
 function livePlayHtml(g, st, scoring){
   const L = g.live;
   const lineup = st.lineup || {};
@@ -1769,7 +1898,7 @@ function livePlayHtml(g, st, scoring){
   if (scoring){
     controls = `<div class="mode-row">
         <div class="mode-tabs" role="tablist" aria-label="Scoring mode">
-          <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Event first</button>
+          <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Result first</button>
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
         <button class="help-btn" data-action="show-guide" aria-label="How to score">?</button>
@@ -1789,7 +1918,7 @@ function livePlayHtml(g, st, scoring){
       <div class="sec-label">2. Who did it${ev ? '' : ' <span class="hint">(choose Goal or Miss first)</span>'}</div>
       <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
       ${oppGoalHtml(g)}
-      <p class="hint">For substitutions, swipe left to Player first.</p>`;
+      ${subBtnHtml()}`;
   } else {
     const ourAction = scoring || canScore() ? 'tile' : null;
     pane = `<div class="sec-label">Your positions</div>
@@ -1797,7 +1926,7 @@ function livePlayHtml(g, st, scoring){
       <div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
       <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>
       ${scoring ? oppGoalHtml(g) : ''}
-      ${scoring ? '<p class="hint">Tap a shooter to record a goal or miss. Tap anyone else for a substitution. Swipe right to choose the event first.</p>'
+      ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter to record a goal or miss.</p>'
         : canScore() ? '<p class="hint">Tap a position to make a substitution.</p>' : ''}`;
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
@@ -1810,6 +1939,43 @@ function livePlayHtml(g, st, scoring){
 function oppGoalHtml(g){
   return `<button class="opp-goal-btn" data-action="opp-goal">${escapeHtml(teamLabel(g, 'them'))} scored a goal</button>`;
 }
+
+// Substitutions from either scoring mode: pick the position, then who's on.
+function subBtnHtml(){
+  return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Substitution</button>';
+}
+function subSheetHtml(g, st){
+  const lineup = st.lineup || {};
+  const tile = pos => `<button class="ptile ${SHOOTERS.includes(pos) ? 'shooter' : ''}" data-action="sub-pos" data-pos="${pos}"
+      aria-label="${POS_NAMES[pos]}, ${lineup[pos] ? escapeHtml(playerName(lineup[pos])) : 'empty'}">
+      <span class="pt-pos">${pos}</span>
+      <span class="pt-name ${lineup[pos] ? '' : 'empty'}">${lineup[pos] ? escapeHtml(playerName(lineup[pos])) : 'Empty'}</span>
+    </button>`;
+  return `<div class="sheet-backdrop" data-action="sub-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sub-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="sub-title">Substitution</h3><div class="hint">Tap the position that's changing.</div></div>
+        <button class="btn ghost small" data-action="sub-close">Cancel</button>
+      </div>
+      <div class="sheet-body" style="padding-top:0.8rem">
+        <div class="pos-row two">${tile('GS')}${tile('GA')}</div>
+        <div class="pos-row three">${tile('WA')}${tile('C')}${tile('WD')}</div>
+        <div class="pos-row two">${tile('GD')}${tile('GK')}</div>
+      </div>
+    </div>`;
+}
+
+// For team members without a scoring role: how to get one, and a safe
+// place to try it in the meantime.
+function askToScoreHtml(){
+  if (canScore()) return '';
+  return `<div class="panel ask-score">
+      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach or team admin to make you a Scorer. They can do it in the Helpers tab.</p>
+      ${canPractise() ? '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>' : ''}
+    </div>`;
+}
+// A practice game needs someone on the roster to score for.
+function canPractise(){ return CUR.players.some(p => p.active !== false); }
 
 // The last few goals and misses, newest first. Anyone who can run the game
 // can tap a row to undo that particular entry (not just the latest).
@@ -1886,15 +2052,20 @@ function scoreboardHtml(g, st){
   if (isInPlay(g) && st.centre){
     const pill = (t, label) => `<span class="cp ${st.centre === t ? 'on' : ''}">${label}</span>`;
     const inner = `<span class="cp-label">Next Centre Pass</span>${pill('us', 'Us')}${pill('them', 'Them')}`;
+    // Switching takes two taps, so a stray tap near the clock can't change it.
+    const armedCp = scoring && isArmed('swap-centre');
     centre = scoring
-      ? `<button class="cp-wrap" data-action="swap-centre" aria-label="Centre pass: ${escapeHtml(teamLabel(g, st.centre))}. Tap to switch.">${inner}</button>`
+      ? `<button class="cp-wrap ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
+          ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(st.centre)))}`
+          : `Centre pass: ${escapeHtml(teamLabel(g, st.centre))}. Tap twice to switch.`}">${armedCp
+          ? `<span class="cp-confirm">Switch to ${st.centre === 'us' ? 'Them' : 'Us'}? Tap again</span>` : inner}</button>`
       : `<span class="cp-wrap" aria-label="Centre pass: ${escapeHtml(teamLabel(g, st.centre))}">${inner}</span>`;
   }
   let play = '';
   if (scoring && isInPlay(g)){
     play = L.phase === 'running'
-      ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></button>`
-      : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></button>`;
+      ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg><span class="play-label">Pause</span></button>`
+      : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span class="play-label">Resume</span></button>`;
   }
   return `<div class="sb2">
       <div class="sb2-top"><span class="sb2-period">${escapeHtml(period)}</span>${centre}<span class="sb2-phase">${phase}</span></div>
@@ -1914,8 +2085,13 @@ function scorerBarHtml(g){
   if (g.status === 'final') return '';
   const who = g.scorerName || 'Nobody';
   if (amScorer(g)) return isInPlay(g) ? '' : `<div class="scorer-bar"><span>You're scoring this game.</span></div>`;
+  // Taking over needs a second tap, so two helpers can't grab it from each
+  // other by accident.
+  const armedTake = isArmed('take-over');
+  const takeLabel = !armedTake ? 'Take over scoring'
+    : g.scorerUid ? `Take over from ${escapeHtml(who)}? Tap again` : 'Tap again to score this game';
   return `<div class="scorer-bar"><span>${g.scorerUid ? escapeHtml(who) + ' is scoring.' : 'Nobody is scoring.'}</span>
-    ${canScore() ? '<button class="btn small" data-action="take-over">Take over scoring</button>' : ''}</div>`;
+    ${canScore() ? `<button class="btn small ${armedTake ? 'armed' : ''}" data-action="take-over">${takeLabel}</button>` : ''}</div>`;
 }
 
 // Undo the scorer's own most recent action (not period starts and ends).
@@ -1936,7 +2112,6 @@ function eventText(g, e){
 // small copy of what to tap, with a few words beside it.
 function guideSheetHtml(g){
   const q2 = escapeHtml(periodName(g, 2));
-  const arrow = '<span class="g-arrow" aria-hidden="true">›</span>';
   const pauseIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
   const rows = [
     [`<span class="g-num">1</span><span class="g-btn goal">Goal</span><span class="g-btn">Miss</span>`,
@@ -1948,13 +2123,13 @@ function guideSheetHtml(g){
     [`<span class="g-round">${undoSvg()}</span>`,
       'Mistake? Tap undo, or tap the entry in the list.'],
     [`<span class="g-round">${pauseIcon}</span>`,
-      'Play stopped? Pause the clock.'],
-    [`<span class="g-tile">WA</span>${arrow}<span class="g-btn">Lily</span>`,
-      'Sub? Swipe left to Player first, tap the position.'],
+      'Umpire stops play? Tap Pause.'],
+    [`<span class="g-btn">⇄ Substitution</span>`,
+      'Player swapped? Tap Substitution, then the position, then who came on.'],
     ['<span class="g-pills"><span class="cp on">Us</span><span class="cp">Them</span></span>',
-      'Next centre pass wrong? Tap to switch.'],
+      'Next centre pass wrong? Tap it twice to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
-      `Clock at 0:00? Tap Start ${q2}.`],
+      `Break over? Tap Start ${q2} when the umpire restarts play.`],
     ['<span class="g-btn go">Finalise</span>',
       'Full time? Tap Finalise.'],
     ...(voiceSupported() ? [[`<span class="g-round">${micSvg()}</span>`,
@@ -2621,6 +2796,7 @@ function closeSeason(){
 
 function openSeason(teamId, seasonId){
   closeSeason();
+  PRACTICE = null;
   UI = { ...UI, view:'season', teamId, seasonId, tab:'games', form:null, gameId:null };
   saveNav();
   render();
@@ -2674,12 +2850,41 @@ function openSeason(teamId, seasonId){
 function openGame(gameId){
   const g = findGame(gameId);
   const gameDay = g && (g.status === 'live' || g.status === 'final' || g.date === todayIso());
-  UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null };
+  UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null, showTabs:false, subSheet:false };
   // First time a Scorer opens a game on this phone: show How to score.
   if (myRoles().includes('scorer') && !guideSeen()) UI.showGuide = true;
   saveNav();
   render();
   window.scrollTo(0, 0);
+}
+
+// A pretend game against a pretend team, using this season's players. The
+// Q1 lineup is filled from the roster so there's someone to score for.
+function startPractice(){
+  const ids = byName(CUR.players.filter(p => p.active !== false).map(p => p.id));
+  const plan = {};
+  POSITIONS.forEach((pos, i) => { if (ids[i]) plan[pos] = ids[i]; });
+  const s = CUR.season || {};
+  PRACTICE = {
+    game:{ id:PRACTICE_ID, practice:true, opponent:'Practice team', status:'scheduled',
+      format:s.format || 'quarters', periodMinutes:s.periodMinutes || DEFAULT_PERIOD_MINUTES,
+      available:ids, plan:{ 1:plan } },
+    events:[]
+  };
+  stopEvents();
+  UI = { ...UI, view:'game', gameId:PRACTICE_ID, gameTab:'live', period:1, form:null, pickPos:null, statPos:null, showGuide:true, showTabs:false, subSheet:false };
+  render();
+  window.scrollTo(0, 0);
+}
+function endPractice(){
+  PRACTICE = null;
+  backToGames();
+}
+function practiceBannerHtml(){
+  return `<div class="practice-banner" role="note">
+      <span><b>Practice game.</b> Nothing is saved and it doesn't count in any stats. Try anything.</span>
+      <button class="btn small" data-action="end-practice">End practice</button>
+    </div>`;
 }
 
 function guideSeen(){ try { return localStorage.getItem('nettyPalGuideSeen') === '1'; } catch(e){ return true; } }
@@ -2691,6 +2896,7 @@ function closeGuide(){
 
 function backToGames(){
   stopEvents();
+  PRACTICE = null;
   UI = { ...UI, view:'season', tab:'games', gameId:null, form:null, pickPos:null, statPos:null };
   saveNav();
   render();
@@ -2698,6 +2904,7 @@ function backToGames(){
 
 function goHome(){
   closeSeason();
+  PRACTICE = null;
   UI = { ...UI, view:'home', teamId:null, seasonId:null, gameId:null, form:null };
   saveNav();
   loadHome();
@@ -2706,8 +2913,10 @@ function goHome(){
 // Remember which season was open so a refresh (or reopening the installed
 // app) lands back in the same place.
 function saveNav(){
-  try { localStorage.setItem('nettyPalNav', JSON.stringify({ view:UI.view, teamId:UI.teamId, seasonId:UI.seasonId,
-    tab:UI.tab, gameId:UI.gameId, gameTab:UI.gameTab })); } catch(e){}
+  // A practice game isn't kept, so a refresh goes back to the games list.
+  const practice = UI.gameId === PRACTICE_ID;
+  try { localStorage.setItem('nettyPalNav', JSON.stringify({ view:practice ? 'season' : UI.view, teamId:UI.teamId, seasonId:UI.seasonId,
+    tab:practice ? 'games' : UI.tab, gameId:practice ? null : UI.gameId, gameTab:UI.gameTab })); } catch(e){}
 }
 function loadNav(){
   try { return JSON.parse(localStorage.getItem('nettyPalNav') || 'null'); } catch(e){ return null; }
@@ -3373,6 +3582,11 @@ function watchEvents(gameId){
   CUR.eventsFor = gameId;
   CUR.loaded.events = false;
   CUR.eventsError = null;
+  if (gameId === PRACTICE_ID){
+    CUR.events = PRACTICE ? PRACTICE.events : [];
+    CUR.loaded.events = true;
+    return;
+  }
   CUR.eventsUnsub = onSnapshot(eventsRef(gameId), (snap) => {
     if (CUR.eventsFor !== gameId) return;
     CUR.events = snap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -3705,6 +3919,9 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'sign-in-email'){
       UI.signin = 'email'; render();
       const f = document.getElementById('si-email'); if (f) f.focus();
+    } else if (a === 'copy-link'){
+      try { await navigator.clipboard.writeText(location.href); toast('Link copied. Paste it into Chrome or Safari.'); }
+      catch (err){ toast("Couldn't copy. Use the ⋯ menu to open in your browser instead.", true); }
     } else if (a === 'signin-back'){
       UI.signin = null; render();
     } else if (a === 'sign-out'){
@@ -3811,7 +4028,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'ef-event'){
       UI.pendingEvent = UI.pendingEvent === btn.dataset.stat ? null : btn.dataset.stat; render();
     } else if (a === 'ef-who'){
-      // Event first: the chosen Goal or Miss goes to whoever is tapped.
+      // Result first: the chosen Goal or Miss goes to whoever is tapped.
       const g = findGame(UI.gameId), stat = UI.pendingEvent;
       if (!g || !stat || !isInPlay(g)) return;
       UI.pendingEvent = null; render();
@@ -3849,8 +4066,24 @@ document.addEventListener('click', async (e) => {
       UI.logSel = null; render();
       await undoEvent(btn.dataset.event);
     } else if (a === 'swap-centre'){
+      if (!isArmed('swap-centre')) return arm('swap-centre');
+      disarm('swap-centre');
       const g = findGame(UI.gameId);
       if (g && isInPlay(g)) await swapCentre(g);
+    } else if (a === 'sub-open'){
+      UI.subSheet = true; UI.statPos = null; UI.pickPos = null; UI.pendingEvent = null; render(); focusSheet();
+    } else if (a === 'sub-close'){
+      UI.subSheet = false; render();
+      const sub = document.querySelector('[data-action="sub-open"]');
+      if (sub) sub.focus();
+    } else if (a === 'sub-pos'){
+      UI.subSheet = false; UI.pickPos = btn.dataset.pos; UI.pickMode = 'live'; UI.statPos = null; render(); focusSheet();
+    } else if (a === 'start-practice'){
+      startPractice();
+    } else if (a === 'end-practice'){
+      endPractice();
+    } else if (a === 'show-tabs'){
+      UI.showTabs = true; render();
     } else if (a === 'undo'){
       await undoLast();
     } else if (a === 'start-game'){
@@ -3859,6 +4092,7 @@ document.addEventListener('click', async (e) => {
       if (g) await runBusy(() => startGame(g, first ? first.value : 'us'));
     } else if (a === 'start-period'){
       const g = findGame(UI.gameId);
+      UI.showTabs = false;
       if (g) await runBusy(() => startNextPeriod(g));
     } else if (a === 'pause-clock'){
       const g = findGame(UI.gameId); if (g) await pauseClock(g);
@@ -3869,6 +4103,8 @@ document.addEventListener('click', async (e) => {
       disarm('end-period');
       const g = findGame(UI.gameId); if (g) await endPeriod(g);
     } else if (a === 'take-over'){
+      if (!isArmed('take-over')) return arm('take-over');
+      disarm('take-over');
       const g = findGame(UI.gameId); if (g) await takeOverScoring(g);
     } else if (a === 'finalise-game'){
       const g = findGame(UI.gameId); if (g) await runBusy(() => finaliseGame(g));
@@ -4038,10 +4274,11 @@ function closePicker(){
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
+  if (e.key === 'Escape' && UI.subSheet){ UI.subSheet = false; render(); return; }
   if (e.key === 'Escape' && (UI.pickPos || UI.statPos)) closePicker();
 });
 
-// Scoring mode (Player first / Event first), remembered on this phone.
+// Scoring mode (Player first / Result first), remembered on this phone.
 function setLiveMode(mode){
   if (mode !== 'player' && mode !== 'event') return;
   UI.liveMode = mode; UI.pendingEvent = null;
