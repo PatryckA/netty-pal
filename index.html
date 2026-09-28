@@ -59,7 +59,8 @@ a{color:inherit;}
   backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:0.75rem 1rem;
   display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
 }
-.brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase; white-space:nowrap;}
+.brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase; white-space:nowrap;
+  background:none; border:none; padding:0; color:var(--ink); cursor:pointer;}
 @media (max-width:520px){ .user-chip .uname{display:none;} }
 .brand span{color:var(--accent);}
 .user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--ink-soft); min-width:0;}
@@ -257,6 +258,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
   border-radius:8px; padding:0.45rem 0.7rem; margin:0 0 0.7rem;
 }
 .follow-note.own{border-style:solid;}
+.court-tip{font-size:0.82rem; color:var(--ink-soft); text-align:center; margin:0 auto 0.5rem; max-width:320px;}
 /* ---- Court ---- */
 :root{ --court-bg:#CFE4F5; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#172B42; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
@@ -347,7 +349,7 @@ body.dragging{cursor:grabbing;}
 .event-when{font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:0.78rem; min-width:4.6rem;}
 .event-row.opp .event-what{color:var(--ink-soft);}
 .event-row .select-input{width:auto; flex:1; min-width:8rem; padding:0.35rem 0.5rem; font-size:0.85rem;}
-.stats-table td:first-child{max-width:7.5rem; overflow:hidden; text-overflow:ellipsis;}
+.stats-table td:first-child{white-space:normal; overflow-wrap:anywhere; min-width:5rem; max-width:9rem;}
 .stats-table tr.opp td{color:var(--ink-soft); font-style:italic;}
 .game-head.compact{margin-bottom:0.5rem;}
 .game-head.compact h2{font-size:1.4rem;}
@@ -367,7 +369,7 @@ span.cp-wrap{cursor:default;}
 .sb2-clock .clock{font-size:1.6rem; font-weight:700;}
 .sb2-score{display:flex; align-items:flex-end; gap:0.6rem;}
 .sb2-team{display:flex; flex-direction:column; align-items:center; min-width:0;}
-.sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:5.5rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:6.5rem; text-align:center; line-height:1.15; overflow-wrap:anywhere;}
 .sb2-team b{font-family:var(--font-display); font-size:2.9rem; line-height:1; font-variant-numeric:tabular-nums;}
 .sb2-sep{width:1rem; height:4px; background:var(--line); border-radius:2px; margin-bottom:1.3rem;}
 .sb2-play{display:flex; justify-content:flex-end;}
@@ -413,7 +415,7 @@ span.cp-wrap{cursor:default;}
   display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%;
   background:var(--ink); color:var(--paper); font-family:var(--font-display); font-weight:800; font-size:0.9rem; margin-right:0.15rem;
 }
-.g-btn.wide{max-width:9rem; overflow:hidden; text-overflow:ellipsis; background:var(--surface-2);}
+.g-btn.wide{max-width:9rem; height:auto; min-height:1.8rem; padding-top:0.2rem; padding-bottom:0.2rem; white-space:normal; line-height:1.2; background:var(--surface-2);}
 .sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
 .sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
 .pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
@@ -472,7 +474,7 @@ button.log-row:hover{background:var(--surface-2);}
 .result-card.won .result-word{color:var(--ok);}
 .result-card.lost .result-word{color:var(--critical);}
 .result-score{display:flex; align-items:center; justify-content:center; gap:0.6rem; margin-top:0.2rem;}
-.result-score span{font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--ink-soft); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.result-score span{font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--ink-soft); flex:1; min-width:0; overflow-wrap:anywhere; line-height:1.2;}
 .result-score span:first-child{text-align:right;}
 .result-score span:last-child{text-align:left;}
 .result-score b{font-family:var(--font-display); font-size:2.6rem; line-height:1; font-variant-numeric:tabular-nums;}
@@ -540,9 +542,13 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 .fair thead th:last-child{padding-right:0.6rem; line-height:1.05;}
 .fair thead th{border-top:none; font-family:var(--font-display); font-size:0.95rem; font-weight:700;}
 .fair th:first-child,.fair td:first-child{text-align:left; position:sticky; left:0; background:var(--surface); white-space:nowrap; padding-left:0.8rem; font-weight:600;}
+/* Long names (e.g. team names) wrap rather than widen the table. */
+.fair td:first-child{white-space:normal; overflow-wrap:anywhere; min-width:5.5rem; max-width:9.5rem; line-height:1.25;}
 .fair td.total{font-weight:800;}
 .fair td.this{font-weight:800; color:var(--accent);}
 .fair td.zero-this{color:var(--warm);}
+.fair-toggle{margin:0 0 0.6rem;}
+.fair.simple th{white-space:normal; line-height:1.15; font-size:0.85rem;}
 </style>
 </head>
 <body>
@@ -922,7 +928,7 @@ function render(){
 
 function renderTopbar(){
   return `<header class="topbar">
-    <div class="brand">Netty <span>Pal</span></div>
+    <button class="brand" data-action="go-home" aria-label="Netty Pal: back to all teams">Netty <span>Pal</span></button>
     <div class="user-chip">
       ${avatarHtml(USER.displayName, USER.photoURL, 'small')}
       <span class="uname">${escapeHtml(USER.displayName || USER.email)}</span>
@@ -1407,16 +1413,13 @@ function renderLineupTab(g){
       `<span class="chip ${counts[id] ? '' : 'zero'}">${escapeHtml(playerName(id))} <b>${counts[id]}</b></span>`).join('')}</div>`
       : '<span class="hint">No players are marked as playing.</span>'}</div>`;
 
-  // Tell the coach whether this period is following an earlier one, and
-  // offer to undo this period's own changes (or clear Q1).
-  const follows = followsPeriod(g, p);
+  // Note when this period has its own changes (the Reset button undoes them),
+  // and offer to clear Q1.
   const prevName = p > 1 ? escapeHtml(periodName(g, p - 1)) : '';
-  let followNote = '';
-  if (p > 1 && isPeriodPlanned(g, p)){
-    followNote = follows
-      ? `<p class="follow-note">Same as ${escapeHtml(periodName(g, follows))}. Changes you make here also apply to later ${escapeHtml(periodNoun(g, true))} you haven't changed.</p>`
-      : `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>`;
-  }
+  const followNote = p > 1 && ownPlan(g, p) && isPeriodPlanned(g, p)
+    ? `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>` : '';
+  const dragTip = editable
+    ? '<p class="court-tip">Drag names around the court to change positions, or drag someone from the bench onto a position.</p>' : '';
   let tools = '';
   if (editable){
     if (p === 1 && ownPlan(g, 1) && isPeriodPlanned(g, 1)){
@@ -1431,10 +1434,11 @@ function renderLineupTab(g){
 
   return `${picker}
     ${followNote}
+    ${dragTip}
     ${courtHtml(plan, editable, g, p, avail)}
     ${tools}
     ${countsHtml}
-    ${editable ? `<p class="hint">Drag players between positions, or from the bench onto the court (dropping someone on another player swaps them). You can also tap a position to pick from a list. Each ${escapeHtml(periodNoun(g))} starts the same as the one before, so you only need to make the changes. You can still change everything on game day.</p>` : ''}
+    ${editable ? '<p class="hint">You can also tap a position to pick from a list. Dropping someone on another player swaps them. You can still change everything on game day.</p>' : ''}
     ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, planCountOf(g, counts),
       `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`) : ''}`;
 }
@@ -1563,11 +1567,12 @@ function renderFairTab(g){
   const games = sortGames(CUR.games).filter(x => !x.archived || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
   const rows = {};
-  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0 });
+  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, games:new Set() });
   const add = (id, pos, v, game) => {
     const r = ensure(id);
     r.pos[pos] = (r.pos[pos] || 0) + v;
     r.total += v;
+    if (v >= 0.05) r.games.add(game.id); // counts as a game played
     if (game.id === g.id) r.thisGame += v;
   };
   CUR.players.filter(p => p.active !== false).forEach(p => ensure(p.id));
@@ -1590,6 +1595,39 @@ function renderFairTab(g){
   const list = Object.values(rows).sort((a,b) => playerName(a.id).localeCompare(playerName(b.id)));
   const max = Math.max(1, ...list.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
   const playing = new Set(availableIds(g));
+  const noun = escapeHtml(periodNoun(g, true));
+  const detailed = UI.fairView === 'detailed';
+  const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Fairness view">
+      <label><input type="radio" name="fairView" data-field="fair-view" value="simple" ${detailed ? '' : 'checked'}><span>Simple</span></label>
+      <label><input type="radio" name="fairView" data-field="fair-view" value="detailed" ${detailed ? 'checked' : ''}><span>Detailed</span></label>
+    </div>`;
+  const note = playedGames
+    ? `${playedGames} of these game${playedGames === 1 ? ' was' : 's were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time (0.5 means half a ${escapeHtml(periodNoun(g))}). The rest count the planned lineup.`
+    : 'These count the planned lineups. Games scored live will count real court time instead.';
+
+  if (!detailed){
+    // Simple: just totals, least court time first. All figures are quarters.
+    const simple = list.slice().sort((a, b) => a.total - b.total || playerName(a.id).localeCompare(playerName(b.id)));
+    const rowsHtml = simple.map(r => {
+      const games = r.games.size;
+      return `<tr>
+        <td>${escapeHtml(playerName(r.id))}</td>
+        <td class="total">${fmt(r.total)}</td>
+        <td>${games}</td>
+        <td>${games ? fmt(r.total / games) : '·'}</td>
+        <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
+      </tr>`;
+    }).join('');
+    return `<h3 class="subhead">Court time so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in ${noun})</span></h3>
+      ${toggle}
+      <div class="fair-wrap"><table class="fair simple">
+        <thead><tr><th scope="col">Player</th><th scope="col">Season total</th><th scope="col">Games played</th>
+          <th scope="col">Average per game</th><th scope="col">This game</th></tr></thead>
+        <tbody>${rowsHtml || '<tr><td colspan="5">No players yet.</td></tr>'}</tbody>
+      </table></div>
+      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
+  }
+
   const body = list.map(r => `<tr>
       <td>${escapeHtml(playerName(r.id))}</td>
       ${POSITIONS.map(pos => {
@@ -1600,15 +1638,14 @@ function renderFairTab(g){
       <td class="total">${fmt(r.total)}</td>
       <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
     </tr>`).join('');
-  return `<h3 class="subhead">Positions so far</h3>
+  return `<h3 class="subhead">Positions so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in ${noun})</span></h3>
+    ${toggle}
     <div class="fair-wrap"><table class="fair">
       <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}
         <th scope="col">Total</th><th scope="col">This game</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${POSITIONS.length + 3}">No players yet.</td></tr>`}</tbody>
     </table></div>
-    <p class="hint">Number of ${escapeHtml(periodNoun(g, true))} each player has had in each position, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Darker means more often. ${playedGames
-      ? `${playedGames} of these game${playedGames === 1 ? ' was' : 's were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time (0.5 means half a ${escapeHtml(periodNoun(g))}). The rest count the planned lineup.`
-      : 'These count the planned lineups. Games scored live will count real court time instead.'}</p>`;
+    <p class="hint">Number of ${noun} each player has had in each position, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Darker means more often. ${note}</p>`;
 }
 
 /* ---- Live tab ---- */
@@ -1978,12 +2015,12 @@ function liveStatsHtml(g, st){
   const oppShots = st.them + st.oppMiss;
   return `<h3 class="subhead">Stats</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Court time</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <thead><tr><th scope="col">Player</th><th scope="col">Court time (mins)</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
       <tbody>${rows}
         <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + oppShots : st.them}</td>
           <td>${st.oppMiss ? pct(st.them, oppShots) : '·'}</td></tr></tbody>
     </table></div>
-    <p class="hint">Goals shows goals out of shots. Only the other team's goals are recorded.</p>`;
+    <p class="hint">Only the other team's goals are recorded.</p>`;
 }
 
 // Recent events during play; the full timeline (with corrections) at full time.
@@ -2108,7 +2145,7 @@ function renderSummaryTab(g){
         <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + (st.them + st.oppMiss) : st.them}</td><td>${st.oppMiss ? pctText(st.them, st.them + st.oppMiss) : '·'}</td></tr>
       </tbody>
     </table></div>
-    <p class="hint">Goals shows goals out of shots.</p>`;
+    `;
 
   const playing = new Set(availableIds(g));
   const ids = byName(Array.from(new Set([...Object.keys(st.players).filter(id => st.players[id].ms), ...playing])));
@@ -2192,10 +2229,27 @@ async function summaryImage(g, st){
   x.fillStyle = !over ? '#C8641C' : res === 'Won' ? '#2E7550' : res === 'Lost' ? '#B3261E' : '#172033';
   x.font = display(90); x.fillText((over ? res : 'In progress').toUpperCase(), W / 2, 250);
 
-  // Teams and score.
-  x.fillStyle = '#586072'; x.font = body(40, 800);
-  x.fillText(fit(teamLabel(g, 'us').toUpperCase(), 420), 290, 370);
-  x.fillText(fit(teamLabel(g, 'them').toUpperCase(), 420), 790, 370);
+  // Teams and score. Team names are never cut short: long ones get a
+  // smaller font, and wrap onto a second line if still too wide.
+  const teamName = (name, cx) => {
+    const max = 440, text = String(name).toUpperCase();
+    let size = 40;
+    x.font = body(size, 800);
+    while (size > 30 && x.measureText(text).width > max){ size -= 2; x.font = body(size, 800); }
+    if (x.measureText(text).width <= max){ x.fillText(text, cx, 370); return; }
+    const words = text.split(' '), lines = [''];
+    words.forEach(w => {
+      const tryLine = lines[lines.length - 1] ? lines[lines.length - 1] + ' ' + w : w;
+      if (x.measureText(tryLine).width <= max || !lines[lines.length - 1]) lines[lines.length - 1] = tryLine;
+      else lines.push(w);
+    });
+    const shown = lines.slice(0, 2);
+    if (lines.length > 2) shown[1] = lines.slice(1).join(' ');
+    shown.forEach((line, i) => x.fillText(line, cx, 370 + (i - (shown.length - 1) / 2) * (size + 4)));
+  };
+  x.fillStyle = '#586072';
+  teamName(teamLabel(g, 'us'), 290);
+  teamName(teamLabel(g, 'them'), 790);
   x.fillStyle = '#172033'; x.font = display(240);
   x.fillText(String(st.us), 290, 520); x.fillText(String(st.them), 790, 520);
   x.fillStyle = '#9AA0AC'; x.font = display(150); x.fillText(':', W / 2, 505);
@@ -2228,17 +2282,21 @@ function prepareShare(g, st){
   const text = summaryShareText(g, st);
   const key = g.id + '|' + text;
   if (CUR.share && CUR.share.key === key) return;
-  CUR.share = { key, text, file:null };
-  summaryImage(g, st).then(blob => {
-    if (!CUR.share || CUR.share.key !== key) return;
+  const share = { key, text, file:null };
+  share.ready = summaryImage(g, st).then(blob => {
     const name = `netty-pal-${nameKey(teamLabel(g, 'us')).replace(/ /g, '-')}-v-${nameKey(teamLabel(g, 'them')).replace(/ /g, '-')}.png`;
-    CUR.share.file = new File([blob], name, { type:'image/png' });
+    share.file = new File([blob], name, { type:'image/png' });
   }).catch(err => console.warn('Netty Pal: share image', err));
+  CUR.share = share;
 }
 
 async function shareSummary(g){
   const st = computeGame(g, CUR.events);
   prepareShare(g, st);
+  // If the picture is still being made (Share tapped straight away), wait a
+  // moment for it; any longer and phones may not allow the share any more.
+  if (!CUR.share.file && CUR.share.ready)
+    await Promise.race([CUR.share.ready, new Promise(r => setTimeout(r, 1000))]);
   const { text, file } = CUR.share;
   const title = `${teamLabel(g, 'us')} v ${teamLabel(g, 'them')}`;
   // Phones: the share menu, with the picture if the phone allows it.
@@ -2332,11 +2390,11 @@ function renderSeasonStatsTab(){
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
-      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td>
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins per game</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.games ? (p.ms / 60000 / p.games).toFixed(1).replace(/\.0$/, '') : '·'}</td>
         <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
     </table></div>
-    <p class="hint">Games counts games where they got on court. Mins is total court time.</p>`;
+    <p class="hint">Games counts games where they got on court. Mins is total court time; the average only counts games they played, so a missed game doesn't pull it down.</p>`;
 
   const court = `<h3 class="subhead">Court time by position</h3>
     ${courtTimeTable(list, minsText)}
@@ -3863,6 +3921,7 @@ document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
   if (el.matches('input[data-field="import-file"]') && el.files && el.files[0]) readImportFile(el.files[0]);
+  if (el.matches('input[data-field="fair-view"]')){ UI.fairView = el.value; render(); }
   if (el.matches('select[data-field="event-player"]')){
     const g = findGame(UI.gameId);
     if (g) correctEvent(g, el.dataset.event, { playerId:el.value }).catch(err => { fail(err); render(); });
