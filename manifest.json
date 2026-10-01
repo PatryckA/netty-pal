@@ -6,8 +6,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#F2F0EA",
-  "theme_color": "#1F4E8C",
+  "background_color": "#FAD4E1",
+  "theme_color": "#172033",
   "icons": [
     {"src": "icon-netball-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
     {"src": "icon-netball-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
