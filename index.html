@@ -1760,10 +1760,10 @@ function renderFairTab(g){
       ${toggle}
       <div class="fair-wrap"><table class="fair simple">
         <thead><tr><th scope="col">Player</th><th scope="col">Season total</th><th scope="col">Games played</th>
-          <th scope="col">Average per game</th><th scope="col">This game</th></tr></thead>
+          <th scope="col">Average per game played</th><th scope="col">This game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="5">No players yet.</td></tr>'}</tbody>
       </table></div>
-      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
+      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game played only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
   }
 
   const body = list.map(r => `<tr>
