@@ -2583,7 +2583,7 @@ function renderSeasonStatsTab(){
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins per game</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins per game played</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
       <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.games ? (p.ms / 60000 / p.games).toFixed(1).replace(/\.0$/, '') : '·'}</td>
         <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
     </table></div>
