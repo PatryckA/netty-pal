@@ -844,6 +844,32 @@ function followsPeriod(g, p){
   return 0;
 }
 function isPeriodPlanned(g, p){ return POSITIONS.some(pos => planFor(g, p)[pos]); }
+// Once a game has started, a period that has begun has been played (or is
+// being played), so the Lineup tab shows what really happened instead of
+// the plan.
+function periodStarted(g, p){ return !!(g.live && g.live.period && p <= g.live.period); }
+// Who was on court at the end of period p (or is on court now, for the
+// current period): the last lineup recorded for it. Null if this game's
+// events haven't loaded.
+function endLineup(g, p){
+  if (CUR.eventsFor !== g.id) return null;
+  const les = (CUR.events || []).filter(e => !e.undone && e.type === 'lineup' && e.period === p)
+    .sort((a, b) => (a.t - b.t) || ((a.at || 0) - (b.at || 0)));
+  return les.length ? (les[les.length - 1].lineup || {}) : null;
+}
+// The lineup the Lineup tab shows. Before the game it's the plan. Once the
+// game is under way, periods that have started show the real lineup, and
+// later periods carry on from it unless they have their own changes (the
+// same rule the scorer's screen uses when the next period starts).
+function lineupFor(g, p){
+  if (!g.live || !g.live.period) return planFor(g, p);
+  if (periodStarted(g, p)) return endLineup(g, p) || planFor(g, p);
+  const own = ownPlan(g, p);
+  if (!own) return lineupFor(g, p - 1);
+  const avail = new Set(availableIds(g)), lineup = {};
+  POSITIONS.forEach(pos => { if (own[pos] && avail.has(own[pos])) lineup[pos] = own[pos]; });
+  return lineup;
+}
 function plannedCount(g){
   let n = 0;
   for (let p = 1; p <= periodCount(g); p++) if (isPeriodPlanned(g, p)) n++;
@@ -1548,9 +1574,12 @@ function renderLineupTab(g){
   const n = periodCount(g);
   if (UI.period > n) UI.period = 1;
   const p = UI.period;
-  const plan = planFor(g, p);
+  const plan = lineupFor(g, p);
   const avail = byName(availableIds(g));
-  const editable = canEditGames();
+  // A period that has started is changed with substitutions on the Game tab,
+  // so here it's read-only.
+  const started = periodStarted(g, p);
+  const editable = canEditGames() && !started;
 
   const picker = `<div class="period-picker" role="tablist" aria-label="${escapeHtml(periodNoun(g, true))}">
     ${Array.from({ length:n }, (_, i) => i + 1).map(k => `
@@ -1576,7 +1605,12 @@ function renderLineupTab(g){
   // Note when this period has its own changes (the Reset button undoes them),
   // and offer to clear Q1.
   const prevName = p > 1 ? escapeHtml(periodName(g, p - 1)) : '';
-  const followNote = p > 1 && ownPlan(g, p) && isPeriodPlanned(g, p)
+  const now = started && g.status === 'live' && g.live.period === p && g.live.phase !== 'ended';
+  const followNote = started
+    ? `<p class="follow-note own">${now
+        ? `${escapeHtml(periodName(g, p))} is under way. This is who's on court now.${canScore() ? ' To make a change, use Substitution on the Game tab.' : ''}`
+        : `${escapeHtml(periodName(g, p))} is over. This is who finished it.`}</p>`
+    : p > 1 && ownPlan(g, p) && isPeriodPlanned(g, p)
     ? `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>` : '';
   const dragTip = editable
     ? '<p class="court-tip">Drag names around the court to change positions, or drag someone from the bench onto a position.</p>' : '';
@@ -1611,7 +1645,7 @@ function planCountOf(g, counts){
 function gamePeriodCounts(g, ids){
   const counts = {};
   ids.forEach(id => counts[id] = 0);
-  for (let k = 1; k <= periodCount(g); k++) POSITIONS.forEach(pos => { const id = planFor(g, k)[pos]; if (id in counts) counts[id]++; });
+  for (let k = 1; k <= periodCount(g); k++) POSITIONS.forEach(pos => { const id = lineupFor(g, k)[pos]; if (id in counts) counts[id]++; });
   return counts;
 }
 
@@ -4208,12 +4242,15 @@ document.addEventListener('change', (e) => {
 });
 // Puts a player in a position (or empties it when pid is ''), in the right
 // place: a substitution during play, the next period's lineup between
-// periods, or the lineup plan otherwise.
+// periods, or the lineup plan otherwise. Once the game is under way, a
+// later period's changes start from the lineup the Lineup tab shows (which
+// carries on from who's on court), and periods that have started are only
+// changed by substitutions.
 async function assignSlot(pos, pid, mode){
   const g = findGame(UI.gameId);
   if (mode === 'live' && g && isInPlay(g)) return setLiveSlot(g, pos, pid);
-  if (g && g.status === 'live' && g.live && g.live.phase === 'ended' && UI.period === g.live.period + 1)
-    return setPlanSlot(pos, pid, startLineup(g, UI.period));
+  if (g && periodStarted(g, UI.period)) return;
+  if (g && g.live && g.live.period) return setPlanSlot(pos, pid, lineupFor(g, UI.period));
   return setPlanSlot(pos, pid);
 }
 
