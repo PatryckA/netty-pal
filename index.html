@@ -703,7 +703,7 @@ let offlineMode = !navigator.onLine;
 // view is 'home', 'season' or 'game'; gameTab and period belong to the game screen.
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
   gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null, statSide:'us',
-  liveMode:'event', pendingEvent:null };
+  liveMode:'event', pendingEvent:null, statsOpen:{} };
 // Scoring mode: Goal/Miss first unless this phone chose Player first.
 try { if (localStorage.getItem('nettyPalLiveMode') === 'player') UI.liveMode = 'player'; } catch(e){}
 
@@ -2188,10 +2188,14 @@ function statSheetHtml(g, st){
     </div>`;
 }
 
+// Folded away during play to keep the scoring screen simple; open by default
+// once the game is over. The scorer's choice is remembered per game.
 function liveStatsHtml(g, st){
   const ids = new Set([...Object.keys(st.players), ...availableIds(g)]);
   const list = byName(Array.from(ids));
   if (!list.length) return '';
+  const open = g.id in UI.statsOpen ? UI.statsOpen[g.id] : isGameOver(g);
+  if (!open) return `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="0">Show stats</button></div>`;
   const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '·';
   const rows = list.map(id => {
     const r = st.players[id] || { ms:0, goal:0, miss:0 };
@@ -2207,7 +2211,8 @@ function liveStatsHtml(g, st){
         <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + oppShots : st.them}</td>
           <td>${st.oppMiss ? pct(st.them, oppShots) : '·'}</td></tr></tbody>
     </table></div>
-    <p class="hint">${escapeHtml(teamLabel(g, 'them'))}'s % only counts the misses that were recorded.</p>`;
+    <p class="hint">${escapeHtml(teamLabel(g, 'them'))}'s % only counts the misses that were recorded.</p>
+    <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="1">Hide stats</button></div>`;
 }
 
 // Recent events during play; the full timeline (with corrections) at full time.
@@ -2885,6 +2890,7 @@ function startPractice(){
     events:[]
   };
   stopEvents();
+  delete UI.statsOpen[PRACTICE_ID]; // each practice starts with stats folded
   UI = { ...UI, view:'game', gameId:PRACTICE_ID, gameTab:'live', period:1, form:null, pickPos:null, statPos:null, showGuide:true, showTabs:false, subSheet:false };
   render();
   window.scrollTo(0, 0);
@@ -4049,6 +4055,8 @@ document.addEventListener('click', async (e) => {
       toggleVoice();
     } else if (a === 'toggle-archived'){
       UI.showArchived = !UI.showArchived; render();
+    } else if (a === 'toggle-live-stats'){
+      UI.statsOpen[btn.dataset.game] = btn.dataset.open !== '1'; render();
     } else if (a === 'archive-ask'){
       UI.archiveAsk = btn.dataset.game; render();
     } else if (a === 'archive-cancel'){
