@@ -6,11 +6,12 @@
 <title>Netty Pal</title>
 <meta name="description" content="Court time, positions and live scoring for junior netball teams.">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1F4E8C">
+<meta name="theme-color" content="#FAD4E1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#2E1B26" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="icon-netball-192.png">
 <link rel="apple-touch-icon" href="icon-netball-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Netty Pal">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,6 +23,9 @@
   --accent-contrast:#FFFFFF; --accent-bg:#E0E8F4; --warm:#C8641C; --warm-bg:#F7E6D6;
   --ok:#2E7550; --ok-bg:#DDEEE3; --critical:#B3261E; --critical-bg:#F6DEDC;
   --shadow:rgba(23,32,51,0.10);
+  /* Brand: the blush and pink of the app icon. Used sparingly (top bar,
+     shared picture), never for buttons or anything that carries meaning. */
+  --blush:#FAD4E1; --blush-line:#EFB5C9;
   --font-display:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
   --font-body:'Manrope','Segoe UI',system-ui,-apple-system,sans-serif;
 }
@@ -32,6 +36,7 @@
     --accent-contrast:#0D1522; --accent-bg:#1C2B42; --warm:#F0A060; --warm-bg:#3A2819;
     --ok:#74C497; --ok-bg:#1A3325; --critical:#F08A82; --critical-bg:#3D1F1D;
     --shadow:rgba(0,0,0,0.45);
+    --blush:#2E1B26; --blush-line:#4A2C3B;
   }
 }
 :root[data-theme="dark"]{
@@ -40,6 +45,7 @@
   --accent-contrast:#0D1522; --accent-bg:#1C2B42; --warm:#F0A060; --warm-bg:#3A2819;
   --ok:#74C497; --ok-bg:#1A3325; --critical:#F08A82; --critical-bg:#3D1F1D;
   --shadow:rgba(0,0,0,0.45);
+  --blush:#2E1B26; --blush-line:#4A2C3B;
 }
 *{box-sizing:border-box;}
 html,body{margin:0; padding:0;}
@@ -53,16 +59,19 @@ button{font-family:var(--font-body);}
 input,select{font-family:var(--font-body); font-size:1rem;}
 a{color:inherit;}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
-.app-shell{max-width:640px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
+.app-shell{max-width:640px; margin:0 auto; display:flex; flex-direction:column;}
 .topbar{
-  position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:0.75rem 1rem;
+  position:sticky; top:0; z-index:10; background:var(--blush); border-bottom:1px solid var(--blush-line);
+}
+.topbar-inner{
+  max-width:640px; margin:0 auto; padding:0.75rem 1rem;
   display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
 }
 .brand{font-family:var(--font-display); font-size:1.5rem; font-weight:800; letter-spacing:0.02em; text-transform:uppercase; white-space:nowrap;
-  background:none; border:none; padding:0; color:var(--ink); cursor:pointer;}
+  background:none; border:none; padding:0; color:var(--ink); cursor:pointer; display:flex; align-items:center; gap:0.45rem;}
+.brand-ball{width:1.6rem; height:1.6rem; flex:none;}
 @media (max-width:520px){ .user-chip .uname{display:none;} }
-.brand span{color:var(--accent);}
+.brand-text span{color:var(--accent);}
 .user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--ink-soft); min-width:0;}
 .user-chip .uname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:9rem;}
 main{flex:1; padding:1rem 1rem 4rem;}
@@ -996,25 +1005,27 @@ function render(){
     if (UI.view === 'season') main = renderSeason();
     else if (UI.view === 'game') main = renderGame();
     else main = renderHome();
-    body = `<div class="app-shell">
-      ${offlineMode ? '<div class="offline-banner">You\'re offline. Changes will sync when you reconnect.</div>' : ''}
+    // The top bar sits outside the 640px column so its colour runs edge to
+    // edge on wide screens; its contents line up with the column.
+    body = `${offlineMode ? '<div class="offline-banner">You\'re offline. Changes will sync when you reconnect.</div>' : ''}
       ${renderTopbar()}
-      <main>${main}</main>
-    </div>`;
+      <div class="app-shell">
+        <main>${main}</main>
+      </div>`;
   }
   app.innerHTML = body;
   restoreInputs(keep);
 }
 
 function renderTopbar(){
-  return `<header class="topbar">
-    <button class="brand" data-action="go-home" aria-label="Netty Pal: back to all teams">Netty <span>Pal</span></button>
+  return `<header class="topbar"><div class="topbar-inner">
+    <button class="brand" data-action="go-home" aria-label="Netty Pal: back to all teams">${ballSvg('brand-ball')}<span class="brand-text">Netty <span>Pal</span></span></button>
     <div class="user-chip">
       ${avatarHtml(USER.displayName, USER.photoURL, 'small')}
       <span class="uname">${escapeHtml(USER.displayName || USER.email)}</span>
       <button class="btn ghost small" data-action="sign-out">Sign out</button>
     </div>
-  </header>`;
+  </div></header>`;
 }
 
 // White netball with pink panel seams (three curved pairs, the classic
@@ -1031,8 +1042,8 @@ function drawBall(x, cx, cy, r){
   x.lineWidth = 4; x.stroke(new Path2D(BALL_SEAMS));
   x.restore();
 }
-function ballSvg(){
-  return `<svg class="ball" viewBox="0 0 100 100" aria-hidden="true">
+function ballSvg(cls){
+  return `<svg class="${cls || 'ball'}" viewBox="0 0 100 100" aria-hidden="true">
     <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="3.5"/>
     <path d="${BALL_SEAMS}" fill="none" stroke="#E0457B" stroke-width="4" stroke-linecap="round"/>
   </svg>`;
@@ -2391,12 +2402,15 @@ async function summaryImage(g, st){
 
   // Background and header band.
   x.fillStyle = '#F2F0EA'; x.fillRect(0, 0, W, W);
-  x.fillStyle = '#1F4E8C'; x.fillRect(0, 0, W, 150);
+  // Blush band, like the app's top bar and icon.
+  x.fillStyle = '#FAD4E1'; x.fillRect(0, 0, W, 150);
+  x.fillStyle = '#EFB5C9'; x.fillRect(0, 148, W, 2);
   // Ball: the same white netball with pink seams as the logo.
   drawBall(x, 95, 75, 42);
-  x.fillStyle = '#FFFFFF'; x.textBaseline = 'middle'; x.textAlign = 'left';
-  x.font = display(58); x.fillText('NETTY PAL', 160, 78);
-  x.textAlign = 'right'; x.font = body(34);
+  x.fillStyle = '#172033'; x.textBaseline = 'middle'; x.textAlign = 'left';
+  x.font = display(58); x.fillText('NETTY ', 160, 78);
+  x.fillStyle = '#1F4E8C'; x.fillText('PAL', 160 + x.measureText('NETTY ').width, 78);
+  x.fillStyle = '#586072'; x.textAlign = 'right'; x.font = body(34);
   x.fillText(fit([g.round ? 'Round ' + g.round : '', g.date ? shareDate(g) : ''].filter(Boolean).join(' · '), 560), W - 60, 78);
 
   // Result word.
