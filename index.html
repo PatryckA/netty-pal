@@ -399,7 +399,7 @@ span.cp-wrap{cursor:default;}
 .practice-banner{display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; background:var(--accent-bg); border:1.5px dashed var(--accent); border-radius:12px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.88rem;}
 .practice-banner span{flex:1; min-width:12rem;}
 .guide-links{display:flex; gap:0.5rem; flex-wrap:wrap;}
-.practice-invite{margin-top:1rem;}
+.practice-invite{margin-bottom:1rem;}
 
 /* Scoring modes and position tiles */
 .mode-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem;}
@@ -703,7 +703,7 @@ let offlineMode = !navigator.onLine;
 // view is 'home', 'season' or 'game'; gameTab and period belong to the game screen.
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
   gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null, statSide:'us',
-  liveMode:'event', pendingEvent:null };
+  liveMode:'event', pendingEvent:null, statsOpen:{} };
 // Scoring mode: Goal/Miss first unless this phone chose Player first.
 try { if (localStorage.getItem('nettyPalLiveMode') === 'player') UI.liveMode = 'player'; } catch(e){}
 
@@ -1209,7 +1209,7 @@ function renderHome(){
     </form>`;
   else if (UI.form === 'create-team') form = `
     <form class="form-card" data-form="create-team">
-      <h3>Create a team</h3>
+      <h3>Create New Team</h3>
       <div class="field">
         <label for="ct-team">Team name</label>
         <input class="text-input" id="ct-team" name="teamName" placeholder="e.g. Hawks 11U" required maxlength="60">
@@ -1229,7 +1229,7 @@ function renderHome(){
     ${list}
     ${UI.form ? '' : `<div class="home-actions">
       <button class="btn" data-action="show-form" data-form-name="join">Join with Team Code</button>
-      <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create a team</button>
+      <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create New Team</button>
     </div>`}`;
 }
 
@@ -1272,7 +1272,11 @@ function renderSeason(){
   if (!t || !s || !CUR.loaded.members) return `<button class="back-link" data-action="go-home">‹ All teams</button>
     <div class="loading-state">Loading…</div>`;
 
-  const tabs = [['games','Games'], ['stats','Stats'], ['players','Players'], ['people','Helpers']];
+  // Parents without a role see Games, Season Stats and Helpers only.
+  const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
+  const tabs = [['games','Games'], ['stats','Season Stats']];
+  if (staff) tabs.push(['players','Players']);
+  tabs.push(['people','Helpers']);
   if (isAdmin()) tabs.push(['settings','Settings']);
   if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'games';
 
@@ -1342,11 +1346,13 @@ function renderGamesTab(){
          <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Hide archived games</button></div>`
       : `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Show archived games (${archived.length})</button></div>`;
   }
-  if (canScore() && canPractise()) body += `<div class="panel practice-invite">
+  // Sits above the games so a new parent sees it straight away.
+  const practice = canScore() && canPractise() ? `<div class="panel practice-invite">
       <p style="margin:0 0 0.5rem"><b>New to scoring?</b> Try a practice game first. Nothing is saved.</p>
       <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
-    </div>`;
-  return `${form}${addBtn}${askToScoreHtml()}${body}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+    </div>` : '';
+  // Adding fixtures is occasional, so it lives below the list (the form opens in the same spot).
+  return `${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
 
 // Confirmation before archiving (or restoring) a game.
@@ -1754,10 +1760,10 @@ function renderFairTab(g){
       ${toggle}
       <div class="fair-wrap"><table class="fair simple">
         <thead><tr><th scope="col">Player</th><th scope="col">Season total</th><th scope="col">Games played</th>
-          <th scope="col">Average per game</th><th scope="col">This game</th></tr></thead>
+          <th scope="col">Average per game played</th><th scope="col">This game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="5">No players yet.</td></tr>'}</tbody>
       </table></div>
-      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
+      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game played only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
   }
 
   const body = list.map(r => `<tr>
@@ -2182,10 +2188,14 @@ function statSheetHtml(g, st){
     </div>`;
 }
 
+// Folded away during play to keep the scoring screen simple; open by default
+// once the game is over. The scorer's choice is remembered per game.
 function liveStatsHtml(g, st){
   const ids = new Set([...Object.keys(st.players), ...availableIds(g)]);
   const list = byName(Array.from(ids));
   if (!list.length) return '';
+  const open = g.id in UI.statsOpen ? UI.statsOpen[g.id] : isGameOver(g);
+  if (!open) return `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="0">Show stats</button></div>`;
   const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '·';
   const rows = list.map(id => {
     const r = st.players[id] || { ms:0, goal:0, miss:0 };
@@ -2201,7 +2211,8 @@ function liveStatsHtml(g, st){
         <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + oppShots : st.them}</td>
           <td>${st.oppMiss ? pct(st.them, oppShots) : '·'}</td></tr></tbody>
     </table></div>
-    <p class="hint">${escapeHtml(teamLabel(g, 'them'))}'s % only counts the misses that were recorded.</p>`;
+    <p class="hint">${escapeHtml(teamLabel(g, 'them'))}'s % only counts the misses that were recorded.</p>
+    <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="1">Hide stats</button></div>`;
 }
 
 // Recent events during play; the full timeline (with corrections) at full time.
@@ -2879,6 +2890,7 @@ function startPractice(){
     events:[]
   };
   stopEvents();
+  delete UI.statsOpen[PRACTICE_ID]; // each practice starts with stats folded
   UI = { ...UI, view:'game', gameId:PRACTICE_ID, gameTab:'live', period:1, form:null, pickPos:null, statPos:null, showGuide:true, showTabs:false, subSheet:false };
   render();
   window.scrollTo(0, 0);
@@ -4043,6 +4055,8 @@ document.addEventListener('click', async (e) => {
       toggleVoice();
     } else if (a === 'toggle-archived'){
       UI.showArchived = !UI.showArchived; render();
+    } else if (a === 'toggle-live-stats'){
+      UI.statsOpen[btn.dataset.game] = btn.dataset.open !== '1'; render();
     } else if (a === 'archive-ask'){
       UI.archiveAsk = btn.dataset.game; render();
     } else if (a === 'archive-cancel'){
