@@ -419,7 +419,9 @@ span.cp-wrap{cursor:default;}
 .practice-banner{display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; background:var(--accent-bg); border:1.5px dashed var(--accent); border-radius:var(--r); padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.88rem;}
 .practice-banner span{flex:1; min-width:12rem;}
 .guide-links{display:flex; gap:0.5rem; flex-wrap:wrap;}
-.practice-invite{margin-bottom:1rem; background:var(--ink); color:var(--paper); border-color:var(--ink);}
+/* Black with white text in both modes. ".panel" is included so the general
+   panel colours further down can't override it. */
+.panel.practice-invite{margin-bottom:1rem; background:var(--bar); color:var(--bar-ink); border-color:var(--bar);}
 .practice-invite .btn{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
 
 /* Scoring modes and position tiles */
