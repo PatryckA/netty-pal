@@ -1272,7 +1272,11 @@ function renderSeason(){
   if (!t || !s || !CUR.loaded.members) return `<button class="back-link" data-action="go-home">‹ All teams</button>
     <div class="loading-state">Loading…</div>`;
 
-  const tabs = [['games','Games'], ['stats','Stats'], ['players','Players'], ['people','Helpers']];
+  // Parents without a role see Games, Season Stats and Helpers only.
+  const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
+  const tabs = [['games','Games'], ['stats','Season Stats']];
+  if (staff) tabs.push(['players','Players']);
+  tabs.push(['people','Helpers']);
   if (isAdmin()) tabs.push(['settings','Settings']);
   if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'games';
 
