@@ -399,7 +399,7 @@ span.cp-wrap{cursor:default;}
 .practice-banner{display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; background:var(--accent-bg); border:1.5px dashed var(--accent); border-radius:12px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.88rem;}
 .practice-banner span{flex:1; min-width:12rem;}
 .guide-links{display:flex; gap:0.5rem; flex-wrap:wrap;}
-.practice-invite{margin-top:1rem;}
+.practice-invite{margin-bottom:1rem;}
 
 /* Scoring modes and position tiles */
 .mode-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem;}
@@ -1342,11 +1342,13 @@ function renderGamesTab(){
          <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Hide archived games</button></div>`
       : `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Show archived games (${archived.length})</button></div>`;
   }
-  if (canScore() && canPractise()) body += `<div class="panel practice-invite">
+  // Sits above the games so a new parent sees it straight away.
+  const practice = canScore() && canPractise() ? `<div class="panel practice-invite">
       <p style="margin:0 0 0.5rem"><b>New to scoring?</b> Try a practice game first. Nothing is saved.</p>
       <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
-    </div>`;
-  return `${form}${addBtn}${askToScoreHtml()}${body}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+    </div>` : '';
+  // Adding fixtures is occasional, so it lives below the list (the form opens in the same spot).
+  return `${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
 
 // Confirmation before archiving (or restoring) a game.
