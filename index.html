@@ -1209,7 +1209,7 @@ function renderHome(){
     </form>`;
   else if (UI.form === 'create-team') form = `
     <form class="form-card" data-form="create-team">
-      <h3>Create a team</h3>
+      <h3>Create New Team</h3>
       <div class="field">
         <label for="ct-team">Team name</label>
         <input class="text-input" id="ct-team" name="teamName" placeholder="e.g. Hawks 11U" required maxlength="60">
@@ -1229,7 +1229,7 @@ function renderHome(){
     ${list}
     ${UI.form ? '' : `<div class="home-actions">
       <button class="btn" data-action="show-form" data-form-name="join">Join with Team Code</button>
-      <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create a team</button>
+      <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create New Team</button>
     </div>`}`;
 }
 
