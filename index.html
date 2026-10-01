@@ -1056,7 +1056,7 @@ const BALL_SEAMS = 'M50 50a40 40 0 0 0 40 20 M27.5 57.5a60 60 0 0 0 42.5 32.5 M5
 function drawBall(x, cx, cy, r){
   const k = r / 45;
   x.save(); x.translate(cx - 50 * k, cy - 50 * k); x.scale(k, k);
-  x.fillStyle = '#FFFFFF'; x.strokeStyle = '#E6006F'; x.lineCap = 'round';
+  x.fillStyle = '#FFFFFF'; x.strokeStyle = '#E0457B'; x.lineCap = 'round';
   x.beginPath(); x.arc(50, 50, 45, 0, Math.PI * 2); x.fill();
   x.lineWidth = 3.5; x.stroke();
   x.lineWidth = 4; x.stroke(new Path2D(BALL_SEAMS));
@@ -1064,8 +1064,8 @@ function drawBall(x, cx, cy, r){
 }
 function ballSvg(cls){
   return `<svg class="${cls || 'ball'}" viewBox="0 0 100 100" aria-hidden="true">
-    <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E6006F" stroke-width="3.5"/>
-    <path d="${BALL_SEAMS}" fill="none" stroke="#E6006F" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="3.5"/>
+    <path d="${BALL_SEAMS}" fill="none" stroke="#E0457B" stroke-width="4" stroke-linecap="round"/>
   </svg>`;
 }
 
