@@ -452,7 +452,6 @@ span.cp-wrap{cursor:default;}
 }
 div.ptile{cursor:default;}
 .ptile.shooter{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
-.ptile.opp{background:var(--surface-2); min-height:3.4rem;}
 .ptile:disabled{opacity:0.4; cursor:default;}
 button.ptile:not(:disabled):active{transform:scale(0.97);}
 .pt-pos{font-family:var(--font-display); font-size:1.5rem; font-weight:800; line-height:1;}
@@ -463,11 +462,10 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .evbtn{padding:1rem; font-size:1.2rem; font-weight:800; border-radius:12px; border:2px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:var(--font-body);}
 .evbtn.goal.on{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
 .evbtn.miss.on{background:var(--warm); border-color:var(--warm); color:var(--chip-ink);}
-.opp-goal-btn{
-  width:100%; margin:0.5rem 0 0.4rem; padding:0.85rem; border-radius:12px; border:1.5px solid var(--line);
-  background:var(--surface-2); color:var(--ink); font-family:var(--font-body); font-size:1rem; font-weight:800; cursor:pointer;
-}
-.opp-goal-btn:active{transform:scale(0.98);}
+.pos-row.one{grid-template-columns:1fr;}
+.ptile.opp{background:var(--surface-2); min-height:3.6rem; border-style:dashed; border-color:var(--ink-soft);}
+.pt-opp{font-family:var(--font-display); font-size:1.3rem; font-weight:800; line-height:1.1; text-transform:uppercase; text-align:center; overflow-wrap:anywhere;}
+.pt-sub{font-size:0.72rem; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em;}
 
 /* Event log and floating undo */
 .event-log{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:0.35rem; margin:0.7rem 0 1rem;}
@@ -1898,7 +1896,9 @@ function livePlayHtml(g, st, scoring){
     const shooter = SHOOTERS.includes(pos);
     const cls = `ptile ${side === 'them' ? 'opp' : ''} ${side === 'us' && shooter ? 'shooter' : ''} ${opts.wide ? 'wide' : ''} ${opts.dim ? 'dim' : ''}`;
     const label = side === 'them' ? (pos ? `${teamLabel(g, 'them')} ${pos}` : `${teamLabel(g, 'them')}, team`) : `${POS_NAMES[pos]}, ${pid ? playerName(pid) : 'empty'}`;
-    const inner = `<span class="pt-pos">${pos || 'Team'}</span>
+    // The other team has one tile with their name (no positions).
+    const inner = side === 'them' ? `<span class="pt-opp">${escapeHtml(teamLabel(g, 'them'))}</span><span class="pt-sub">Other team</span>`
+      : `<span class="pt-pos">${pos || 'Team'}</span>
       ${side === 'us' ? `<span class="pt-name ${pid ? '' : 'empty'}">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</span>
         <span class="pt-time" data-ptime="${escapeHtml(pid || '')}">${pid ? fmtMins(ms(pid)) : ''}</span>` : ''}`;
     if (!action) return `<div class="${cls}" aria-label="${escapeHtml(label)}">${inner}</div>`;
@@ -1928,7 +1928,7 @@ function livePlayHtml(g, st, scoring){
       </div>
       <div class="sec-label">2. Who did it${ev ? '' : ' <span class="hint">(choose Goal or Miss first)</span>'}</div>
       <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
-      ${oppGoalHtml(g)}
+      <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
       ${subBtnHtml()}`;
   } else {
     const ourAction = scoring || canScore() ? 'tile' : null;
@@ -1936,19 +1936,14 @@ function livePlayHtml(g, st, scoring){
       <div class="pos-row two">${tile('GS', 'us', ourAction)}${tile('GA', 'us', ourAction)}</div>
       <div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
       <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>
-      ${scoring ? oppGoalHtml(g) : ''}
-      ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter to record a goal or miss.</p>'
+      ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>` : ''}
+      ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>'
         : canScore() ? '<p class="hint">Tap a position to make a substitution.</p>' : ''}`;
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
     ${scoring ? undoBarHtml(g) : ''}
     ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? '<div class="mic-hint" role="status">Listening... say "GS goal"</div>' : ''}` : ''}`;
-}
-
-// The other team's goals: one button, no position needed.
-function oppGoalHtml(g){
-  return `<button class="opp-goal-btn" data-action="opp-goal">${escapeHtml(teamLabel(g, 'them'))} scored a goal</button>`;
 }
 
 // Substitutions from either scoring mode: pick the position, then who's on.
@@ -2127,10 +2122,8 @@ function guideSheetHtml(g){
   const rows = [
     [`<span class="g-num">1</span><span class="g-btn goal">Goal</span><span class="g-btn">Miss</span>`,
       '<b>What happened?</b> Tap Goal or Miss.'],
-    [`<span class="g-num">2</span><span class="g-tile shooter">GS</span><span class="g-tile shooter">GA</span>`,
-      '<b>Who did it?</b> Tap the shooter. Done.'],
-    [`<span class="g-btn wide">${escapeHtml(teamLabel(g, 'them'))} scored</span>`,
-      'Other team scores? One tap.'],
+    [`<span class="g-num">2</span><span class="g-tile shooter">GS</span><span class="g-tile shooter">GA</span><span class="g-tile opp">Opp</span>`,
+      `<b>Who did it?</b> Tap our shooter, or ${escapeHtml(teamLabel(g, 'them'))}. Done.`],
     [`<span class="g-round">${undoSvg()}</span>`,
       'Mistake? Tap undo, or tap the entry in the list.'],
     [`<span class="g-round">${pauseIcon}</span>`,
@@ -2144,8 +2137,9 @@ function guideSheetHtml(g){
     ['<span class="g-btn go">Finalise</span>',
       'Full time? Tap Finalise.'],
     ...(voiceSupported() ? [[`<span class="g-round">${micSvg()}</span>`,
-      'Or tap the mic and say "GS goal", "GA miss" or "their goal".']] : [])
+      'Or tap the mic and say "GS goal", "GA miss", "their goal" or "their miss".']] : [])
   ];
+  const note = `<p class="hint">Goals matter most. Recording ${escapeHtml(teamLabel(g, 'them'))}'s misses is optional: skip them if you're busy.</p>`;
   return `<div class="sheet-backdrop" data-action="close-guide"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="guide-title">
       <div class="sheet-head">
@@ -2155,6 +2149,7 @@ function guideSheetHtml(g){
       <div class="sheet-body">
         <div class="guide">${rows.map(([demo, text]) =>
           `<div class="g-row"><div class="g-demo" aria-hidden="true">${demo}</div><p>${text}</p></div>`).join('')}</div>
+        ${note}
         <p class="hint">Have to leave? Someone else with the Scorer role can tap Take over scoring.</p>
         <button class="btn big" style="width:100%" data-action="close-guide">Got it</button>
       </div>
@@ -2167,7 +2162,7 @@ function statSheetHtml(g, st){
   const opp = side === 'them';
   const pid = !opp && st.lineup && st.lineup[pos];
   const title = opp ? `${teamLabel(g, 'them')} ${pos === 'Team' ? '' : pos}`.trim() : (pid ? playerName(pid) : 'Empty');
-  const sub = opp ? (pos === 'Team' ? 'Team shot' : 'Opposition ' + POS_NAMES[pos]) : POS_NAMES[pos];
+  const sub = opp ? (pos === 'Team' ? 'Other team' : 'Opposition ' + POS_NAMES[pos]) : POS_NAMES[pos];
   const canShoot = opp || !!pid;
   return `<div class="sheet-backdrop" data-action="close-picker"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -2206,7 +2201,7 @@ function liveStatsHtml(g, st){
         <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + oppShots : st.them}</td>
           <td>${st.oppMiss ? pct(st.them, oppShots) : '·'}</td></tr></tbody>
     </table></div>
-    <p class="hint">Only the other team's goals are recorded.</p>`;
+    <p class="hint">${escapeHtml(teamLabel(g, 'them'))}'s % only counts the misses that were recorded.</p>`;
 }
 
 // Recent events during play; the full timeline (with corrections) at full time.
@@ -2326,7 +2321,7 @@ function renderSummaryTab(g){
         ${shooters.map(([id, r]) => `<tr><td>${escapeHtml(playerName(id))}</td><td>${escapeHtml(Array.from(shooterPos[id] || []).join(', '))}</td>
           <td>${r.goal}/${r.goal + r.miss}</td><td>${pctText(r.goal, r.goal + r.miss)}</td></tr>`).join('')}
         <tr class="team-total"><td>${escapeHtml(teamLabel(g, 'us'))}</td><td></td><td>${st.us}/${ourShots}</td><td>${pctText(st.us, ourShots)}</td></tr>
-        ${oppRows.length > 1 || st.oppMiss ? oppRows.map(k => `<tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${k}</td>
+        ${oppRows.some(k => k !== 'Team') ? oppRows.map(k => `<tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${k}</td>
           <td>${st.oppMiss ? st.opp[k].goal + '/' + (st.opp[k].goal + st.opp[k].miss) : st.opp[k].goal}</td><td>${st.oppMiss ? pctText(st.opp[k].goal, st.opp[k].goal + st.opp[k].miss) : '·'}</td></tr>`).join('') : ''}
         <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + (st.them + st.oppMiss) : st.them}</td><td>${st.oppMiss ? pctText(st.them, st.them + st.oppMiss) : '·'}</td></tr>
       </tbody>
@@ -3749,8 +3744,8 @@ function parseVoice(g, heard, lineup){
   if (/\b(miss|missed|misses|missing|no goal|off target)\b/.test(t)) stat = 'miss';
   else if (/\b(goal|goals|scored|scores|score|in)\b/.test(t)) stat = 'goal';
   if (!stat) return { error:'Say "goal" or "miss".' };
-  // Only the other team's goals are recorded, without a position.
-  if (side === 'them') return stat === 'goal' ? { side, pos:'', stat } : { error:"Only the other team's goals are recorded." };
+  // The other team's shots are recorded without a position.
+  if (side === 'them') return { side, pos:'', stat };
   if (!pos) return { error:'Say who: "GS goal" or "GA miss".' };
   return { side, pos, stat };
 }
@@ -3895,8 +3890,7 @@ async function addCorrection(g, fd){
   const who = String(fd.get('who') || '');
   let type = String(fd.get('stat') || '');
   if (who === 'opp'){
-    if (type !== 'goal'){ toast(`Only goals are recorded for ${teamLabel(g, 'them')}.`, true); return; }
-    type = 'oppGoal';
+    type = type === 'goal' ? 'oppGoal' : 'oppMiss';
   }
   // Added at the end of the period, since the exact moment isn't known.
   const endEv = CUR.events.find(e => !e.undone && e.type === 'periodEnd' && e.period === period);
@@ -4057,9 +4051,6 @@ document.addEventListener('click', async (e) => {
       const g = findGame(btn.dataset.game);
       UI.archiveAsk = null; render();
       if (g) await setArchived(g, !g.archived);
-    } else if (a === 'opp-goal'){
-      const g = findGame(UI.gameId);
-      if (g && isInPlay(g) && amScorer(g)) await recordOpp(g, 'oppGoal');
     } else if (a === 'redo'){
       await redoLast();
     } else if (a === 'log-select'){
