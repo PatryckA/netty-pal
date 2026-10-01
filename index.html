@@ -325,6 +325,11 @@ button.court-token:hover .pos-chip{transform:scale(1.06);}
 body.dragging{cursor:grabbing;}
 .court-token.drop-hover .pos-chip{box-shadow:0 0 0 4px var(--warm), 0 2px 6px var(--shadow); transform:scale(1.1);}
 .bench-drop.drop-hover{border-color:var(--warm); background:var(--warm-bg);}
+/* Substitution sheet: taller, with the court sized to fit so the bench
+   stays in view while dragging. */
+.sheet.sub-sheet{max-height:92vh;}
+.sub-sheet .court-wrap{max-width:min(300px, 38vh); margin-bottom:0.8rem;}
+.sub-sheet .bench-drop{margin-top:0;}
 .sheet-backdrop{position:fixed; inset:0; background:rgba(10,15,25,0.45); z-index:40;}
 .sheet{
   position:fixed; left:0; right:0; bottom:0; z-index:41; max-width:640px; margin:0 auto; max-height:75vh;
@@ -517,6 +522,8 @@ button.log-row:hover{background:var(--surface-2);}
 .result-card.won{border-color:var(--ok); background:var(--ok-bg);}
 .result-card.lost{border-color:var(--critical); background:var(--critical-bg);}
 .result-word{font-family:var(--font-display); font-size:1.1rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em;}
+.progress-line{margin-top:0.4rem; font-size:0.9rem; font-weight:700; color:var(--ink-soft); font-variant-numeric:tabular-nums;}
+.progress-line [data-clock]{color:var(--ink);}
 .result-card.won .result-word{color:var(--ok);}
 .result-card.lost .result-word{color:var(--critical);}
 .result-score{display:flex; align-items:center; justify-content:center; gap:0.6rem; margin-top:0.2rem;}
@@ -1525,7 +1532,7 @@ function renderGame(){
 
   const practice = isPractice(g);
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
-  if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Summary']);
+  if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
   if (!practice){
     tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']);
     if (canEditGames()) tabs.push(['details','Details']);
@@ -2010,27 +2017,23 @@ function livePlayHtml(g, st, scoring){
     ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? '<div class="mic-hint" role="status">Listening... say "GS goal"</div>' : ''}` : ''}`;
 }
 
-// Substitutions from either scoring mode: pick the position, then who's on.
+// Substitutions from either scoring mode.
 function subBtnHtml(){
   return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Substitution</button>';
 }
+// The court as it is right now, with the bench. Names can be dragged between
+// positions or to and from the bench (each drop is saved straight away as a
+// substitution), or a position tapped to pick from a list.
 function subSheetHtml(g, st){
   const lineup = st.lineup || {};
-  const tile = pos => `<button class="ptile ${SHOOTERS.includes(pos) ? 'shooter' : ''}" data-action="sub-pos" data-pos="${pos}"
-      aria-label="${POS_NAMES[pos]}, ${lineup[pos] ? escapeHtml(playerName(lineup[pos])) : 'empty'}">
-      <span class="pt-pos">${pos}</span>
-      <span class="pt-name ${lineup[pos] ? '' : 'empty'}">${lineup[pos] ? escapeHtml(playerName(lineup[pos])) : 'Empty'}</span>
-    </button>`;
   return `<div class="sheet-backdrop" data-action="sub-close"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sub-title">
+    <div class="sheet sub-sheet" role="dialog" aria-modal="true" aria-labelledby="sub-title">
       <div class="sheet-head">
-        <div class="grow"><h3 id="sub-title">Substitution</h3><div class="hint">Tap the position that's changing.</div></div>
-        <button class="btn ghost small" data-action="sub-close">Cancel</button>
+        <div class="grow"><h3 id="sub-title">Substitution</h3><div class="hint">Drag a name to another position or the bench, or tap a position.</div></div>
+        <button class="btn small" data-action="sub-close">Done</button>
       </div>
-      <div class="sheet-body" style="padding-top:0.8rem">
-        <div class="pos-row two">${tile('GS')}${tile('GA')}</div>
-        <div class="pos-row three">${tile('WA')}${tile('C')}${tile('WD')}</div>
-        <div class="pos-row two">${tile('GD')}${tile('GK')}</div>
+      <div class="sheet-body" style="padding-top:0.6rem">
+        ${courtHtml(lineup, true, g, g.live.period, byName(availableIds(g)))}
       </div>
     </div>`;
 }
@@ -2115,7 +2118,10 @@ function scoreboardHtml(g, st){
     period = g.status === 'final' ? 'Final' : 'Full time';
   } else {
     period = periodName(g, L.period);
-    phase = L.phase === 'running' ? 'Playing' : L.phase === 'paused' ? 'Paused' : 'Break';
+    // The scorer's Pause/Resume button already shows whether the clock is
+    // running, so no word is needed there (it would crowd the centre pass).
+    // Followers have no button, so they still see "Paused".
+    phase = !isInPlay(g) ? 'Break' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
     clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
   let centre = '';
@@ -2350,6 +2356,16 @@ function courtTimeTable(rows, fmt, playingIds){
     </table></div>`;
 }
 
+// Where an unfinished game is up to, e.g. "Q2 · 4:12 left". The time
+// counts down live (the clock ticker updates every [data-clock]).
+function progressLineHtml(g){
+  const L = g.live;
+  if (!L || !L.period) return '';
+  const q = escapeHtml(periodName(g, L.period));
+  if (!isInPlay(g)) return `<div class="progress-line">End of ${q}. ${escapeHtml(periodName(g, L.period + 1))} next.</div>`;
+  return `<div class="progress-line">${q} · <span data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</span> left${L.phase === 'paused' ? ' · clock paused' : ''}</div>`;
+}
+
 function renderSummaryTab(g){
   if (!CUR.loaded.events) return '<div class="loading-state">Loading…</div>';
   const st = computeGame(g, CUR.events);
@@ -2362,6 +2378,7 @@ function renderSummaryTab(g){
         <span>${escapeHtml(teamLabel(g, 'us'))}</span><b>${st.us}</b><i aria-hidden="true">:</i><b>${st.them}</b><span>${escapeHtml(teamLabel(g, 'them'))}</span>
       </div>
       ${g.status === 'live' && over ? '<div class="hint">Full time. Not finalised yet.</div>' : ''}
+      ${!over ? progressLineHtml(g) : ''}
     </div>`;
 
   const periods = Array.from({ length:n }, (_, i) => i + 1);
@@ -2417,7 +2434,7 @@ function renderSummaryTab(g){
 /* ---- Sharing a game result ----
    A picture card plus a short text version, for team group chats. Court
    time is deliberately left out of what's shared. The picture is made in
-   advance (while the Summary tab is open), because iPhones only allow
+   advance (while the Game stats tab is open), because iPhones only allow
    sharing straight after a tap. */
 function summaryShareText(g, st){
   const n = periodCount(g), over = isGameOver(g);
@@ -2930,7 +2947,7 @@ function openSeason(teamId, seasonId){
 function openGame(gameId){
   const g = findGame(gameId);
   const gameDay = g && (g.status === 'live' || g.status === 'final' || g.date === todayIso());
-  UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null, showTabs:false, subSheet:false };
+  UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null, showTabs:false, subSheet:false, subReturn:false };
   // First time a Scorer opens a game on this phone: show How to score.
   if (myRoles().includes('scorer') && !guideSeen()) UI.showGuide = true;
   saveNav();
@@ -2953,7 +2970,7 @@ function startPractice(){
   };
   stopEvents();
   delete UI.statsOpen[PRACTICE_ID]; // each practice starts with stats folded
-  UI = { ...UI, view:'game', gameId:PRACTICE_ID, gameTab:'live', period:1, form:null, pickPos:null, statPos:null, showGuide:true, showTabs:false, subSheet:false };
+  UI = { ...UI, view:'game', gameId:PRACTICE_ID, gameTab:'live', period:1, form:null, pickPos:null, statPos:null, showGuide:true, showTabs:false, subSheet:false, subReturn:false };
   render();
   window.scrollTo(0, 0);
 }
@@ -4075,13 +4092,19 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'period'){
       UI.period = parseInt(btn.dataset.period, 10) || 1; UI.pickPos = null; UI.statPos = null; disarm('clear-period'); render();
     } else if (a === 'pick-pos'){
-      UI.pickPos = btn.dataset.pos; UI.pickMode = 'plan'; UI.statPos = null; render();
+      // A tap on the Substitution court picks for the live game.
+      if (UI.subSheet){ UI.subSheet = false; UI.subReturn = true; UI.pickMode = 'live'; }
+      else UI.pickMode = 'plan';
+      UI.pickPos = btn.dataset.pos; UI.statPos = null; render();
       focusSheet();
     } else if (a === 'close-picker'){
       closePicker();
     } else if (a === 'pick-player'){
       const pos = UI.pickPos, mode = UI.pickMode;
-      UI.pickPos = null; render();
+      UI.pickPos = null;
+      // Picked from the Substitution court: go back to it.
+      if (UI.subReturn){ UI.subReturn = false; UI.subSheet = true; }
+      render();
       await assignSlot(pos, btn.dataset.player, mode);
       const token = document.querySelector(`.court-token[data-pos="${pos}"]`);
       if (token) token.focus();
@@ -4155,8 +4178,6 @@ document.addEventListener('click', async (e) => {
       UI.subSheet = false; render();
       const sub = document.querySelector('[data-action="sub-open"]');
       if (sub) sub.focus();
-    } else if (a === 'sub-pos'){
-      UI.subSheet = false; UI.pickPos = btn.dataset.pos; UI.pickMode = 'live'; UI.statPos = null; render(); focusSheet();
     } else if (a === 'start-practice'){
       startPractice();
     } else if (a === 'end-practice'){
@@ -4171,7 +4192,7 @@ document.addEventListener('click', async (e) => {
       if (g) await runBusy(() => startGame(g, first ? first.value : 'us'));
     } else if (a === 'start-period'){
       const g = findGame(UI.gameId);
-      UI.showTabs = false;
+      UI.showTabs = false; UI.subSheet = false; UI.subReturn = false;
       if (g) await runBusy(() => startNextPeriod(g));
     } else if (a === 'pause-clock'){
       const g = findGame(UI.gameId); if (g) await pauseClock(g);
@@ -4317,8 +4338,10 @@ document.addEventListener('pointerup', (e) => {
   // The tap that ends a drag shouldn't also open the picker.
   swallowNextClick();
   if (!t) return;
-  if (t.pos && t.pos !== d.from) assignSlot(t.pos, d.pid, 'plan').catch(fail);
-  else if (t.bench && d.from) assignSlot(d.from, '', 'plan').catch(fail);
+  // In the Substitution sheet each drop is a live substitution.
+  const mode = UI.subSheet ? 'live' : 'plan';
+  if (t.pos && t.pos !== d.from) assignSlot(t.pos, d.pid, mode).catch(fail);
+  else if (t.bench && d.from) assignSlot(d.from, '', mode).catch(fail);
 });
 document.addEventListener('pointercancel', () => { if (drag) endDrag(); });
 
@@ -4350,7 +4373,9 @@ function focusSheet(){
 }
 function closePicker(){
   const pos = UI.pickPos || UI.statPos;
-  UI.pickPos = null; UI.statPos = null; render();
+  UI.pickPos = null; UI.statPos = null;
+  if (UI.subReturn){ UI.subReturn = false; UI.subSheet = true; }
+  render();
   const token = pos && document.querySelector(`.court-token[data-pos="${pos}"], .ptile[data-pos="${pos === 'Team' ? '' : pos}"]`);
   if (token) token.focus();
 }
@@ -4392,9 +4417,9 @@ setInterval(() => {
   syncWakeLock(g);
   // Stop listening if the scorer leaves the Live tab or play stops.
   if (voiceRec && !(g && UI.gameTab === 'live' && isInPlay(g))){ try { voiceRec.abort(); } catch(e){} }
-  if (!g || UI.gameTab !== 'live' || g.status !== 'live' || !g.live) return;
-  const el = document.querySelector('[data-clock]');
-  if (el) el.textContent = fmtClock(periodMs(g) - elapsedMs(g));
+  // The clock runs on the Live tab and on Game stats (time left).
+  if (!g || (UI.gameTab !== 'live' && UI.gameTab !== 'summary') || g.status !== 'live' || !g.live) return;
+  document.querySelectorAll('[data-clock]').forEach(el => { el.textContent = fmtClock(periodMs(g) - elapsedMs(g)); });
   // Court time on the position tiles, refreshed about once a second.
   const tiles = document.querySelectorAll('[data-ptime]');
   if (tiles.length && g.live.phase === 'running' && (tickCount++ % 4 === 0)){
