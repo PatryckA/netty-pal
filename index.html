@@ -396,28 +396,31 @@ body.dragging{cursor:grabbing;}
   padding-bottom:4px;
   background:repeating-linear-gradient(90deg, #FFFFFF 0 5px, #0B0B0D 5px 10px) bottom / 100% 4px no-repeat, var(--surface);
 }
-.sb2-top{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; padding:0.45rem 0.8rem; border-bottom:1px solid var(--line); min-height:2.4rem;}
-.sb2-period{font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:var(--pop-text); text-transform:uppercase; min-width:2.2rem;}
-.sb2-phase{font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); min-width:2.2rem; text-align:right;}
-.cp-wrap{display:inline-flex; align-items:center; gap:0.25rem; background:none; border:none; padding:0; cursor:pointer; color:var(--ink); font-family:var(--font-body);}
-span.cp-wrap{cursor:default;}
-.cp-label{font-size:0.64rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin-right:0.15rem; white-space:nowrap;}
-.cp{font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; padding:0.25rem 0.6rem; border-radius:var(--r-pill); color:var(--ink-soft);}
-.cp.on{background:var(--accent); color:var(--accent-contrast);}
-.sb2-main{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:0.5rem; padding:0.55rem 0.8rem 0.65rem;}
+.sb2-clock{display:flex; flex-direction:column; align-items:flex-start; min-width:0;}
+.sb2-period{font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:var(--pop-text); text-transform:uppercase; line-height:1.1;}
+.sb2-phase{font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft);}
+.sb2-main{display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:0.5rem; padding:0.55rem 0.8rem 0.65rem;}
 .sb2-clock .clock{font-size:1.6rem; font-weight:700;}
-.sb2-score{display:flex; align-items:flex-end; gap:0.6rem;}
-.sb2-team{display:flex; flex-direction:column; align-items:center; min-width:0;}
+.sb2-score{display:flex; align-items:flex-end; justify-content:center; gap:0.6rem; min-width:0;}
+.sb2-team{display:flex; flex-direction:column; align-items:center; min-width:0; flex:1 1 0; max-width:6.5rem;}
 .sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:6.5rem; text-align:center; line-height:1.15; overflow-wrap:anywhere;}
 .sb2-team b{font-family:var(--font-display); font-size:2.9rem; line-height:1; font-variant-numeric:tabular-nums;}
 .sb2-sep{width:1rem; height:4px; background:var(--line); border-radius:0; margin-bottom:1.3rem;}
+.sb2-score.with-cp .sb2-sep{margin-bottom:3.45rem;}
+/* Next centre pass: a small netball under a team's score (also used in the
+   guide). The button is bigger than the ball so it's easy to tap. */
+.cp-mark{display:inline-flex; align-items:center; justify-content:center; width:3rem; height:2rem; margin-top:0.15rem; padding:0;
+  border:none; border-radius:var(--r-pill); background:none;}
+.cp-ball{width:1.5rem; height:1.5rem;}
+button.cp-mark{cursor:pointer;}
+.cp-mark.ghost{visibility:hidden;}
+.cp-mark.armed{background:var(--critical);}
+.cp-switch{font-family:var(--font-body); font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#fff;}
 .sb2-play{display:flex; justify-content:flex-end;}
 .play-btn{width:3.1rem; height:3.1rem; border-radius:var(--r); border:1.5px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .play-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
 .play-btn{flex-direction:column; gap:0.05rem; width:3.4rem; height:3.4rem;}
 .play-label{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; line-height:1;}
-.cp-wrap.armed{background:var(--critical); color:#fff; border-radius:var(--r-pill); padding:0.25rem 0.7rem;}
-.cp-confirm{font-size:0.72rem; font-weight:800; white-space:nowrap;}
 .sub-btn{width:100%; margin:0 0 0.4rem; padding-top:0.7rem; padding-bottom:0.7rem;}
 .head-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem;}
 .more-row .btn{padding-top:0.3rem; padding-bottom:0.3rem;}
@@ -462,14 +465,19 @@ span.cp-wrap{cursor:default;}
   border:1px solid var(--line); background:var(--surface); box-shadow:0 2px 6px var(--shadow);
 }
 .g-round svg{width:18px; height:18px;}
-.g-pills{display:inline-flex; gap:0.15rem; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-pill); padding:2px;}
-.g-pills .cp{padding:0.15rem 0.55rem; font-size:0.68rem;}
 .g-num{
   display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%;
   background:var(--ink); color:var(--paper); font-family:var(--font-display); font-weight:800; font-size:0.9rem; margin-right:0.15rem;
 }
 .g-btn.wide{max-width:9rem; height:auto; min-height:1.8rem; padding-top:0.2rem; padding-bottom:0.2rem; white-space:normal; line-height:1.2; background:var(--surface-2);}
 .sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
+.sec-label.done{opacity:0.45;}
+/* Step 2 frame: invisible until Goal or Miss is chosen, then pink. The
+   negative margin keeps the tiles the same width as everything else. */
+.step2{margin:0 -0.45rem; padding:0 0.45rem; border:2px solid transparent; border-radius:var(--r); transition:border-color 0.15s;}
+.step2.active{border-color:var(--pop);}
+.step2.active .sec-label{color:var(--pop-text);}
+.sec-label .hint.gone{visibility:hidden;}
 .sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
 .pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
 .pos-row.two{grid-template-columns:1fr 1fr;}
@@ -1097,6 +1105,14 @@ function drawBall(x, cx, cy, r){
   x.lineWidth = 4; x.stroke(new Path2D(BALL_SEAMS));
   x.restore();
 }
+// The logo ball drawn small (next centre pass marker), with thicker lines so
+// the seams still show at icon size.
+function cpBallSvg(){
+  return `<svg class="cp-ball" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="7"/>
+    <path d="${BALL_SEAMS}" fill="none" stroke="#E0457B" stroke-width="7" stroke-linecap="round"/>
+  </svg>`;
+}
 function ballSvg(cls){
   return `<svg class="${cls || 'ball'}" viewBox="0 0 100 100" aria-hidden="true">
     <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="3.5"/>
@@ -1423,8 +1439,8 @@ function archiveSheetHtml(g){
       <div class="sheet-body">
         <p style="margin:0.9rem 0 0.4rem"><b>${what}</b></p>
         <p class="hint" style="margin:0 0 1rem">${restoring
-          ? 'It will come back into the games list, season stats and fairness table.'
-          : "It will be hidden from the games list and left out of season stats and the fairness table. Nothing is deleted: you can restore it from \"Show archived games\"."}</p>
+          ? 'It will come back into the games list, season stats and Time on court.'
+          : "It will be hidden from the games list and left out of season stats and Time on court. Nothing is deleted: you can restore it from \"Show archived games\"."}</p>
         <div class="form-actions">
           <button class="btn ghost" data-action="archive-cancel">Cancel</button>
           <button class="btn ${restoring ? '' : 'danger armed'}" data-action="archive-confirm" data-game="${escapeHtml(g.id)}">${restoring ? 'Restore game' : 'Archive game'}</button>
@@ -1534,7 +1550,7 @@ function renderGame(){
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
   if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
   if (!practice){
-    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']);
+    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Time on court']);
     if (canEditGames()) tabs.push(['details','Details']);
   }
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
@@ -1617,7 +1633,7 @@ function renderLineupTab(g){
   const now = started && g.status === 'live' && g.live.period === p && g.live.phase !== 'ended';
   const followNote = started
     ? `<p class="follow-note own">${now
-        ? `${escapeHtml(periodName(g, p))} is under way. This is who's on court now.${canScore() ? ' To make a change, use Substitution on the Game tab.' : ''}`
+        ? `${escapeHtml(periodName(g, p))} is under way. This is who's on court now.${canScore() ? ' To make a change, use Sub Player(s) on the Game tab.' : ''}`
         : `${escapeHtml(periodName(g, p))} is over. This is who finished it.`}</p>`
     : p > 1 && ownPlan(g, p) && isPeriodPlanned(g, p)
     ? `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>` : '';
@@ -1770,17 +1786,19 @@ function renderFairTab(g){
   const games = sortGames(CUR.games).filter(x => !x.archived || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
   const rows = {};
-  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, games:new Set() });
+  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, games:new Set(), avail:new Set() });
   const add = (id, pos, v, game) => {
     const r = ensure(id);
     r.pos[pos] = (r.pos[pos] || 0) + v;
     r.total += v;
-    if (v >= 0.05) r.games.add(game.id); // counts as a game played
+    if (v >= 0.05){ r.games.add(game.id); r.avail.add(game.id); } // counts as a game played
     if (game.id === g.id) r.thisGame += v;
   };
   CUR.players.filter(p => p.active !== false).forEach(p => ensure(p.id));
   let playedGames = 0;
   upto.forEach(game => {
+    // Available for this game: marked as playing (or got on court, above).
+    availableIds(game).forEach(id => ensure(id).avail.add(game.id));
     const played = game.summary && game.summary.courtTime && (game.status === 'live' || game.status === 'final');
     if (played){
       playedGames++;
@@ -1800,7 +1818,7 @@ function renderFairTab(g){
   const playing = new Set(availableIds(g));
   const noun = escapeHtml(periodNoun(g, true));
   const detailed = UI.fairView === 'detailed';
-  const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Fairness view">
+  const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Time on court view">
       <label><input type="radio" name="fairView" data-field="fair-view" value="simple" ${detailed ? '' : 'checked'}><span>Simple</span></label>
       <label><input type="radio" name="fairView" data-field="fair-view" value="detailed" ${detailed ? 'checked' : ''}><span>Detailed</span></label>
     </div>`;
@@ -1812,12 +1830,12 @@ function renderFairTab(g){
     // Simple: just totals, least court time first. All figures are quarters.
     const simple = list.slice().sort((a, b) => a.total - b.total || playerName(a.id).localeCompare(playerName(b.id)));
     const rowsHtml = simple.map(r => {
-      const games = r.games.size;
+      const games = r.games.size, avail = r.avail.size;
       return `<tr>
         <td>${escapeHtml(playerName(r.id))}</td>
         <td class="total">${fmt(r.total)}</td>
         <td>${games}</td>
-        <td>${games ? fmt(r.total / games) : '·'}</td>
+        <td>${avail ? fmt(r.total / avail) : '·'}</td>
         <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
       </tr>`;
     }).join('');
@@ -1825,10 +1843,10 @@ function renderFairTab(g){
       ${toggle}
       <div class="fair-wrap"><table class="fair simple">
         <thead><tr><th scope="col">Player</th><th scope="col">Season total</th><th scope="col">Games played</th>
-          <th scope="col">Average per game played</th><th scope="col">This game</th></tr></thead>
+          <th scope="col">Avg played per game available</th><th scope="col">This game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="5">No players yet.</td></tr>'}</tbody>
       </table></div>
-      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game played only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
+      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's total by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${note}</p>`;
   }
 
   const body = list.map(r => `<tr>
@@ -1992,14 +2010,19 @@ function livePlayHtml(g, st, scoring){
   let pane;
   if (mode === 'event'){
     const ev = UI.pendingEvent;
-    pane = `<div class="sec-label">1. What happened</div>
+    // Once Goal or Miss is chosen, Step 2 gets a pink frame and Step 1's
+    // heading fades, so it's obvious what to tap next. The frame is always
+    // there (just invisible), so nothing on the screen moves.
+    pane = `<div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
       <div class="ev-grid">
         <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
         <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
       </div>
-      <div class="sec-label">2. Who did it${ev ? '' : ' <span class="hint">(choose Goal or Miss first)</span>'}</div>
-      <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
-      <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
+      <div class="step2 ${ev ? 'active' : ''}">
+        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap Goal or Miss first)</span></div>
+        <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
+        <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
+      </div>
       ${subBtnHtml()}`;
   } else {
     const ourAction = scoring || canScore() ? 'tile' : null;
@@ -2019,7 +2042,7 @@ function livePlayHtml(g, st, scoring){
 
 // Substitutions from either scoring mode.
 function subBtnHtml(){
-  return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Substitution</button>';
+  return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Sub Player(s)</button>';
 }
 // The court as it is right now, with the bench. Names can be dragged between
 // positions or to and from the bench (each drop is saved straight away as a
@@ -2029,7 +2052,7 @@ function subSheetHtml(g, st){
   return `<div class="sheet-backdrop" data-action="sub-close"></div>
     <div class="sheet sub-sheet" role="dialog" aria-modal="true" aria-labelledby="sub-title">
       <div class="sheet-head">
-        <div class="grow"><h3 id="sub-title">Substitution</h3><div class="hint">Drag a name to another position or the bench, or tap a position.</div></div>
+        <div class="grow"><h3 id="sub-title">Sub Player(s)</h3><div class="hint">Drag a name to another position or the bench, or tap a position.</div></div>
         <button class="btn small" data-action="sub-close">Done</button>
       </div>
       <div class="sheet-body" style="padding-top:0.6rem">
@@ -2124,33 +2147,34 @@ function scoreboardHtml(g, st){
     phase = !isInPlay(g) ? 'Break' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
     clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
-  let centre = '';
-  if (isInPlay(g) && st.centre){
-    const pill = (t, label) => `<span class="cp ${st.centre === t ? 'on' : ''}">${label}</span>`;
-    const inner = `<span class="cp-label">Next Centre Pass</span>${pill('us', 'Us')}${pill('them', 'Them')}`;
-    // Switching takes two taps, so a stray tap near the clock can't change it.
-    const armedCp = scoring && isArmed('swap-centre');
-    centre = scoring
-      ? `<button class="cp-wrap ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
-          ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(st.centre)))}`
-          : `Centre pass: ${escapeHtml(teamLabel(g, st.centre))}. Tap twice to switch.`}">${armedCp
-          ? `<span class="cp-confirm">Switch to ${st.centre === 'us' ? 'Them' : 'Us'}? Tap again</span>` : inner}</button>`
-      : `<span class="cp-wrap" aria-label="Centre pass: ${escapeHtml(teamLabel(g, st.centre))}">${inner}</span>`;
-  }
+  // Next centre pass: a small netball under the team that takes it. The other
+  // team gets an invisible copy so the two scores stay level. For the scorer the
+  // ball is a button; switching takes two taps, so a stray tap can't change it.
+  const showCp = isInPlay(g) && st.centre;
+  const armedCp = scoring && isArmed('swap-centre');
+  const cpMark = t => {
+    if (!showCp) return '';
+    if (st.centre !== t) return `<span class="cp-mark ghost" aria-hidden="true">${cpBallSvg()}</span>`;
+    if (!scoring) return `<span class="cp-mark" role="img" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">${cpBallSvg()}</span>`;
+    return `<button class="cp-mark ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
+        ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
+        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Double tap to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
+  };
   let play = '';
   if (scoring && isInPlay(g)){
     play = L.phase === 'running'
       ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg><span class="play-label">Pause</span></button>`
       : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span class="play-label">Resume</span></button>`;
   }
+  // One block: period and clock on the left, the score (with the centre
+  // pass marker) in the middle, Pause/Resume on the right.
   return `<div class="sb2">
-      <div class="sb2-top"><span class="sb2-period">${escapeHtml(period)}</span>${centre}<span class="sb2-phase">${phase}</span></div>
       <div class="sb2-main">
-        <div class="sb2-clock">${clock}</div>
-        <div class="sb2-score">
-          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'us'))}</span><b>${pad2(st.us)}</b></div>
+        <div class="sb2-clock"><span class="sb2-period">${escapeHtml(period)}</span>${clock}${phase ? `<span class="sb2-phase">${phase}</span>` : ''}</div>
+        <div class="sb2-score ${showCp ? 'with-cp' : ''}">
+          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'us'))}</span><b>${pad2(st.us)}</b>${cpMark('us')}</div>
           <span class="sb2-sep" aria-hidden="true"></span>
-          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'them'))}</span><b>${pad2(st.them)}</b></div>
+          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'them'))}</span><b>${pad2(st.them)}</b>${cpMark('them')}</div>
         </div>
         <div class="sb2-play">${play}</div>
       </div>
@@ -2198,10 +2222,10 @@ function guideSheetHtml(g){
       'Mistake? Tap undo, or tap the entry in the list.'],
     [`<span class="g-round">${pauseIcon}</span>`,
       'Umpire stops play? Tap Pause.'],
-    [`<span class="g-btn">⇄ Substitution</span>`,
-      'Player swapped? Tap Substitution, then the position, then who came on.'],
-    ['<span class="g-pills"><span class="cp on">Us</span><span class="cp">Them</span></span>',
-      'Next centre pass wrong? Tap it twice to switch.'],
+    [`<span class="g-btn">⇄ Sub Player(s)</span>`,
+      'Player swapped? Tap Sub Player(s), then drag names on the court or to and from the bench.'],
+    [`<span class="cp-mark">${cpBallSvg()}</span>`,
+      'The ball under a score shows who takes the next centre pass. Wrong team? Double tap to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Break over? Tap Start ${q2} when the umpire restarts play.`],
     ['<span class="g-btn go">Finalise</span>',
@@ -2247,7 +2271,7 @@ function statSheetHtml(g, st){
       <div class="sheet-body">
         ${canShoot ? `<div class="stat-grid">${STATS.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>`
           : `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>`}
-        ${opp ? '' : `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Substitution: change ${pos}</button>`}
+        ${opp ? '' : `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Sub player at ${pos}</button>`}
       </div>
     </div>`;
 }
@@ -2426,7 +2450,7 @@ function renderSummaryTab(g){
 
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">
-      <button class="btn" data-action="share-summary">Share result</button>
+      <button class="btn" data-action="share-summary">${over ? 'Share result' : 'Share score'}</button>
     </div>`;
   return head + share + byPeriod + shooting + court;
 }
@@ -2623,7 +2647,9 @@ function renderSeasonStatsTab(){
 
   const rec = { w:0, l:0, d:0, gf:0, ga:0, ourShots:0, oppShots:0 };
   const players = {};
-  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0 });
+  // games: games they got on court. avail: games they were available for
+  // (marked as playing, or got on court anyway), which the average divides by.
+  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0, avail:0 });
   const results = finished.map(g => {
     const st = computeGame(g, CUR.seasonEvents[g.id]);
     const r = resultWord(st.us, st.them);
@@ -2636,6 +2662,8 @@ function renderSeasonStatsTab(){
       if (s.ms) p.games++;
       Object.entries(s.pos).forEach(([pos, v]) => { p.pos[pos] = (p.pos[pos] || 0) + v; });
     });
+    new Set([...availableIds(g), ...Object.keys(st.players).filter(id => st.players[id].ms)])
+      .forEach(id => { P(id).avail++; });
     return { g, st, r };
   });
 
@@ -2645,8 +2673,7 @@ function renderSeasonStatsTab(){
       <div class="rec lost"><b>${rec.l}</b><span>Lost</span></div>
       <div class="rec"><b>${rec.d}</b><span>Drawn</span></div>
       <div class="rec wide"><b>${rec.gf} : ${rec.ga}</b><span>Goals for : against</span></div>
-      <div class="rec"><b>${pctText(rec.gf, rec.ourShots)}</b><span>Our shooting</span></div>
-      <div class="rec"><b>${(rec.ga / finished.length).toFixed(1).replace(/\.0$/, '')}</b><span>Opponent goals per game</span></div>
+      <div class="rec wide"><b>${pctText(rec.gf, rec.ourShots)}</b><span>Our shooting</span></div>
     </div>
     ${inProgress ? `<p class="hint">${inProgress} game${inProgress === 1 ? ' is' : 's are'} in progress and not included yet.</p>` : ''}`;
 
@@ -2658,15 +2685,17 @@ function renderSeasonStatsTab(){
         <span class="result-badge ${r.toLowerCase()}">${r} ${st.us} : ${st.them}</span>
       </button>`).join('')}</div>`;
 
-  const list = Object.values(players).filter(p => p.ms || p.goal + p.miss)
+  // Anyone who was available is listed, even if they never got on court,
+  // so a player left on the bench shows up with an average of 0.
+  const list = Object.values(players).filter(p => p.ms || p.goal + p.miss || p.avail)
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins per game</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
-      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.games ? (p.ms / 60000 / p.games).toFixed(1).replace(/\.0$/, '') : '·'}</td>
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? (p.ms / 60000 / p.avail).toFixed(1).replace(/\.0$/, '') : '·'}</td>
         <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
     </table></div>
-    <p class="hint">Games counts games where they got on court. Mins is total court time; the average only counts games they played, so a missed game doesn't pull it down.</p>`;
+    <p class="hint">Games counts games where they got on court. Mins is total court time. The average divides their court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do.</p>`;
 
   const court = `<h3 class="subhead">Court time by position</h3>
     ${courtTimeTable(list, minsText)}
