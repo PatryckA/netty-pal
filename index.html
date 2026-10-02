@@ -88,6 +88,16 @@ a{color:inherit;}
 .user-chip .uname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:9rem;}
 main{flex:1; padding:1rem 1rem 4rem;}
 .loading-state{color:var(--ink-soft); font-size:0.9rem; padding:3rem 1rem; text-align:center;}
+/* Loading screen: the logo ball bouncing, with a soft shadow that shrinks as
+   it rises. (Reduced-motion settings stop the bounce, leaving a still ball.) */
+.splash{min-height:70vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem 1rem;}
+.splash-bounce{animation:splash-bounce 0.9s cubic-bezier(0.25, 0.6, 0.5, 1) infinite alternate;}
+.splash-ball{width:64px; height:64px; display:block; animation:splash-spin 1.8s linear infinite;}
+.splash-shadow{width:52px; height:8px; margin-top:0.6rem; border-radius:50%; background:var(--ink); opacity:0.15; animation:splash-shadow 0.9s cubic-bezier(0.25, 0.6, 0.5, 1) infinite alternate;}
+.splash p{margin:1rem 0 0; color:var(--ink-soft); font-size:0.95rem; font-weight:600;}
+@keyframes splash-bounce{ from{transform:translateY(0);} to{transform:translateY(-46px);} }
+@keyframes splash-shadow{ from{transform:scaleX(1); opacity:0.18;} to{transform:scaleX(0.55); opacity:0.07;} }
+@keyframes splash-spin{ to{transform:rotate(360deg);} }
 .offline-banner{background:var(--critical); color:#fff; font-size:0.82rem; font-weight:600; padding:0.6rem 1rem; text-align:center;}
 
 /* ---- Buttons and inputs ---- */
@@ -622,7 +632,7 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 </style>
 </head>
 <body>
-<div id="app"><div class="loading-state">Loading Netty Pal…</div></div>
+<div id="app"><div class="splash" role="status" aria-live="polite"><div class="splash-bounce"><svg class="splash-ball" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="3.5"/><path d="M50 50a40 40 0 0 0 40 20 M27.5 57.5a60 60 0 0 0 42.5 32.5 M50 50a40 40 0 0 0 -37.3 24.6 M54.8 26.8a60 60 0 0 0 -49.4 20.6 M50 50a40 40 0 0 0 -2.7 -44.6 M67.7 65.7a60 60 0 0 0 6.9 -53.1" fill="none" stroke="#E0457B" stroke-width="4" stroke-linecap="round"/></svg></div><div class="splash-shadow" aria-hidden="true"></div><p>Loading Netty Pal…</p></div></div>
 <div id="toast-root"></div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
@@ -1082,7 +1092,10 @@ function render(){
   const app = document.getElementById('app');
   const keep = captureInputs();
   let body;
-  if (!authReady) body = '<div class="loading-state">Loading Netty Pal…</div>';
+  // While the app starts, or a sign-in is finishing, show the bouncing ball
+  // rather than the sign-in buttons (which would look like "sign in again").
+  if (!authReady) body = splashHtml('Loading Netty Pal…');
+  else if (!USER && UI.signingIn) body = splashHtml('Signing you in…');
   else if (!USER) body = renderSignedOut();
   else {
     let main;
@@ -1274,8 +1287,29 @@ async function checkEmailLink(){
   let email = '', name = '';
   try { email = localStorage.getItem(EMAIL_KEY) || ''; name = localStorage.getItem(NAME_KEY) || ''; } catch(e){}
   if (!email){ UI.signin = 'confirm'; render(); return; }
+  UI.signingIn = true; render();
   try { await finishEmailLink(email, name); }
-  catch (err){ UI.signin = null; history.replaceState(null, '', location.pathname); fail(err); render(); }
+  catch (err){ UI.signingIn = false; UI.signin = null; history.replaceState(null, '', location.pathname); fail(err); render(); }
+}
+
+// Google or Facebook sign-in in a popup. The waiting screen shows straight
+// away; if the popup is closed or fails, the sign-in buttons come back.
+async function signInPopup(provider){
+  UI.signingIn = true; render();
+  try {
+    await signInWithPopup(auth, provider);
+    // Normally the sign-in listener takes over from here; this is a safety net.
+    if (!auth.currentUser){ UI.signingIn = false; render(); }
+  } catch (err){ UI.signingIn = false; render(); throw err; }
+}
+
+// The app's loading screen: the logo ball bouncing, with a short message.
+function splashHtml(message){
+  return `<div class="splash" role="status" aria-live="polite">
+      <div class="splash-bounce">${ballSvg('splash-ball')}</div>
+      <div class="splash-shadow" aria-hidden="true"></div>
+      <p>${escapeHtml(message)}</p>
+    </div>`;
 }
 
 /* ---- Home ---- */
@@ -4097,9 +4131,9 @@ document.addEventListener('click', async (e) => {
   const a = btn.dataset.action;
   try {
     if (a === 'sign-in'){
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      await signInPopup(new GoogleAuthProvider());
     } else if (a === 'sign-in-facebook'){
-      await signInWithPopup(auth, new FacebookAuthProvider());
+      await signInPopup(new FacebookAuthProvider());
     } else if (a === 'sign-in-email'){
       UI.signin = 'email'; render();
       const f = document.getElementById('si-email'); if (f) f.focus();
@@ -4620,6 +4654,8 @@ function inviteHtml(){
 onAuthStateChanged(auth, (user) => {
   USER = user;
   authReady = true;
+  // Signed in: the "Signing you in" screen has done its job.
+  if (user) UI.signingIn = false;
   if (!user){ HOME = { loaded:false, items:[] }; UI = { ...UI, view:'home', form:null }; render(); return; }
   const nav = loadNav();
   // An invite link always lands on the home screen, where it can be accepted.
