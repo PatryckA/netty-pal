@@ -184,7 +184,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
   padding:0.18rem 0.45rem; border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink-soft);
   border:1px solid var(--line); white-space:nowrap;
 }
-.badge.admin{background:var(--warm-bg); color:var(--warm); border-color:transparent;}
+.badge.owner{background:var(--warm-bg); color:var(--warm); border-color:transparent;}
 .badge.coach{background:var(--accent-bg); color:var(--pop-text); border-color:transparent;}
 .badge.scorer{background:var(--ok-bg); color:var(--ok); border-color:transparent;}
 .home-actions{display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1rem;}
@@ -438,15 +438,35 @@ button.cp-mark{cursor:pointer;}
 .play-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
 .play-btn{flex-direction:column; gap:0.05rem; width:3.4rem; height:3.4rem;}
 .play-label{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; line-height:1;}
+/* Pause/Resume sits under the clock, so the clock and its control read together. */
+.sb2-clock .play-btn{flex-direction:row; gap:0.3rem; width:auto; height:2.1rem; padding:0 0.6rem; margin-top:0.35rem;}
+.sb2-clock .play-btn svg{width:16px; height:16px;}
 .sub-btn{width:100%; margin:0 0 0.4rem; padding-top:0.7rem; padding-bottom:0.7rem;}
 .head-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem;}
 .more-row .btn{padding-top:0.3rem; padding-bottom:0.3rem;}
 .practice-banner{display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; background:var(--accent-bg); border:1.5px dashed var(--accent); border-radius:var(--r); padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.88rem;}
 .practice-banner span{flex:1; min-width:12rem;}
 .guide-links{display:flex; gap:0.5rem; flex-wrap:wrap;}
-/* Black with white text in both modes. ".panel" is included so the general
-   panel colours further down can't override it. */
-.panel.practice-invite{margin-bottom:1rem; background:var(--bar); color:var(--bar-ink); border-color:var(--bar);}
+/* Black with white text and a pink edge, so it stands out from the page in
+   both modes (in dark mode the page itself is nearly black, so the card is a
+   lighter charcoal). ".panel" is included so the general panel colours
+   further down can't override it. */
+.panel.practice-invite{margin-bottom:1rem; background:var(--invite-bg); color:var(--bar-ink); border:2px solid var(--pop);}
+:root{ --invite-bg:#0B0B0D; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --invite-bg:#2A2A31; } }
+:root[data-theme="dark"]{ --invite-bg:#2A2A31; }
+/* Coach/Manager guide */
+.mg-step{display:flex; gap:0.7rem; align-items:flex-start; padding:0.7rem 0; border-top:1px solid var(--line);}
+.mg-step:first-of-type{border-top:none;}
+.mg-num{flex:none; width:1.7rem; height:1.7rem; border-radius:50%; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:0.95rem;}
+.mg-num.done{background:var(--ok); color:var(--chip-ink);}
+.mg-step p{margin:0.15rem 0 0; font-size:0.9rem; color:var(--ink-soft);}
+.mg-step .btn{margin-top:0.45rem;}
+.mg-head{font-size:1.05rem; text-transform:uppercase; margin:1rem 0 0.2rem;}
+.mg-status{font-size:0.78rem; font-weight:700; color:var(--ok);}
+.mg-status.todo{color:var(--warm);}
+.unavail-drop{border-style:solid; opacity:0.85;}
+.unavail-drop .chip{color:var(--ink-soft); text-decoration:line-through;}
 /* Game day reminder for Coach/Managers (pink tint, so it stands out from the black practice box). */
 .panel.gameday-nudge{background:var(--accent-bg); border:1.5px solid var(--pop);}
 .practice-invite .btn{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
@@ -456,10 +476,13 @@ button.cp-mark{cursor:pointer;}
 .mode-tabs{display:flex; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-pill); padding:2px;}
 .mode-tab{border:none; background:none; padding:0.35rem 0.75rem; border-radius:var(--r-pill); font-size:0.78rem; font-weight:800; color:var(--ink-soft); cursor:pointer; font-family:var(--font-body);}
 .mode-tab.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px var(--shadow);}
+/* Help on the scoreboard, to the right of the score: pink so it's easy to find. */
 .help-btn{
-  width:2rem; height:2rem; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--surface);
-  color:var(--accent); font-weight:800; font-size:0.95rem; cursor:pointer; margin-left:auto; font-family:var(--font-body);
+  width:3.4rem; height:3.4rem; flex:none; border-radius:var(--r); border:1.5px solid var(--pop); background:var(--pop);
+  color:var(--pop-ink); cursor:pointer; font-family:var(--font-body); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:0.05rem; padding:0;
 }
+.help-btn b{font-family:var(--font-display); font-size:1.5rem; font-weight:900; line-height:1;}
 /* Picture-first scoring guide: mini copies of the real buttons and tiles. */
 .guide{display:flex; flex-direction:column; margin:0.8rem 0 0.4rem;}
 .g-row{display:grid; grid-template-columns:9.5rem 1fr; align-items:center; gap:0.8rem; padding:0.55rem 0; border-top:1px solid var(--line);}
@@ -493,9 +516,9 @@ button.cp-mark{cursor:pointer;}
 .sec-label.done{opacity:0.45;}
 /* Step 2 frame: invisible until Goal or Miss is chosen, then pink. The
    negative margin keeps the tiles the same width as everything else. */
-.step2{margin:0 -0.45rem; padding:0 0.45rem; border:2px solid transparent; border-radius:var(--r); transition:border-color 0.15s;}
-.step2.active{border-color:var(--pop);}
-.step2.active .sec-label{color:var(--pop-text);}
+.step-frame{margin:0 -0.45rem 0.4rem; padding:0 0.45rem 0.45rem; border:2px solid transparent; border-radius:var(--r); transition:border-color 0.15s;}
+.step-frame.active{border-color:var(--pop);}
+.step-frame.active .sec-label{color:var(--pop-text);}
 .sec-label .hint.gone{visibility:hidden;}
 .sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
 .pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
@@ -729,8 +752,10 @@ function practiceWrite(ops){
 
 /* ---------------------------------------------------------------------
    Data layout (Firestore)
-     teams/{teamId}                               name, adminUid
-       seasons/{seasonId}                         name, competition, format, periodMinutes, joinCode
+     teams/{teamId}                               name, adminUid (who created it; no longer
+                                                  gives extra rights), editSeason
+       seasons/{seasonId}                         name, competition, format, periodMinutes, joinCode,
+                                                  fromSeason (the season it was started from)
          members/{uid}                            name, email, photoURL, roles[], code
          players/{playerId}                       name, active
          games/{gameId}                           round, date, time, opponent, venue, court,
@@ -805,9 +830,8 @@ function avatarHtml(name, photoURL, cls){
     : escapeHtml(initials(name));
   return `<span class="avatar ${cls || ''}" aria-hidden="true">${inner}</span>`;
 }
-function roleBadges(roles, isAdmin){
+function roleBadges(roles){
   const out = [];
-  if (isAdmin) out.push('<span class="badge admin">Admin</span>');
   if (roles && roles.includes('coach')) out.push('<span class="badge coach">Coach/Manager</span>');
   if (roles && roles.includes('scorer')) out.push('<span class="badge scorer">Scorer</span>');
   if (!out.length) out.push('<span class="badge">Viewer</span>');
@@ -847,12 +871,20 @@ function disarm(key){ clearTimeout(armed.get(key)); armed.delete(key); }
 
 // Role checks for the open season. The page uses these to decide what to
 // show; the security rules enforce the same thing on Google's side.
-function isAdmin(){ return !!(USER && CUR.team && CUR.team.adminUid === USER.uid); }
+// Coach/Managers run the team: everything a separate "admin" used to do.
+// The app owner can also manage every team, without being listed as a
+// member (the same email is checked in firestore.rules).
+const OWNER_EMAIL = 'patryck.allen@gmail.com';
+function isOwner(){ return !!(USER && USER.emailVerified && String(USER.email || '').toLowerCase() === OWNER_EMAIL); }
 function myMember(){ return USER ? CUR.members.find(m => m.id === USER.uid) : null; }
 function myRoles(){ const m = myMember(); return (m && m.roles) || []; }
-function canEditRoster(){ return isAdmin() || myRoles().includes('coach'); }
-// Fixtures, availability and lineup plans: admin or Coach.
-function canEditGames(){ return isAdmin() || myRoles().includes('coach'); }
+function isManager(){ return isOwner() || myRoles().includes('coach'); }
+function canEditRoster(){ return isManager(); }
+// Fixtures, availability and lineup plans: Coach/Managers.
+function canEditGames(){ return isManager(); }
+// Coach/Managers and Scorers see the team's working tabs.
+function isStaff(){ return isManager() || myRoles().includes('scorer'); }
+function coachCount(){ return CUR.members.filter(m => (m.roles || []).includes('coach')).length; }
 
 /* ---------------------------------------------------------------------
    Game helpers
@@ -984,8 +1016,8 @@ const STATS = [{ key:'goal', label:'Goal' }, { key:'miss', label:'Miss' }];
 const STAT_LABEL = { goal:'Goal', miss:'Miss', intercept:'Intercept', held:'Held ball', obstruction:'Obstruction', contact:'Contact' };
 const SHOOTERS = ['GS','GA'];
 
-// Anyone who can run a game: admin, Coach or Scorer.
-function canScore(){ return inPractice() || isAdmin() || myRoles().includes('coach') || myRoles().includes('scorer'); }
+// Anyone who can run a game: Coach/Manager or Scorer.
+function canScore(){ return inPractice() || isStaff(); }
 function amScorer(g){ return !!(USER && g.scorerUid === USER.uid && canScore()); }
 function periodMs(g){ return (g.periodMinutes || DEFAULT_PERIOD_MINUTES) * 60000; }
 // Time played so far in the current period, never more than its length.
@@ -1330,7 +1362,7 @@ function renderHome(){
           <div class="tname">${escapeHtml(it.teamName)}</div>
           <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
         </div>
-        <div class="badges">${roleBadges(it.roles, it.isAdmin)}</div>
+        <div class="badges">${roleBadges(it.roles)}</div>
       </button>`).join('')}</div>${retry}`;
 
   let form = '';
@@ -1341,7 +1373,7 @@ function renderHome(){
         <label for="join-code">Team code</label>
         <input class="text-input" id="join-code" name="code" autocomplete="off" autocapitalize="characters"
           maxlength="12" placeholder="e.g. K7PQ2M" required>
-        <span class="hint">Ask your coach/manager or team admin for this.</span>
+        <span class="hint">Ask your coach/manager for this. If they sent you an invite link, just tap the link instead: no code needed.</span>
       </div>
       <div class="form-actions">
         <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
@@ -1356,7 +1388,7 @@ function renderHome(){
         <input class="text-input" id="ct-team" name="teamName" placeholder="e.g. Hawks 11U" required maxlength="60">
       </div>
       ${seasonFieldsHtml('ct', {})}
-      <p class="hint">You'll be the team admin, Coach/Manager and Scorer to start with. You can hand any of those to other parents later.</p>
+      <p class="hint">You'll be the Coach/Manager and Scorer to start with. You can make other parents Coach/Managers or Scorers later.</p>
       <div class="form-actions">
         <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
         <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Create team</button>
@@ -1369,9 +1401,70 @@ function renderHome(){
     ${form}
     ${list}
     ${UI.form ? '' : `<div class="home-actions">
-      <button class="btn" data-action="show-form" data-form-name="join">Join with Team Code</button>
+      ${HOME.loaded && HOME.items.length ? '<button class="btn" data-action="invite-start">Invite someone to a team</button>' : ''}
+      <button class="btn ${HOME.loaded && HOME.items.length ? 'ghost' : ''}" data-action="show-form" data-form-name="join">Join with Team Code</button>
       <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create New Team</button>
-    </div>`}`;
+    </div>`}
+    ${ownerTeamsHtml()}
+    ${UI.invitePick ? invitePickHtml() : ''}`;
+}
+
+// "Invite someone to a team": with more than one team, ask which one first.
+function invitePickHtml(){
+  return `<div class="sheet-backdrop" data-action="invite-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="invite-title">Invite to which team?</h3></div>
+        <button class="btn ghost small" data-action="invite-close">Close</button>
+      </div>
+      <div class="sheet-body">
+        <div class="list-label">Your teams</div>
+        ${HOME.items.map((it, i) => `<button class="pick-row" data-action="invite-team" data-index="${i}">
+            <span class="grow"><span class="pname">${escapeHtml(it.teamName)}</span>
+              <span class="psub">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</span></span>
+          </button>`).join('')}
+        <p class="hint">You'll get a link to send them. They tap it, sign in, and they're in the team.</p>
+      </div>
+    </div>`;
+}
+
+// The app owner can open any team, including ones they aren't a member of.
+// Folded away until asked for, so the home screen stays the same as everyone else's.
+function ownerTeamsHtml(){
+  if (!isOwner() || UI.form) return '';
+  const all = HOME.all;
+  if (!all) return `<div class="lineup-tools"><button class="btn ghost small" data-action="owner-teams">Owner: show every team</button></div>`;
+  if (all.loading) return '<div class="loading-state">Loading every team…</div>';
+  if (all.error) return `<div class="panel" role="alert"><p style="margin:0 0 0.6rem">Couldn't load every team. If the security rules haven't been published yet, publish them first.</p>
+    <button class="btn small" data-action="owner-teams">Try again</button></div>`;
+  return `<div class="list-label">Every team in Netty Pal (only you see this)</div>
+    <div class="team-list">${all.items.map(it => `
+      <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
+        <div>
+          <div class="tname">${escapeHtml(it.teamName)}</div>
+          <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
+        </div>
+      </button>`).join('') || '<div class="empty-state">No teams yet.</div>'}</div>
+    <div class="lineup-tools"><button class="btn ghost small" data-action="owner-teams-hide">Hide every team</button></div>`;
+}
+
+async function loadOwnerTeams(){
+  HOME.all = { loading:true }; render();
+  try {
+    const teams = await getDocs(collection(db, 'teams'));
+    const items = [];
+    await Promise.all(teams.docs.map(async t => {
+      const seasons = await getDocs(collection(db, 'teams', t.id, 'seasons'));
+      seasons.docs.forEach(s => items.push({ teamId:t.id, seasonId:s.id, teamName:t.data().name || 'Unnamed team',
+        seasonName:s.data().name || '', competition:s.data().competition || '' }));
+    }));
+    items.sort((a, b) => a.teamName.localeCompare(b.teamName) || b.seasonName.localeCompare(a.seasonName));
+    HOME.all = { items };
+  } catch (err){
+    console.warn('Netty Pal: every team', err);
+    HOME.all = { error:true };
+  }
+  render();
 }
 
 // Shared season fields for "create team", "new season" and season settings.
@@ -1414,11 +1507,10 @@ function renderSeason(){
     <div class="loading-state">Loading…</div>`;
 
   // Parents without a role see Games, Season Stats and Support Crew only.
-  const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
   const tabs = [['games','Games'], ['stats','Season Stats']];
-  if (staff) tabs.push(['players','Players']);
+  if (isStaff()) tabs.push(['players','Players']);
   tabs.push(['people','Support Crew']);
-  if (isAdmin()) tabs.push(['settings','Settings']);
+  if (isManager()) tabs.push(['settings','Team Settings']);
   if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'games';
 
   let content = '';
@@ -1432,21 +1524,22 @@ function renderSeason(){
       <button class="back-link" data-action="go-home">‹ All teams</button>
       <h2>${escapeHtml(t.name)}</h2>
       <div class="season-meta">${escapeHtml(s.name)}${s.competition ? ' · ' + escapeHtml(s.competition) : ''} · ${escapeHtml(formatLabel(s))}</div>
-      <div class="badges" style="justify-content:flex-start; margin-top:0.45rem">${roleBadges(myRoles(), isAdmin())}</div>
+      <div class="badges" style="justify-content:flex-start; margin-top:0.45rem">${isOwner() && !myMember() ? '<span class="badge owner">Owner (only you see this)</span>' : roleBadges(myRoles())}</div>
     </div>
     <nav class="tabs" aria-label="Season sections">
       ${tabs.map(([k, label]) => `<button class="tab ${UI.tab === k ? 'active' : ''}" data-action="tab" data-tab="${k}" ${UI.tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
     </nav>
-    ${content}`;
+    ${content}
+    ${UI.showMgGuide && isManager() ? managerGuideHtml() : ''}`;
 }
 
 function gamesErrorHtml(){
   const denied = String(CUR.gamesError && CUR.gamesError.code).includes('permission-denied');
   return `<div class="panel" role="alert">
       <p style="margin:0">${denied
-        ? (isAdmin()
+        ? (isOwner()
           ? "Games can't be loaded because the database's security rules are out of date. Publish the latest firestore.rules in Firebase (Firestore Database > Rules), then refresh this page."
-          : "Games can't be loaded right now. Please let your team admin know.")
+          : "Games can't be loaded right now. Please let your coach/manager know.")
         : "Games couldn't be loaded. Check your connection and refresh the page."}</p>
     </div>`;
 }
@@ -1471,7 +1564,8 @@ function renderGamesTab(){
     ? `<div class="home-actions">
         <button class="btn" data-action="show-form" data-form-name="add-game">Add fixture</button>
         <button class="btn ghost" data-action="import-open">Import season fixtures</button>
-      </div>` : '';
+      </div>
+      ${setupDone() === SETUP_STEPS ? '<div class="lineup-tools"><button class="btn ghost small" data-action="mg-open">Coach/Manager guide</button></div>' : ''}` : '';
 
   let body;
   if (!games.length){
@@ -1493,7 +1587,76 @@ function renderGamesTab(){
       <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
     </div>` : '';
   // Adding fixtures is occasional, so it lives below the list (the form opens in the same spot).
-  return `${gameDayNudgeHtml(games)}${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+  return `${setupCardHtml()}${gameDayNudgeHtml(games)}${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+}
+
+/* ---- Coach/Manager guide ----
+   A plain-English checklist of the Coach/Manager's jobs, for parents who
+   have never used the app. The season jobs tick themselves off. */
+const SETUP_STEPS = 3;
+function setupState(){
+  return {
+    players: CUR.players.filter(p => p.active !== false).length,
+    games: CUR.games.filter(g => !g.archived).length,
+    others: CUR.members.filter(m => !USER || m.id !== USER.uid).length,
+    scorers: CUR.members.filter(m => (m.roles || []).includes('scorer')).length
+  };
+}
+function setupDone(){ const s = setupState(); return (s.players ? 1 : 0) + (s.games ? 1 : 0) + (s.others ? 1 : 0); }
+
+// Shown to Coach/Managers on the Games tab until the season is set up.
+function setupCardHtml(){
+  if (!isManager()) return '';
+  const done = setupDone();
+  if (done === SETUP_STEPS) return '';
+  return `<div class="panel gameday-nudge">
+      <p style="margin:0 0 0.5rem"><b>Getting the team ready: ${done} of ${SETUP_STEPS} done.</b>
+        As Coach/Manager, you add the players and games and invite the parents. The guide walks you through it.</p>
+      <button class="btn small" data-action="mg-open">Open the Coach/Manager guide</button>
+    </div>`;
+}
+
+function managerGuideHtml(){
+  const s = setupState();
+  const next = sortGames(CUR.games).find(g => !g.archived && g.status !== 'final' && (!g.date || g.date >= todayIso()));
+  const step = (n, done, title, text, status, button) => `<div class="mg-step">
+      <span class="mg-num ${done ? 'done' : ''}" aria-hidden="true">${done ? '✓' : n}</span>
+      <div class="grow">
+        <b>${title}</b>${status ? ` <span class="mg-status ${done ? '' : 'todo'}">${status}</span>` : ''}
+        <p>${text}</p>
+        ${button || ''}
+      </div>
+    </div>`;
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const nextBtn = (tab, label) => next
+    ? `<button class="btn ghost small" data-action="mg-game" data-game="${escapeHtml(next.id)}" data-tab="${tab}">${label}: ${escapeHtml(gameTitle(next))}</button>` : '';
+  return `<div class="sheet-backdrop" data-action="mg-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mg-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="mg-title">Coach/Manager guide</h3></div>
+        <button class="btn ghost small" data-action="mg-close">Close</button>
+      </div>
+      <div class="sheet-body">
+        <p style="margin:0.8rem 0 0">You run the team in Netty Pal. Here's what to do, step by step. Other parents only need to follow along.</p>
+        <h4 class="mg-head">Once a season</h4>
+        ${step(1, s.players > 0, 'Add the players', 'Type in the name of every player in the team.',
+          s.players ? plural(s.players, 'player', 'players') + ' added' : 'Not done yet',
+          '<button class="btn ghost small" data-action="mg-tab" data-tab="players">Go to Players</button>')}
+        ${step(2, s.games > 0, 'Add the games', "Add each game from the competition's draw (who you're playing, when and where). You can import the whole season at once from the draw's PDF.",
+          s.games ? plural(s.games, 'game', 'games') + ' added' : 'Not done yet',
+          '<button class="btn ghost small" data-action="mg-tab" data-tab="games">Go to Games</button>')}
+        ${step(3, s.others > 0, 'Invite the parents', 'Send the team link to your parents\' group chat. They tap it, sign in, and can follow every game live. You can make some of them Scorers or Coach/Managers in Support Crew.',
+          s.others ? plural(s.others, 'person has', 'people have') + ' joined' : 'Nobody yet',
+          `<button class="btn small" data-action="share-code">${navigator.share ? 'Send the team link' : 'Copy the team link'}</button>`)}
+        <h4 class="mg-head">Before each game</h4>
+        ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail', 'Open'))}
+        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" shows who has played where, to help keep it fair.`, '', nextBtn('lineup', 'Open'))}
+        ${step(3, false, 'Line up a scorer', `Ask a parent to keep score on their phone. They need the Scorer role (in Support Crew, tap Scorer next to their name). On game day they open the game and tap Start when the umpire starts play. You can score too. ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
+          '<button class="btn ghost small" data-action="mg-tab" data-tab="people">Go to Support Crew</button>')}
+        <p class="hint">On game day, Netty Pal reminds you on the Games tab if the lineup isn't finished. New to scoring? Try a practice game: nothing is saved.</p>
+        <button class="btn big" style="width:100%" data-action="mg-close">Got it</button>
+      </div>
+    </div>`;
 }
 
 // Game day reminder for the people who set lineups: today's games that
@@ -1561,7 +1724,7 @@ function gameCardHtml(g, past){
     </button>`;
 }
 
-// Shared fixture fields for "add fixture" and the game's Details tab.
+// Shared fixture fields for "add fixture" and the game's Game settings tab.
 function gameFormHtml(prefix, g, formName, submitLabel){
   const fmt = g.format || 'quarters';
   return `<form class="form-card" data-form="${formName}">
@@ -1633,10 +1796,9 @@ function renderGame(){
   if (!practice){
     // Who's available is for the people running the team; viewers can see
     // who's playing on the Lineup tab instead.
-    const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
-    if (staff) tabs.push(['avail','Players']);
+    if (isStaff()) tabs.push(['avail','Players']);
     tabs.push(['lineup','Lineup'], ['fair','Time on court']);
-    if (canEditGames()) tabs.push(['details','Details']);
+    if (canEditGames()) tabs.push(['details','Game settings']);
   }
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
   watchEvents(g.id);
@@ -1789,6 +1951,12 @@ function courtHtml(plan, editable, g, p, avail){
           : `<span class="chip">${escapeHtml(playerName(id))}</span>`).join('')
           : '<span class="hint">Nobody on the bench.</span>'}</div>
       </div>`;
+    // Players who aren't playing this game, so nobody wonders where a name went.
+    const out = byName(CUR.players.filter(pl => pl.active !== false && !avail.includes(pl.id)).map(pl => pl.id));
+    if (out.length) bench += `<div class="bench-drop unavail-drop">
+        <div class="bench-label">Not available${canScore() && !isPractice(g) ? ' <span>(change this on the Players tab)</span>' : ''}</div>
+        <div class="chip-wrap">${out.map(id => `<span class="chip">${escapeHtml(playerName(id))}</span>`).join('')}</div>
+      </div>`;
   }
   return `<div class="court-wrap">
       <div class="court-end">Attacking end</div>
@@ -1936,7 +2104,7 @@ function renderFairTab(g){
           <th scope="col">Avg mins played per game available</th><th scope="col">This game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="4">No players yet.</td></tr>'}</tbody>
       </table></div>
-      <p class="hint">Minutes on court, rounded to the nearest minute, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${simpleNote}</p>`;
+      <p class="hint">Minutes on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${simpleNote}</p>`;
   }
 
   const body = list.map(r => `<tr>
@@ -1960,9 +2128,11 @@ function renderFairTab(g){
 }
 
 /* ---- Live tab ---- */
+// How to change the lineup before a game or between periods (practice games too).
+const LINEUP_TIP = 'Tap or drag a bib or name to change the lineup.';
 function renderLiveTab(g){
   if (CUR.eventsError) return `<div class="panel" role="alert"><p style="margin:0">${
-    String(CUR.eventsError.code).includes('permission-denied') && isAdmin()
+    String(CUR.eventsError.code).includes('permission-denied') && isOwner()
       ? "Game events can't be loaded because the database's security rules are out of date. Publish the latest firestore.rules in Firebase (Firestore Database > Rules), then refresh."
       : "Game events couldn't be loaded. Check your connection and refresh the page."}</p></div>`;
   if (!CUR.loaded.events) return '<div class="loading-state">Loading game…</div>';
@@ -1989,7 +2159,7 @@ function renderLiveTab(g){
             <label><input type="radio" id="fc-them" name="firstCentre" value="them"><span>${escapeHtml(teamLabel(g, 'them'))}</span></label>
           </div>
         </div>
-        ${empty ? `<p class="hint" style="margin:0">${empty} position${empty === 1 ? ' is' : 's are'} empty in the ${escapeHtml(periodName(g, 1))} lineup. Tap a bib below to fill it, or start anyway.</p>` : ''}
+        ${empty ? `<p class="hint" style="margin:0">${empty} position${empty === 1 ? ' is' : 's are'} empty in the ${escapeHtml(periodName(g, 1))} lineup. Fill ${empty === 1 ? 'it' : 'them'} below, or start anyway.</p>` : ''}
         <button class="btn go big" data-action="start-game" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, 1))}</button>
         <p class="hint" style="margin:0">Tap it when the umpire starts play. The clock starts and you become the scorer.</p>
         <div class="guide-links">
@@ -1998,6 +2168,7 @@ function renderLiveTab(g){
         </div>
       </div>
       <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
+      <p class="court-tip">${LINEUP_TIP}</p>
       ${courtHtml(plan, true, g, 1, avail)}`
       : `<div class="placeholder-card">This game hasn't started yet.</div>
       ${askToScoreHtml()}
@@ -2032,7 +2203,7 @@ function renderLiveTab(g){
     const plan = startLineup(g, next);
     body += `<p class="big-note">End of ${escapeHtml(periodName(g, L.period))}</p>
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
-      <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' Tap a bib to change the lineup before it starts.' : ''}</p>
+      <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' ' + LINEUP_TIP : ''}</p>
       ${courtHtml(plan, canScore(), g, next, avail)}`;
     if (scoring) body += undoBarHtml(g);
     if (canScore() && UI.pickPos){
@@ -2051,7 +2222,7 @@ function renderLiveTab(g){
         <p style="margin:0 0 0.6rem">Check the timeline below and fix any mistakes, then finalise to lock the game.</p>
         <button class="btn go" data-action="finalise-game" ${UI.busy ? 'disabled' : ''}>Finalise game</button>
       </div>`;
-    if (final && isAdmin()) body += `<div class="lineup-tools">
+    if (final && isManager()) body += `<div class="lineup-tools">
         <button class="btn ghost small ${isArmed('unlock-game') ? 'armed' : ''}" data-action="unlock-game">
           ${isArmed('unlock-game') ? 'Tap again to unlock for corrections' : 'Unlock for corrections'}</button></div>`;
   }
@@ -2091,7 +2262,6 @@ function livePlayHtml(g, st, scoring){
           <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Goal/Miss first</button>
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
-        <button class="help-btn" data-action="show-guide" aria-label="How to score">?</button>
         <button class="btn ghost small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
           ${isArmed('end-period') ? 'Tap again' : 'End ' + escapeHtml(periodName(g, L.period))}</button>
       </div>`;
@@ -2100,15 +2270,17 @@ function livePlayHtml(g, st, scoring){
   let pane;
   if (mode === 'event'){
     const ev = UI.pendingEvent;
-    // Once Goal or Miss is chosen, Step 2 gets a pink frame and Step 1's
-    // heading fades, so it's obvious what to tap next. The frame is always
-    // there (just invisible), so nothing on the screen moves.
-    pane = `<div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
-      <div class="ev-grid">
-        <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
-        <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
+    // A pink frame shows which step is next: Step 1 to start with, then
+    // Step 2 once Goal or Miss is chosen (and Step 1's heading fades). Both
+    // frames are always there (just invisible), so nothing on the screen moves.
+    pane = `<div class="step-frame ${ev ? '' : 'active'}">
+        <div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
+        <div class="ev-grid">
+          <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
+          <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
+        </div>
       </div>
-      <div class="step2 ${ev ? 'active' : ''}">
+      <div class="step-frame ${ev ? 'active' : ''}">
         <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap Goal or Miss first)</span></div>
         <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
         <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
@@ -2156,7 +2328,7 @@ function subSheetHtml(g, st){
 function askToScoreHtml(){
   if (canScore()) return '';
   return `<div class="panel ask-score">
-      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach/manager or team admin to make you a Scorer. They can do it in the Support Crew tab.</p>
+      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach/manager to make you a Scorer. They can do it in the Support Crew tab.</p>
       ${canPractise() ? '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>' : ''}
     </div>`;
 }
@@ -2250,23 +2422,25 @@ function scoreboardHtml(g, st){
         ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
         : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Double tap to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
   };
-  let play = '';
+  let play = '', help = '';
   if (scoring && isInPlay(g)){
     play = L.phase === 'running'
       ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg><span class="play-label">Pause</span></button>`
       : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span class="play-label">Resume</span></button>`;
+    help = '<button class="help-btn" data-action="show-guide" aria-label="How to score"><b aria-hidden="true">?</b><span class="play-label">Help</span></button>';
   }
-  // One block: period and clock on the left, the score (with the centre
-  // pass marker) in the middle, Pause/Resume on the right.
+  // One block: period and clock on the left (with Pause/Resume under the
+  // clock), the score (with the centre pass marker) in the middle, Help on
+  // the right.
   return `<div class="sb2">
       <div class="sb2-main">
-        <div class="sb2-clock"><span class="sb2-period">${escapeHtml(period)}</span>${clock}${phase ? `<span class="sb2-phase">${phase}</span>` : ''}</div>
+        <div class="sb2-clock"><span class="sb2-period">${escapeHtml(period)}</span>${clock}${phase ? `<span class="sb2-phase">${phase}</span>` : ''}${play}</div>
         <div class="sb2-score ${showCp ? 'with-cp' : ''}">
           <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'us'))}</span><b>${pad2(st.us)}</b>${cpMark('us')}</div>
           <span class="sb2-sep" aria-hidden="true"></span>
           <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'them'))}</span><b>${pad2(st.them)}</b>${cpMark('them')}</div>
         </div>
-        <div class="sb2-play">${play}</div>
+        <div class="sb2-play">${help}</div>
       </div>
     </div>`;
 }
@@ -2384,12 +2558,11 @@ function liveStatsHtml(g, st){
   const oppShots = st.them + st.oppMiss;
   return `<h3 class="subhead">Stats</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Court time (mins)</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <thead><tr><th scope="col">Player</th><th scope="col">Court time (mins)</th><th scope="col">Goals</th><th scope="col">Accuracy</th></tr></thead>
       <tbody>${rows}
         <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + oppShots : st.them}</td>
           <td>${st.oppMiss ? pct(st.them, oppShots) : '·'}</td></tr></tbody>
     </table></div>
-    <p class="hint">${escapeHtml(teamLabel(g, 'them'))}'s % only counts the misses that were recorded.</p>
     <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="1">Hide stats</button></div>`;
 }
 
@@ -2518,7 +2691,7 @@ function renderSummaryTab(g){
   const oppRows = ['GS', 'GA', 'Team'].filter(k => st.opp[k].goal + st.opp[k].miss);
   const shooting = `<h3 class="subhead">Shooting</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Shooter</th><th scope="col">Pos</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <thead><tr><th scope="col">Shooter</th><th scope="col">Pos</th><th scope="col">Goals</th><th scope="col">Accuracy</th></tr></thead>
       <tbody>
         ${shooters.map(([id, r]) => `<tr><td>${escapeHtml(playerName(id))}</td><td>${escapeHtml(Array.from(shooterPos[id] || []).join(', '))}</td>
           <td>${r.goal}/${r.goal + r.miss}</td><td>${pctText(r.goal, r.goal + r.miss)}</td></tr>`).join('')}
@@ -2538,7 +2711,7 @@ function renderSummaryTab(g){
   const benched = rows.filter(r => !r.ms && playing.has(r.id)).length;
   const court = `<h3 class="subhead">Court time</h3>
     ${courtTimeTable(rows, wholeMins, playing)}
-    <p class="hint">Minutes in each position, rounded to the nearest minute.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
+    <p class="hint">Minutes in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
 
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">
@@ -2783,7 +2956,7 @@ function renderSeasonStatsTab(){
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th><th scope="col">Accuracy</th></tr></thead>
       <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? wholeMins(p.ms / p.avail) : '·'}</td>
         <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
     </table></div>
@@ -2844,47 +3017,47 @@ function renderPlayersTab(){
 }
 
 function renderPeopleTab(){
-  const admin = isAdmin();
+  const manager = isManager();
   const s = CUR.season;
-  const members = CUR.members.slice().sort((a,b) => {
-    const aa = a.id === CUR.team.adminUid, bb = b.id === CUR.team.adminUid;
-    return (bb - aa) || (a.name || '').localeCompare(b.name || '');
-  });
+  // Coach/Managers first, then Scorers, then everyone else.
+  const rank = m => (m.roles || []).includes('coach') ? 0 : (m.roles || []).includes('scorer') ? 1 : 2;
+  const members = CUR.members.slice().sort((a,b) => rank(a) - rank(b) || (a.name || '').localeCompare(b.name || ''));
 
   const regenKey = 'regen-code';
   const codeCard = `<div class="code-card">
-      <span class="label">Team code</span>
-      <span class="code-value">${escapeHtml(s.joinCode || '')}</span>
-      <span style="font-size:0.82rem; opacity:0.9">Parents sign in, tap “Join with Team Code” and enter this. They'll join as viewers until given a role.</span>
+      <span class="label">Invite parents</span>
+      <span style="font-size:0.9rem">Send parents the invite link. They tap it, sign in, and they're in the team. They don't need to type the code.</span>
       <div class="code-actions">
-        <button class="btn small" data-action="share-code">${navigator.share ? 'Share' : 'Copy invite'}</button>
-        ${admin ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
-          ${isArmed(regenKey) ? 'Tap again: old code stops working' : 'New code'}</button>` : ''}
+        <button class="btn small" data-action="share-code">${navigator.share ? 'Send invite link' : 'Copy invite link'}</button>
+        ${manager ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
+          ${isArmed(regenKey) ? 'Tap again: old link and code stop working' : 'New code'}</button>` : ''}
       </div>
+      <span class="label" style="margin-top:0.3rem">Team code</span>
+      <span class="code-value">${escapeHtml(s.joinCode || '')}</span>
+      <span style="font-size:0.82rem; opacity:0.9">Only needed if the link doesn't work: they tap “Join with Team Code” and type this in. New people join as viewers until given a role.</span>
     </div>`;
 
+  const lastCoach = coachCount() <= 1;
   const rows = members.map(m => {
-    const isTeamAdmin = m.id === CUR.team.adminUid;
     const isMe = USER && m.id === USER.uid;
     const roles = m.roles || [];
     const head = `${avatarHtml(m.name, m.photoURL)}
       <div class="grow">
         <div class="pname">${escapeHtml(m.name || 'Unknown')}${isMe ? ' <span class="hint">(you)</span>' : ''}</div>
-        ${admin && m.email ? `<div class="psub">${escapeHtml(m.email)}</div>` : ''}
+        ${manager && m.email ? `<div class="psub">${escapeHtml(m.email)}</div>` : ''}
       </div>`;
-    if (!admin) return `<div class="list-row">${head}<div class="badges">${roleBadges(roles, isTeamAdmin)}</div></div>`;
+    if (!manager) return `<div class="list-row">${head}<div class="badges">${roleBadges(roles)}</div></div>`;
 
-    const rmKey = 'rm-' + m.id, adKey = 'admin-' + m.id;
+    const rmKey = 'rm-' + m.id;
+    // The only Coach/Manager can't be removed, so the team is never left without one.
+    const onlyCoach = lastCoach && roles.includes('coach');
     return `<div class="list-row">
         ${head}
         <div class="role-toggles">
-          ${isTeamAdmin ? '<span class="badge admin">Admin</span>' : ''}
           <button class="role-toggle coach" aria-pressed="${roles.includes('coach')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="coach">Coach/Manager</button>
           <button class="role-toggle scorer" aria-pressed="${roles.includes('scorer')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="scorer">Scorer</button>
         </div>
-        ${isTeamAdmin ? '' : `<div class="member-actions">
-          <button class="btn ghost small ${isArmed(adKey) ? 'armed' : ''}" data-action="make-admin" data-member="${escapeHtml(m.id)}">
-            ${isArmed(adKey) ? 'Tap again: you stop being admin' : 'Make admin'}</button>
+        ${isMe || onlyCoach ? '' : `<div class="member-actions">
           <button class="btn danger small ${isArmed(rmKey) ? 'armed' : ''}" data-action="remove-member" data-member="${escapeHtml(m.id)}">
             ${isArmed(rmKey) ? 'Tap again to remove' : 'Remove'}</button>
         </div>`}
@@ -2892,7 +3065,10 @@ function renderPeopleTab(){
   }).join('');
 
   const leaveKey = 'leave';
-  const leave = admin ? '' : `<div class="danger-zone">
+  const me = myMember();
+  const leave = !me ? '' : (lastCoach && (me.roles || []).includes('coach'))
+    ? `<p class="hint danger-zone">You're the only Coach/Manager. To leave this season, make someone else Coach/Manager first.</p>`
+    : `<div class="danger-zone">
       <button class="btn danger small ${isArmed(leaveKey) ? 'armed' : ''}" data-action="leave-season">
         ${isArmed(leaveKey) ? 'Tap again to leave' : 'Leave this season'}</button>
     </div>`;
@@ -2900,7 +3076,7 @@ function renderPeopleTab(){
   return `${codeCard}
     <h3 class="subhead">Support Crew <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
     <div class="list-card">${rows}</div>
-    ${admin ? `<p class="hint role-help"><b>Coach/Manager:</b> manages the lineup and court time.<br>
+    ${manager ? `<p class="hint role-help"><b>Coach/Manager:</b> runs the team: players, games, lineups, court time and who does what. A team can have more than one.<br>
       <b>Scorer:</b> scores games. One person can be both.<br>
       <b>Everyone else:</b> can follow games and see the stats.</p>` : ''}
     ${leave}`;
@@ -2982,7 +3158,7 @@ async function loadHomeItem(ms){
   if (!teamSnap.exists() || !seasonSnap.exists()) return null;
   const team = teamSnap.data(), season = seasonSnap.data();
   return { teamId, seasonId, teamName:team.name, seasonName:season.name, competition:season.competition,
-    roles:memberSnap.data().roles || [], isAdmin:team.adminUid === USER.uid };
+    joinCode:season.joinCode || '', roles:memberSnap.data().roles || [] };
 }
 
 // Only forgets a season once we've confirmed our member record is really
@@ -3015,7 +3191,7 @@ function closeSeason(){
 function openSeason(teamId, seasonId){
   closeSeason();
   PRACTICE = null;
-  UI = { ...UI, view:'season', teamId, seasonId, tab:'games', form:null, gameId:null };
+  UI = { ...UI, view:'season', teamId, seasonId, tab:'games', form:null, gameId:null, showMgGuide:false };
   saveNav();
   render();
   const seasonRef = doc(db, 'teams', teamId, 'seasons', seasonId);
@@ -3039,8 +3215,9 @@ function openSeason(teamId, seasonId){
   CUR.unsubs.push(onSnapshot(collection(seasonRef, 'members'), (snap) => {
     CUR.members = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     CUR.loaded.members = true;
-    // If an admin removed us while we're looking at the season, leave.
-    if (USER && !CUR.members.some(m => m.id === USER.uid)) lostAccess({ code:'permission-denied' });
+    // If a Coach/Manager removed us while we're looking at the season, leave.
+    // (The app owner can look at any team without being a member.)
+    if (USER && !isOwner() && !CUR.members.some(m => m.id === USER.uid)) lostAccess({ code:'permission-denied' });
     else render();
   }, lostAccess));
   CUR.unsubs.push(onSnapshot(collection(seasonRef, 'players'), (snap) => {
@@ -3124,7 +3301,7 @@ function backToGames(){
 function goHome(){
   closeSeason();
   PRACTICE = null;
-  UI = { ...UI, view:'home', teamId:null, seasonId:null, gameId:null, form:null };
+  UI = { ...UI, view:'home', teamId:null, seasonId:null, gameId:null, form:null, invitePick:false };
   saveNav();
   loadHome();
 }
@@ -3170,9 +3347,12 @@ function readSeasonFields(fd){
 }
 
 // Writes a new season, its code, and makes the current user a member with
-// both roles. Used by "create team" and "new season".
-function addSeasonToBatch(batch, teamId, seasonId, code, fields){
-  batch.set(doc(db, 'teams', teamId, 'seasons', seasonId), { ...fields, joinCode:code, createdAt:serverTimestamp() });
+// both roles. Used by "create team" and "new season". fromSeason is the
+// season a new season was started from: the security rules check that the
+// person was Coach/Manager there.
+function addSeasonToBatch(batch, teamId, seasonId, code, fields, fromSeason){
+  batch.set(doc(db, 'teams', teamId, 'seasons', seasonId),
+    { ...fields, joinCode:code, createdAt:serverTimestamp(), ...(fromSeason ? { fromSeason } : {}) });
   batch.set(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid),
     { ...memberProfile(), roles:['coach','scorer'], joinedAt:serverTimestamp() });
   batch.set(doc(db, 'joinCodes', code), { teamId, seasonId });
@@ -3191,7 +3371,8 @@ async function createTeam(fd){
   await batch.commit();
   toast('Team created.');
   openSeason(teamId, seasonId);
-  UI.tab = 'people';
+  // A brand new Coach/Manager starts with the guide to what to do next.
+  UI.showMgGuide = true;
   render();
 }
 
@@ -3243,20 +3424,22 @@ async function toggleRole(memberId, role){
   const m = CUR.members.find(m => m.id === memberId);
   if (!m) return;
   const roles = new Set(m.roles || []);
+  if (role === 'coach' && roles.has('coach') && coachCount() <= 1){
+    toast('Every team needs a Coach/Manager. Make someone else Coach/Manager first.', true);
+    return;
+  }
   if (roles.has(role)) roles.delete(role); else roles.add(role);
   await updateDoc(doc(seasonRef(), 'members', memberId), { roles: Array.from(roles) });
 }
 
 async function removeMember(memberId){
+  const m = CUR.members.find(m => m.id === memberId);
+  if (m && (m.roles || []).includes('coach') && coachCount() <= 1){
+    toast("You can't remove the only Coach/Manager.", true);
+    return;
+  }
   await deleteDoc(doc(seasonRef(), 'members', memberId));
   toast('Removed.');
-}
-
-async function makeAdmin(memberId){
-  const m = CUR.members.find(m => m.id === memberId);
-  await updateDoc(doc(db, 'teams', UI.teamId), { adminUid: memberId });
-  toast(`${m ? m.name : 'They'} is now the team admin.`);
-  UI.tab = 'people';
 }
 
 async function leaveSeason(){
@@ -3282,22 +3465,26 @@ async function regenerateCode(){
 
 // The invite is a link with the code in it (?join=CODE), so parents just
 // tap it and sign in. The code is included as text too, as a fallback.
-async function shareCode(){
-  const s = CUR.season, t = CUR.team;
-  const url = `${location.origin}${location.pathname}?join=${encodeURIComponent(s.joinCode)}`;
-  const text = `Join ${t.name} (${s.name}) on Netty Pal: ${url}\n\nTap the link and sign in with Google. (Team code: ${s.joinCode})`;
+// Used from the Support Crew tab and from "Invite someone to a team" on the
+// home screen, so anyone in the team can send it.
+async function shareInvite(teamName, seasonName, code){
+  if (!code){ toast("This team's code couldn't be found. Ask your coach/manager to send the invite.", true); return; }
+  const url = `${location.origin}${location.pathname}?join=${encodeURIComponent(code)}`;
+  const text = `Join ${teamName} (${seasonName}) on Netty Pal: ${url}\n\nTap the link and sign in. That's it: you don't need the code. (If the link doesn't work, open Netty Pal, tap Join with Team Code and enter ${code}.)`;
   if (navigator.share){
     try { await navigator.share({ title:'Netty Pal', text }); } catch(e){ /* cancelled */ }
     return;
   }
   try { await navigator.clipboard.writeText(text); toast('Invite copied. Paste it into a message.'); }
-  catch(e){ toast('Copy failed. The code is ' + s.joinCode, true); }
+  catch(e){ toast('Copy failed. The code is ' + code, true); }
 }
+function shareCode(){ return shareInvite(CUR.team.name, CUR.season.name, CUR.season.joinCode); }
 
 async function saveTeamSettings(fd){
   const name = String(fd.get('teamName') || '').trim();
   if (!name) return;
-  await updateDoc(doc(db, 'teams', UI.teamId), { name });
+  // editSeason lets the security rules check the person is Coach/Manager of this season.
+  await updateDoc(doc(db, 'teams', UI.teamId), { name, editSeason:UI.seasonId });
   toast('Team saved.');
 }
 
@@ -3314,7 +3501,7 @@ async function createNewSeason(fd){
   const teamId = UI.teamId, seasonId = newId();
   const code = await uniqueCode();
   const batch = writeBatch(db);
-  addSeasonToBatch(batch, teamId, seasonId, code, fields);
+  addSeasonToBatch(batch, teamId, seasonId, code, fields, UI.seasonId);
   if (fd.get('copyPlayers')){
     CUR.players.filter(p => p.active !== false).forEach(p => {
       batch.set(doc(collection(db, 'teams', teamId, 'seasons', seasonId, 'players')),
@@ -4192,10 +4379,30 @@ document.addEventListener('click', async (e) => {
       const key = 'rm-' + btn.dataset.member;
       if (!isArmed(key)) return arm(key);
       disarm(key); await removeMember(btn.dataset.member);
-    } else if (a === 'make-admin'){
-      const key = 'admin-' + btn.dataset.member;
-      if (!isArmed(key)) return arm(key);
-      disarm(key); await makeAdmin(btn.dataset.member);
+    } else if (a === 'invite-start'){
+      // One team: share it straight away (phones only allow sharing right after a tap).
+      if (HOME.items.length === 1){ const it = HOME.items[0]; await shareInvite(it.teamName, it.seasonName, it.joinCode); }
+      else { UI.invitePick = true; render(); focusSheet(); }
+    } else if (a === 'invite-team'){
+      const it = HOME.items[parseInt(btn.dataset.index, 10)];
+      UI.invitePick = false; render();
+      if (it) await shareInvite(it.teamName, it.seasonName, it.joinCode);
+    } else if (a === 'invite-close'){
+      UI.invitePick = false; render();
+    } else if (a === 'owner-teams'){
+      await loadOwnerTeams();
+    } else if (a === 'owner-teams-hide'){
+      HOME.all = null; render();
+    } else if (a === 'mg-open'){
+      UI.showMgGuide = true; render(); focusSheet();
+    } else if (a === 'mg-close'){
+      UI.showMgGuide = false; render();
+    } else if (a === 'mg-tab'){
+      UI.showMgGuide = false; UI.tab = btn.dataset.tab; UI.form = null; saveNav(); render(); window.scrollTo(0, 0);
+    } else if (a === 'mg-game'){
+      UI.showMgGuide = false;
+      openGame(btn.dataset.game);
+      UI.gameTab = btn.dataset.tab; saveNav(); render();
     } else if (a === 'leave-season'){
       if (!isArmed('leave')) return arm('leave');
       disarm('leave'); await leaveSeason();
@@ -4506,6 +4713,7 @@ function closePicker(){
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
+  if (e.key === 'Escape' && (UI.showMgGuide || UI.invitePick)){ UI.showMgGuide = false; UI.invitePick = false; render(); return; }
   if (e.key === 'Escape' && UI.subSheet){ UI.subSheet = false; render(); return; }
   if (e.key === 'Escape' && (UI.pickPos || UI.statPos)) closePicker();
 });

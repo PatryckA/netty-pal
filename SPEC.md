@@ -27,25 +27,31 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 | Role | Who | Can do |
 |---|---|---|
-| **Admin** | One account per team. Whoever creates the team starts as admin. Transferable to another member. | Everything: edit team, seasons, roster, fixtures, assign roles, remove members, regenerate the season code, transfer admin. |
-| **Coach** | Assigned by admin. | Manage lineups and positions (before and during games), view all summaries. |
-| **Scorer** | Assigned by admin. | Score games (one scorer per game; can differ game to game), make lineup changes during play if needed. |
+| **Coach/Manager** | Whoever creates the team starts as Coach/Manager. A team can have several; any Coach/Manager can make others. | Runs the team: edit team and seasons, roster, fixtures, lineups and positions, assign roles, remove members, regenerate the season code, unlock finalised games. |
+| **Scorer** | Assigned by a Coach/Manager. | Score games (one scorer per game; can differ game to game), make lineup changes during play if needed. |
 | **Viewer** | Anyone who joined with the season code and has no role. | Follow live scores, view game and season summaries. Read-only. |
 
-- One person can be both Coach and Scorer.
-- Anyone signed in with Google can create a new team (and becomes its admin).
+- One person can be both Coach/Manager and Scorer.
+- Anyone signed in can create a new team (and becomes its Coach/Manager).
 - A user can belong to several teams (e.g. siblings).
+- (Changed 2026-10-03.) There is no separate Admin role any more: it was merged into
+  Coach/Manager. A team always keeps at least one Coach/Manager (the app won't let the
+  last one be removed, step down or leave).
+- **App owner**: one Google account (set in `index.html` and `firestore.rules`) can read
+  and manage every team without being a member, and can list every team from the home
+  screen. Nobody else sees this.
+- Any member can send the invite link from the home screen ("Invite someone to a team").
 
 ### Season code
 - One code per team season. **Never expires.**
 - Joining: sign in with Google, enter code, become a Viewer of that season.
-- Admin can remove a member and regenerate the code if it gets passed around.
+- A Coach/Manager can remove a member and regenerate the code if it gets passed around.
 
 ---
 
 ## 3. Teams, seasons, roster
 
-- **Team**: name, admin.
+- **Team**: name, who created it.
 - **Season**: name (e.g. "Winter 2027"), competition name, default format
   (**quarters** or **halves**), default period length (**7 minutes**), season code.
 - **Roster** per season: player names. Fill-in players are simply added to the
@@ -56,7 +62,7 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ## 4. Fixtures
 
-- Admin can add fixtures for the season: round, date, time, venue/court, opponent.
+- A Coach/Manager can add fixtures for the season: round, date, time, venue/court, opponent.
 - **Import** (built, option A: no AI): upload a PDF or CSV, or paste text from the
   competition draw. Only games involving our team are kept (the name in the draw is
   editable, with a pick-list of teams found). Understands round headings with games
@@ -124,7 +130,7 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ### After the game
 - Scorer or Coach can **correct the timeline** (add, remove or reassign events),
-  then tap **Finalise** to lock the game. The admin can unlock it if needed.
+  then tap **Finalise** to lock the game. A Coach/Manager can unlock it if needed.
 
 ### Centre pass
 - Automatic: alternates after every goal (either team), and each period starts
@@ -169,7 +175,7 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 ```
 users/{uid}                          name, email
 joinCodes/{code}                     teamId, seasonId
-teams/{teamId}                       name, adminUid
+teams/{teamId}                       name, adminUid (creator only), editSeason
   seasons/{seasonId}                 name, competition, format, periodMinutes (7), joinCode
     members/{uid}                    name, roles: ["coach","scorer"] (empty = viewer)
     players/{playerId}               name, active

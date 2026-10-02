@@ -4,11 +4,14 @@ rules_version = '2';
 // Paste this whole file into Firebase console > Firestore Database > Rules, then Publish.
 //
 // Summary:
-//   - Everyone must be signed in with Google.
-//   - A season's data can only be read by its members (and the team admin).
+//   - Everyone must be signed in.
+//   - A season's data can only be read by its members.
 //   - Joining needs the season's current code.
-//   - Only the team admin can change roles, remove people, change codes or settings.
-//   - Admin or Coach can edit the player roster.
+//   - Coach/Managers run the team: settings, roles, removing people, codes,
+//     players, games. (There is no separate "admin" any more.)
+//   - Scorers can run a game on the day.
+//   - The app owner (one Google account, below) can read and manage every
+//     team without being a member.
 //   - A code can only ever be created once, never overwritten.
 
 service cloud.firestore {
@@ -17,26 +20,47 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
 
+    // The app owner. Must match OWNER_EMAIL in index.html.
+    function isOwner() {
+      return signedIn()
+        && request.auth.token.get('email', '') == 'patryck.allen@gmail.com'
+        && request.auth.token.get('email_verified', false) == true;
+    }
+
     function teamPath(teamId) { return /databases/$(database)/documents/teams/$(teamId); }
     function seasonPath(teamId, seasonId) { return /databases/$(database)/documents/teams/$(teamId)/seasons/$(seasonId); }
     function memberPath(teamId, seasonId, uid) { return /databases/$(database)/documents/teams/$(teamId)/seasons/$(seasonId)/members/$(uid); }
 
     // "Before" checks: the database as it is now.
-    function isAdmin(teamId) {
-      return signedIn() && exists(teamPath(teamId)) && get(teamPath(teamId)).data.adminUid == me();
-    }
     function isMember(teamId, seasonId) {
       return signedIn() && exists(memberPath(teamId, seasonId, me()));
     }
     function hasRole(teamId, seasonId, role) {
       return isMember(teamId, seasonId) && role in get(memberPath(teamId, seasonId, me())).data.roles;
     }
+    function isManager(teamId, seasonId) {
+      return isOwner() || hasRole(teamId, seasonId, 'coach');
+    }
+    function canRead(teamId, seasonId) {
+      return isOwner() || isMember(teamId, seasonId);
+    }
 
-    // "After" check: the database as it will be once this write (or batch
-    // of writes) completes. Needed when a team and its first season are
-    // created together in one go.
-    function isAdminAfter(teamId) {
-      return signedIn() && getAfter(teamPath(teamId)).data.adminUid == me();
+    // "After" checks: the database as it will be once this batch of writes
+    // completes. Used when a team or a season is being created in one go
+    // (the season, the creator's member record, its code and players).
+    // A new team: it doesn't exist yet, and the creator is named on it.
+    function creatingTeam(teamId) {
+      return signedIn() && !exists(teamPath(teamId))
+        && getAfter(teamPath(teamId)).data.adminUid == me();
+    }
+    // A new season: it doesn't exist yet, and it's part of a new team, or the
+    // person is Coach/Manager of the season it was started from.
+    function creatingSeason(teamId, seasonId) {
+      return signedIn() && !exists(seasonPath(teamId, seasonId)) && (
+        isOwner()
+        || creatingTeam(teamId)
+        || ('fromSeason' in getAfter(seasonPath(teamId, seasonId)).data
+            && hasRole(teamId, getAfter(seasonPath(teamId, seasonId)).data.fromSeason, 'coach')));
     }
 
     // Each user's own list of seasons they belong to.
@@ -49,63 +73,64 @@ service cloud.firestore {
     match /joinCodes/{code} {
       allow get: if signedIn();
       allow list: if false;
-      allow create: if isAdminAfter(request.resource.data.teamId)
+      allow create: if (creatingSeason(request.resource.data.teamId, request.resource.data.seasonId)
+          || isManager(request.resource.data.teamId, request.resource.data.seasonId))
         && getAfter(seasonPath(request.resource.data.teamId, request.resource.data.seasonId)).data.joinCode == code;
       allow update: if false;
-      allow delete: if isAdmin(resource.data.teamId);
+      allow delete: if isManager(resource.data.teamId, resource.data.seasonId);
     }
 
     match /teams/{teamId} {
       allow get: if signedIn();
-      allow list: if false;
+      // Only the owner can list every team (the owner's "show every team").
+      allow list: if isOwner();
       allow create: if signedIn() && request.resource.data.adminUid == me();
-      allow update: if isAdmin(teamId);
+      // Renaming the team: a Coach/Manager of the season named in editSeason.
+      allow update: if isOwner()
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'editSeason'])
+            && hasRole(teamId, request.resource.data.editSeason, 'coach'));
       allow delete: if false;
 
       match /seasons/{seasonId} {
-        allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
-        allow create: if isAdminAfter(teamId);
-        allow update: if isAdmin(teamId);
+        allow read: if canRead(teamId, seasonId);
+        allow create: if creatingSeason(teamId, seasonId);
+        allow update: if isManager(teamId, seasonId);
         allow delete: if false;
 
         match /members/{uid} {
-          allow read: if isMember(teamId, seasonId) || isAdmin(teamId) || (signedIn() && me() == uid);
-          // Admin adds people (including themselves when creating a season),
-          // or a user adds themselves as a Viewer with the current code.
-          allow create: if isAdminAfter(teamId)
+          allow read: if canRead(teamId, seasonId) || (signedIn() && me() == uid);
+          // A Coach/Manager adds people (including themselves when creating
+          // a season), or a user adds themselves as a Viewer with the current code.
+          allow create: if creatingSeason(teamId, seasonId) || isManager(teamId, seasonId)
             || (signedIn() && me() == uid
                 && request.resource.data.roles.size() == 0
                 && request.resource.data.code == get(seasonPath(teamId, seasonId)).data.joinCode);
-          allow update: if isAdmin(teamId);
-          // Admin removes people; anyone can leave.
-          allow delete: if isAdmin(teamId) || (signedIn() && me() == uid);
+          allow update: if isManager(teamId, seasonId);
+          // A Coach/Manager removes people; anyone can leave.
+          allow delete: if isManager(teamId, seasonId) || (signedIn() && me() == uid);
         }
 
         match /players/{playerId} {
-          allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
-          allow write: if isAdmin(teamId) || hasRole(teamId, seasonId, 'coach');
+          allow read: if canRead(teamId, seasonId);
+          allow write: if creatingSeason(teamId, seasonId) || isManager(teamId, seasonId);
         }
 
-        // Fixtures and availability: admin or Coach, and Scorers can change who's playing.
+        // Fixtures, availability and lineups: Coach/Managers.
         // Scorers can run the game (clock, status, who's scoring, who's playing,
-        // the lineup plan and the saved summary) but not change the fixture.
-        // Once a game is finalised only the admin can change it (to unlock),
-        // except that Coaches can still archive or restore it.
+        // the lineup plan and the saved summary) but not change the fixture,
+        // and not once it's finalised. Coach/Managers can unlock a finalised game.
         match /games/{gameId} {
           function canRunGame() {
-            return isAdmin(teamId) || hasRole(teamId, seasonId, 'coach') || hasRole(teamId, seasonId, 'scorer');
+            return isManager(teamId, seasonId) || hasRole(teamId, seasonId, 'scorer');
           }
           function notFinal() { return resource.data.get('status', 'scheduled') != 'final'; }
 
-          allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
-          allow create, delete: if isAdmin(teamId) || hasRole(teamId, seasonId, 'coach');
-          allow update: if (isAdmin(teamId) || (notFinal() && (
-              hasRole(teamId, seasonId, 'coach')
-              || (hasRole(teamId, seasonId, 'scorer')
-                  && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary']))))
-            || (hasRole(teamId, seasonId, 'coach')
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived'])));
+          allow read: if canRead(teamId, seasonId);
+          allow create, delete: if isManager(teamId, seasonId);
+          allow update: if isManager(teamId, seasonId)
+            || (notFinal() && hasRole(teamId, seasonId, 'scorer')
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary']));
 
           // Everything that happens in a game. Events are never deleted:
           // undo and corrections mark them undone or change the player.
@@ -113,7 +138,7 @@ service cloud.firestore {
             function gameNotFinal() {
               return get(/databases/$(database)/documents/teams/$(teamId)/seasons/$(seasonId)/games/$(gameId)).data.get('status', 'scheduled') != 'final';
             }
-            allow read: if isMember(teamId, seasonId) || isAdmin(teamId);
+            allow read: if canRead(teamId, seasonId);
             allow create: if canRunGame() && gameNotFinal() && request.resource.data.by == me();
             allow update: if canRunGame() && gameNotFinal()
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone', 'playerId']);
