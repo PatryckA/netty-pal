@@ -1145,7 +1145,7 @@ function ballSvg(cls){
 function renderSignedOut(){
   const intro = pendingInvite()
     ? `<p class="invite-note"><b>You've been invited to join a team.</b> Sign in to accept.</p>`
-    : '<p>Court time, positions and live scoring for your netball team. Share the load: any parent with the team code can follow along, and the coach can hand them the scoring.</p>';
+    : '<p>Court time, positions and live scoring for your netball team. Share the load: any parent with the team code can follow along, and the coach/manager can hand them the scoring.</p>';
   let panel;
   if (UI.signin === 'sent'){
     panel = `<div class="signin-card">
@@ -1273,7 +1273,7 @@ function renderHome(){
   if (!HOME.loaded) list = '<div class="loading-state">Loading your teams…</div>';
   else if (!HOME.items.length && HOME.failed) list = retry;
   else if (!HOME.items.length && HOME.invite) list = '';
-  else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a team code from your coach, or create your own team.</div>';
+  else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a team code from your coach/manager, or create your own team.</div>';
   else list = `<div class="team-list">${HOME.items.map(it => `
       <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
         <div>
@@ -1291,7 +1291,7 @@ function renderHome(){
         <label for="join-code">Team code</label>
         <input class="text-input" id="join-code" name="code" autocomplete="off" autocapitalize="characters"
           maxlength="12" placeholder="e.g. K7PQ2M" required>
-        <span class="hint">Ask your coach or team admin for this.</span>
+        <span class="hint">Ask your coach/manager or team admin for this.</span>
       </div>
       <div class="form-actions">
         <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
@@ -1425,7 +1425,7 @@ function renderGamesTab(){
 
   let body;
   if (!games.length){
-    body = `<div class="empty-state">No games yet.${editable ? ' Add this season\'s fixtures to start planning lineups.' : ' Your coach will add them.'}</div>`;
+    body = `<div class="empty-state">No games yet.${editable ? ' Add this season\'s fixtures to start planning lineups.' : ' Your coach/manager will add them.'}</div>`;
   } else {
     body = `${upcoming.length ? `<div class="list-label">Upcoming</div><div class="game-list">${upcoming.map(g => gameCardHtml(g, false)).join('')}</div>` : ''}
       ${earlier.length ? `<div class="list-label">Earlier</div><div class="game-list">${earlier.map(g => gameCardHtml(g, true)).join('')}</div>` : ''}`;
@@ -1568,7 +1568,11 @@ function renderGame(){
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
   if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
   if (!practice){
-    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Time on court']);
+    // Who's available is for the people running the team; viewers can see
+    // who's playing on the Lineup tab instead.
+    const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
+    if (staff) tabs.push(['avail','Players']);
+    tabs.push(['lineup','Lineup'], ['fair','Time on court']);
     if (canEditGames()) tabs.push(['details','Details']);
   }
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
@@ -1777,7 +1781,8 @@ function pickerSheetHtml(g, p, plan, avail, posOf, countOf, note){
 }
 
 function renderAvailTab(g){
-  const editable = canEditGames();
+  // Coach/Managers, Scorers and the admin can change who's playing.
+  const editable = canScore();
   const avail = new Set(availableIds(g));
   const players = CUR.players.filter(p => p.active !== false || avail.has(p.id))
     .sort((a,b) => (a.name || '').localeCompare(b.name || ''));
@@ -2087,7 +2092,7 @@ function subSheetHtml(g, st){
 function askToScoreHtml(){
   if (canScore()) return '';
   return `<div class="panel ask-score">
-      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach or team admin to make you a Scorer. They can do it in the Support Crew tab.</p>
+      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach/manager or team admin to make you a Scorer. They can do it in the Support Crew tab.</p>
       ${canPractise() ? '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>' : ''}
     </div>`;
 }
@@ -3131,7 +3136,7 @@ async function joinWithCode(fd){ return joinByCode(normaliseCode(fd.get('code'))
 async function joinByCode(code){
   if (!code) return;
   const codeSnap = await getDoc(doc(db, 'joinCodes', code));
-  if (!codeSnap.exists()){ toast("That code wasn't found. Check it with your coach.", true); return; }
+  if (!codeSnap.exists()){ toast("That code wasn't found. Check it with your coach/manager.", true); return; }
   const { teamId, seasonId } = codeSnap.data();
   const memberRef = doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid);
   const existing = await getDoc(memberRef);
@@ -4558,7 +4563,7 @@ function inviteHtml(){
   if (!inv) return '';
   if (inv.loading) return '<div class="panel invite-panel">Checking your invite…</div>';
   if (inv.bad) return `<div class="panel invite-panel" role="alert">
-      <p>That invite link isn't valid any more (the team may have made a new code). Ask your coach for a new link.</p>
+      <p>That invite link isn't valid any more (the team may have made a new code). Ask your coach/manager for a new link.</p>
       <button class="btn ghost small" data-action="dismiss-invite">OK</button></div>`;
   if (inv.error) return `<div class="panel invite-panel" role="alert">
       <p>Couldn't check your invite just now.</p>
