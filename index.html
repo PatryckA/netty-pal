@@ -2645,7 +2645,9 @@ function renderSeasonStatsTab(){
 
   const rec = { w:0, l:0, d:0, gf:0, ga:0, ourShots:0, oppShots:0 };
   const players = {};
-  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0 });
+  // games: games they got on court. avail: games they were available for
+  // (marked as playing, or got on court anyway), which the average divides by.
+  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0, avail:0 });
   const results = finished.map(g => {
     const st = computeGame(g, CUR.seasonEvents[g.id]);
     const r = resultWord(st.us, st.them);
@@ -2658,6 +2660,8 @@ function renderSeasonStatsTab(){
       if (s.ms) p.games++;
       Object.entries(s.pos).forEach(([pos, v]) => { p.pos[pos] = (p.pos[pos] || 0) + v; });
     });
+    new Set([...availableIds(g), ...Object.keys(st.players).filter(id => st.players[id].ms)])
+      .forEach(id => { P(id).avail++; });
     return { g, st, r };
   });
 
@@ -2679,15 +2683,17 @@ function renderSeasonStatsTab(){
         <span class="result-badge ${r.toLowerCase()}">${r} ${st.us} : ${st.them}</span>
       </button>`).join('')}</div>`;
 
-  const list = Object.values(players).filter(p => p.ms || p.goal + p.miss)
+  // Anyone who was available is listed, even if they never got on court,
+  // so a player left on the bench shows up with an average of 0.
+  const list = Object.values(players).filter(p => p.ms || p.goal + p.miss || p.avail)
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins per game</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
-      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.games ? (p.ms / 60000 / p.games).toFixed(1).replace(/\.0$/, '') : '·'}</td>
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
+      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? (p.ms / 60000 / p.avail).toFixed(1).replace(/\.0$/, '') : '·'}</td>
         <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
     </table></div>
-    <p class="hint">Games counts games where they got on court. Mins is total court time; the average only counts games they played, so a missed game doesn't pull it down.</p>`;
+    <p class="hint">Games counts games where they got on court. Mins is total court time. The average divides their court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do.</p>`;
 
   const court = `<h3 class="subhead">Court time by position</h3>
     ${courtTimeTable(list, minsText)}
