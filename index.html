@@ -406,10 +406,11 @@ body.dragging{cursor:grabbing;}
 .sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:6.5rem; text-align:center; line-height:1.15; overflow-wrap:anywhere;}
 .sb2-team b{font-family:var(--font-display); font-size:2.9rem; line-height:1; font-variant-numeric:tabular-nums;}
 .sb2-sep{width:1rem; height:4px; background:var(--line); border-radius:0; margin-bottom:1.3rem;}
-.sb2-score.with-cp .sb2-sep{margin-bottom:2.85rem;}
+.sb2-score.with-cp .sb2-sep{margin-bottom:3.6rem;}
 /* Next centre pass marker under a team's score (also used in the guide). */
-.cp-mark{display:inline-block; margin-top:0.3rem; padding:0.2rem 0.5rem; border:1.5px solid var(--pop); border-radius:var(--r-pill); background:var(--pop); color:var(--pop-ink);
-  font-family:var(--font-body); font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; white-space:nowrap; line-height:1.2;}
+.cp-mark{display:inline-block; margin-top:0.3rem; padding:0.2rem 0.35rem; border:1.5px solid var(--pop); border-radius:var(--r-pill); background:var(--pop); color:var(--pop-ink);
+  font-family:var(--font-body); font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; line-height:1.15;
+  text-align:center; white-space:nowrap;}
 button.cp-mark{cursor:pointer;}
 .cp-mark.ghost{visibility:hidden;}
 .cp-mark.armed{background:var(--critical); border-color:var(--critical); color:#fff;}
@@ -1428,8 +1429,8 @@ function archiveSheetHtml(g){
       <div class="sheet-body">
         <p style="margin:0.9rem 0 0.4rem"><b>${what}</b></p>
         <p class="hint" style="margin:0 0 1rem">${restoring
-          ? 'It will come back into the games list, season stats and fairness table.'
-          : "It will be hidden from the games list and left out of season stats and the fairness table. Nothing is deleted: you can restore it from \"Show archived games\"."}</p>
+          ? 'It will come back into the games list, season stats and Time on court.'
+          : "It will be hidden from the games list and left out of season stats and Time on court. Nothing is deleted: you can restore it from \"Show archived games\"."}</p>
         <div class="form-actions">
           <button class="btn ghost" data-action="archive-cancel">Cancel</button>
           <button class="btn ${restoring ? '' : 'danger armed'}" data-action="archive-confirm" data-game="${escapeHtml(g.id)}">${restoring ? 'Restore game' : 'Archive game'}</button>
@@ -1539,7 +1540,7 @@ function renderGame(){
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
   if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
   if (!practice){
-    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Fairness']);
+    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Time on court']);
     if (canEditGames()) tabs.push(['details','Details']);
   }
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
@@ -1805,7 +1806,7 @@ function renderFairTab(g){
   const playing = new Set(availableIds(g));
   const noun = escapeHtml(periodNoun(g, true));
   const detailed = UI.fairView === 'detailed';
-  const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Fairness view">
+  const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Time on court view">
       <label><input type="radio" name="fairView" data-field="fair-view" value="simple" ${detailed ? '' : 'checked'}><span>Simple</span></label>
       <label><input type="radio" name="fairView" data-field="fair-view" value="detailed" ${detailed ? 'checked' : ''}><span>Detailed</span></label>
     </div>`;
@@ -2141,11 +2142,11 @@ function scoreboardHtml(g, st){
   const armedCp = scoring && isArmed('swap-centre');
   const cpMark = t => {
     if (!showCp) return '';
-    if (st.centre !== t) return '<span class="cp-mark ghost" aria-hidden="true">Centre pass</span>';
-    if (!scoring) return `<span class="cp-mark" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">Centre pass</span>`;
+    if (st.centre !== t) return '<span class="cp-mark ghost" aria-hidden="true">Next<br>centre pass</span>';
+    if (!scoring) return `<span class="cp-mark" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">Next<br>centre pass</span>`;
     return `<button class="cp-mark ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
         ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
-        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Tap twice to switch.`}">${armedCp ? 'Switch? Tap again' : 'Centre pass'}</button>`;
+        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Tap twice to switch.`}">${armedCp ? 'Switch?<br>Tap again' : 'Next<br>centre pass'}</button>`;
   };
   let play = '';
   if (scoring && isInPlay(g)){
@@ -2211,8 +2212,8 @@ function guideSheetHtml(g){
       'Umpire stops play? Tap Pause.'],
     [`<span class="g-btn">⇄ Substitution</span>`,
       'Player swapped? Tap Substitution, then the position, then who came on.'],
-    ['<span class="cp-mark">Centre pass</span>',
-      'Centre pass marker on the wrong team? Tap it twice to switch.'],
+    ['<span class="cp-mark">Next<br>centre pass</span>',
+      'Next centre pass on the wrong team? Tap it twice to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Break over? Tap Start ${q2} when the umpire restarts play.`],
     ['<span class="g-btn go">Finalise</span>',
