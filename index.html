@@ -1633,7 +1633,7 @@ function renderLineupTab(g){
   const now = started && g.status === 'live' && g.live.period === p && g.live.phase !== 'ended';
   const followNote = started
     ? `<p class="follow-note own">${now
-        ? `${escapeHtml(periodName(g, p))} is under way. This is who's on court now.${canScore() ? ' To make a change, use Substitution on the Game tab.' : ''}`
+        ? `${escapeHtml(periodName(g, p))} is under way. This is who's on court now.${canScore() ? ' To make a change, use Sub Player(s) on the Game tab.' : ''}`
         : `${escapeHtml(periodName(g, p))} is over. This is who finished it.`}</p>`
     : p > 1 && ownPlan(g, p) && isPeriodPlanned(g, p)
     ? `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>` : '';
@@ -2040,7 +2040,7 @@ function livePlayHtml(g, st, scoring){
 
 // Substitutions from either scoring mode.
 function subBtnHtml(){
-  return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Substitution</button>';
+  return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Sub Player(s)</button>';
 }
 // The court as it is right now, with the bench. Names can be dragged between
 // positions or to and from the bench (each drop is saved straight away as a
@@ -2050,7 +2050,7 @@ function subSheetHtml(g, st){
   return `<div class="sheet-backdrop" data-action="sub-close"></div>
     <div class="sheet sub-sheet" role="dialog" aria-modal="true" aria-labelledby="sub-title">
       <div class="sheet-head">
-        <div class="grow"><h3 id="sub-title">Substitution</h3><div class="hint">Drag a name to another position or the bench, or tap a position.</div></div>
+        <div class="grow"><h3 id="sub-title">Sub Player(s)</h3><div class="hint">Drag a name to another position or the bench, or tap a position.</div></div>
         <button class="btn small" data-action="sub-close">Done</button>
       </div>
       <div class="sheet-body" style="padding-top:0.6rem">
@@ -2220,8 +2220,8 @@ function guideSheetHtml(g){
       'Mistake? Tap undo, or tap the entry in the list.'],
     [`<span class="g-round">${pauseIcon}</span>`,
       'Umpire stops play? Tap Pause.'],
-    [`<span class="g-btn">⇄ Substitution</span>`,
-      'Player swapped? Tap Substitution, then the position, then who came on.'],
+    [`<span class="g-btn">⇄ Sub Player(s)</span>`,
+      'Player swapped? Tap Sub Player(s), then drag names on the court or to and from the bench.'],
     [`<span class="cp-mark">${cpBallSvg()}</span>`,
       'The ball under a score shows who takes the next centre pass. Wrong team? Double tap to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
@@ -2269,7 +2269,7 @@ function statSheetHtml(g, st){
       <div class="sheet-body">
         ${canShoot ? `<div class="stat-grid">${STATS.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>`
           : `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>`}
-        ${opp ? '' : `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Substitution: change ${pos}</button>`}
+        ${opp ? '' : `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Sub player at ${pos}</button>`}
       </div>
     </div>`;
 }
@@ -2667,8 +2667,7 @@ function renderSeasonStatsTab(){
       <div class="rec lost"><b>${rec.l}</b><span>Lost</span></div>
       <div class="rec"><b>${rec.d}</b><span>Drawn</span></div>
       <div class="rec wide"><b>${rec.gf} : ${rec.ga}</b><span>Goals for : against</span></div>
-      <div class="rec"><b>${pctText(rec.gf, rec.ourShots)}</b><span>Our shooting</span></div>
-      <div class="rec"><b>${(rec.ga / finished.length).toFixed(1).replace(/\.0$/, '')}</b><span>Opponent goals per game</span></div>
+      <div class="rec wide"><b>${pctText(rec.gf, rec.ourShots)}</b><span>Our shooting</span></div>
     </div>
     ${inProgress ? `<p class="hint">${inProgress} game${inProgress === 1 ? ' is' : 's are'} in progress and not included yet.</p>` : ''}`;
 
