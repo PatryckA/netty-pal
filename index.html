@@ -406,14 +406,16 @@ body.dragging{cursor:grabbing;}
 .sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:6.5rem; text-align:center; line-height:1.15; overflow-wrap:anywhere;}
 .sb2-team b{font-family:var(--font-display); font-size:2.9rem; line-height:1; font-variant-numeric:tabular-nums;}
 .sb2-sep{width:1rem; height:4px; background:var(--line); border-radius:0; margin-bottom:1.3rem;}
-.sb2-score.with-cp .sb2-sep{margin-bottom:3.6rem;}
-/* Next centre pass marker under a team's score (also used in the guide). */
-.cp-mark{display:inline-block; margin-top:0.3rem; padding:0.2rem 0.35rem; border:1.5px solid var(--pop); border-radius:var(--r-pill); background:var(--pop); color:var(--pop-ink);
-  font-family:var(--font-body); font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; line-height:1.15;
-  text-align:center; white-space:nowrap;}
+.sb2-score.with-cp .sb2-sep{margin-bottom:3.45rem;}
+/* Next centre pass: a small netball under a team's score (also used in the
+   guide). The button is bigger than the ball so it's easy to tap. */
+.cp-mark{display:inline-flex; align-items:center; justify-content:center; width:3rem; height:2rem; margin-top:0.15rem; padding:0;
+  border:none; border-radius:var(--r-pill); background:none;}
+.cp-ball{width:1.5rem; height:1.5rem;}
 button.cp-mark{cursor:pointer;}
 .cp-mark.ghost{visibility:hidden;}
-.cp-mark.armed{background:var(--critical); border-color:var(--critical); color:#fff;}
+.cp-mark.armed{background:var(--critical);}
+.cp-switch{font-family:var(--font-body); font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#fff;}
 .sb2-play{display:flex; justify-content:flex-end;}
 .play-btn{width:3.1rem; height:3.1rem; border-radius:var(--r); border:1.5px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .play-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
@@ -1102,6 +1104,14 @@ function drawBall(x, cx, cy, r){
   x.lineWidth = 3.5; x.stroke();
   x.lineWidth = 4; x.stroke(new Path2D(BALL_SEAMS));
   x.restore();
+}
+// The logo ball drawn small (next centre pass marker), with thicker lines so
+// the seams still show at icon size.
+function cpBallSvg(){
+  return `<svg class="cp-ball" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#E0457B" stroke-width="7"/>
+    <path d="${BALL_SEAMS}" fill="none" stroke="#E0457B" stroke-width="7" stroke-linecap="round"/>
+  </svg>`;
 }
 function ballSvg(cls){
   return `<svg class="${cls || 'ball'}" viewBox="0 0 100 100" aria-hidden="true">
@@ -2135,18 +2145,18 @@ function scoreboardHtml(g, st){
     phase = !isInPlay(g) ? 'Break' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
     clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
-  // Next centre pass: a marker under the team that takes it. The other team
-  // gets an invisible copy so the two scores stay level. For the scorer the
-  // marker is a button; switching takes two taps, so a stray tap can't change it.
+  // Next centre pass: a small netball under the team that takes it. The other
+  // team gets an invisible copy so the two scores stay level. For the scorer the
+  // ball is a button; switching takes two taps, so a stray tap can't change it.
   const showCp = isInPlay(g) && st.centre;
   const armedCp = scoring && isArmed('swap-centre');
   const cpMark = t => {
     if (!showCp) return '';
-    if (st.centre !== t) return '<span class="cp-mark ghost" aria-hidden="true">Next<br>centre pass</span>';
-    if (!scoring) return `<span class="cp-mark" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">Next<br>centre pass</span>`;
+    if (st.centre !== t) return `<span class="cp-mark ghost" aria-hidden="true">${cpBallSvg()}</span>`;
+    if (!scoring) return `<span class="cp-mark" role="img" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">${cpBallSvg()}</span>`;
     return `<button class="cp-mark ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
         ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
-        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Tap twice to switch.`}">${armedCp ? 'Switch?<br>Tap again' : 'Next<br>centre pass'}</button>`;
+        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Tap twice to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
   };
   let play = '';
   if (scoring && isInPlay(g)){
@@ -2212,8 +2222,8 @@ function guideSheetHtml(g){
       'Umpire stops play? Tap Pause.'],
     [`<span class="g-btn">⇄ Substitution</span>`,
       'Player swapped? Tap Substitution, then the position, then who came on.'],
-    ['<span class="cp-mark">Next<br>centre pass</span>',
-      'Next centre pass on the wrong team? Tap it twice to switch.'],
+    [`<span class="cp-mark">${cpBallSvg()}</span>`,
+      'The ball under a score shows who takes the next centre pass. Wrong team? Tap it twice to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Break over? Tap Start ${q2} when the umpire restarts play.`],
     ['<span class="g-btn go">Finalise</span>',
