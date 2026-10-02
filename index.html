@@ -223,6 +223,11 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .role-toggle[aria-pressed="true"].coach{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
 .role-toggle[aria-pressed="true"].scorer{background:var(--ok); border-color:var(--ok); color:#fff;}
 .member-actions{display:flex; gap:0.35rem; flex-wrap:wrap; width:100%; padding-left:calc(34px + 0.6rem);}
+/* On a phone, role buttons and badges get their own line under the name,
+   so long names and "Coach/Manager" never squash each other. */
+@media (max-width:520px){
+  .list-row > .role-toggles,.list-row > .badges{width:100%; padding-left:calc(34px + 0.6rem); justify-content:flex-start;}
+}
 .code-card{
   background:var(--accent); color:var(--accent-contrast); border-radius:var(--r); padding:1rem;
   margin-bottom:1rem; display:flex; flex-direction:column; gap:0.6rem;
@@ -789,7 +794,7 @@ function avatarHtml(name, photoURL, cls){
 function roleBadges(roles, isAdmin){
   const out = [];
   if (isAdmin) out.push('<span class="badge admin">Admin</span>');
-  if (roles && roles.includes('coach')) out.push('<span class="badge coach">Coach</span>');
+  if (roles && roles.includes('coach')) out.push('<span class="badge coach">Coach/Manager</span>');
   if (roles && roles.includes('scorer')) out.push('<span class="badge scorer">Scorer</span>');
   if (!out.length) out.push('<span class="badge">Viewer</span>');
   return out.join('');
@@ -1301,7 +1306,7 @@ function renderHome(){
         <input class="text-input" id="ct-team" name="teamName" placeholder="e.g. Hawks 11U" required maxlength="60">
       </div>
       ${seasonFieldsHtml('ct', {})}
-      <p class="hint">You'll be the team admin, Coach and Scorer to start with. You can hand any of those to other parents later.</p>
+      <p class="hint">You'll be the team admin, Coach/Manager and Scorer to start with. You can hand any of those to other parents later.</p>
       <div class="form-actions">
         <button type="button" class="btn ghost" data-action="close-form">Cancel</button>
         <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Create team</button>
@@ -2805,7 +2810,7 @@ function renderPeopleTab(){
         ${head}
         <div class="role-toggles">
           ${isTeamAdmin ? '<span class="badge admin">Admin</span>' : ''}
-          <button class="role-toggle coach" aria-pressed="${roles.includes('coach')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="coach">Coach</button>
+          <button class="role-toggle coach" aria-pressed="${roles.includes('coach')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="coach">Coach/Manager</button>
           <button class="role-toggle scorer" aria-pressed="${roles.includes('scorer')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="scorer">Scorer</button>
         </div>
         ${isTeamAdmin ? '' : `<div class="member-actions">
@@ -2826,7 +2831,7 @@ function renderPeopleTab(){
   return `${codeCard}
     <h3 class="subhead">Support Crew <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
     <div class="list-card">${rows}</div>
-    ${admin ? `<p class="hint role-help"><b>Coach:</b> manages the lineup and court time.<br>
+    ${admin ? `<p class="hint role-help"><b>Coach/Manager:</b> manages the lineup and court time.<br>
       <b>Scorer:</b> scores games. One person can be both.<br>
       <b>Everyone else:</b> can follow games and see the stats.</p>` : ''}
     ${leave}`;
