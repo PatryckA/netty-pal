@@ -468,6 +468,13 @@ button.cp-mark{cursor:pointer;}
 }
 .g-btn.wide{max-width:9rem; height:auto; min-height:1.8rem; padding-top:0.2rem; padding-bottom:0.2rem; white-space:normal; line-height:1.2; background:var(--surface-2);}
 .sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
+.sec-label.done{opacity:0.45;}
+/* Step 2 frame: invisible until Goal or Miss is chosen, then pink. The
+   negative margin keeps the tiles the same width as everything else. */
+.step2{margin:0 -0.45rem; padding:0 0.45rem; border:2px solid transparent; border-radius:var(--r); transition:border-color 0.15s;}
+.step2.active{border-color:var(--pop);}
+.step2.active .sec-label{color:var(--pop-text);}
+.sec-label .hint.gone{visibility:hidden;}
 .sec-label .hint{text-transform:none; letter-spacing:0; font-weight:600;}
 .pos-row{display:grid; gap:0.45rem; margin-bottom:0.45rem;}
 .pos-row.two{grid-template-columns:1fr 1fr;}
@@ -1990,14 +1997,19 @@ function livePlayHtml(g, st, scoring){
   let pane;
   if (mode === 'event'){
     const ev = UI.pendingEvent;
-    pane = `<div class="sec-label">Step 1: What happened</div>
+    // Once Goal or Miss is chosen, Step 2 gets a pink frame and Step 1's
+    // heading fades, so it's obvious what to tap next. The frame is always
+    // there (just invisible), so nothing on the screen moves.
+    pane = `<div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
       <div class="ev-grid">
         <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
         <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
       </div>
-      <div class="sec-label">Step 2: Who did it${ev ? '' : ' <span class="hint">(tap Goal or Miss first)</span>'}</div>
-      <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
-      <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
+      <div class="step2 ${ev ? 'active' : ''}">
+        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap Goal or Miss first)</span></div>
+        <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
+        <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
+      </div>
       ${subBtnHtml()}`;
   } else {
     const ourAction = scoring || canScore() ? 'tile' : null;
