@@ -396,28 +396,28 @@ body.dragging{cursor:grabbing;}
   padding-bottom:4px;
   background:repeating-linear-gradient(90deg, #FFFFFF 0 5px, #0B0B0D 5px 10px) bottom / 100% 4px no-repeat, var(--surface);
 }
-.sb2-top{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; padding:0.45rem 0.8rem; border-bottom:1px solid var(--line); min-height:2.4rem;}
-.sb2-period{font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:var(--pop-text); text-transform:uppercase; min-width:2.2rem;}
-.sb2-phase{font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); min-width:2.2rem; text-align:right;}
-.cp-wrap{display:inline-flex; align-items:center; gap:0.25rem; background:none; border:none; padding:0; cursor:pointer; color:var(--ink); font-family:var(--font-body);}
-span.cp-wrap{cursor:default;}
-.cp-label{font-size:0.64rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin-right:0.15rem; white-space:nowrap;}
-.cp{font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; padding:0.25rem 0.6rem; border-radius:var(--r-pill); color:var(--ink-soft);}
-.cp.on{background:var(--accent); color:var(--accent-contrast);}
-.sb2-main{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:0.5rem; padding:0.55rem 0.8rem 0.65rem;}
+.sb2-clock{display:flex; flex-direction:column; align-items:flex-start; min-width:0;}
+.sb2-period{font-family:var(--font-display); font-weight:800; font-size:1.05rem; color:var(--pop-text); text-transform:uppercase; line-height:1.1;}
+.sb2-phase{font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft);}
+.sb2-main{display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:0.5rem; padding:0.55rem 0.8rem 0.65rem;}
 .sb2-clock .clock{font-size:1.6rem; font-weight:700;}
-.sb2-score{display:flex; align-items:flex-end; gap:0.6rem;}
-.sb2-team{display:flex; flex-direction:column; align-items:center; min-width:0;}
+.sb2-score{display:flex; align-items:flex-end; justify-content:center; gap:0.6rem; min-width:0;}
+.sb2-team{display:flex; flex-direction:column; align-items:center; min-width:0; flex:1 1 0; max-width:6.5rem;}
 .sb2-name{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); max-width:6.5rem; text-align:center; line-height:1.15; overflow-wrap:anywhere;}
 .sb2-team b{font-family:var(--font-display); font-size:2.9rem; line-height:1; font-variant-numeric:tabular-nums;}
 .sb2-sep{width:1rem; height:4px; background:var(--line); border-radius:0; margin-bottom:1.3rem;}
+.sb2-score.with-cp .sb2-sep{margin-bottom:2.85rem;}
+/* Next centre pass marker under a team's score (also used in the guide). */
+.cp-mark{display:inline-block; margin-top:0.3rem; padding:0.2rem 0.5rem; border:1.5px solid var(--pop); border-radius:var(--r-pill); background:var(--pop); color:var(--pop-ink);
+  font-family:var(--font-body); font-size:0.62rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; white-space:nowrap; line-height:1.2;}
+button.cp-mark{cursor:pointer;}
+.cp-mark.ghost{visibility:hidden;}
+.cp-mark.armed{background:var(--critical); border-color:var(--critical); color:#fff;}
 .sb2-play{display:flex; justify-content:flex-end;}
 .play-btn{width:3.1rem; height:3.1rem; border-radius:var(--r); border:1.5px solid var(--line); background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .play-btn.go{background:var(--ok); border-color:var(--ok); color:var(--chip-ink);}
 .play-btn{flex-direction:column; gap:0.05rem; width:3.4rem; height:3.4rem;}
 .play-label{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; line-height:1;}
-.cp-wrap.armed{background:var(--critical); color:#fff; border-radius:var(--r-pill); padding:0.25rem 0.7rem;}
-.cp-confirm{font-size:0.72rem; font-weight:800; white-space:nowrap;}
 .sub-btn{width:100%; margin:0 0 0.4rem; padding-top:0.7rem; padding-bottom:0.7rem;}
 .head-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem;}
 .more-row .btn{padding-top:0.3rem; padding-bottom:0.3rem;}
@@ -462,8 +462,6 @@ span.cp-wrap{cursor:default;}
   border:1px solid var(--line); background:var(--surface); box-shadow:0 2px 6px var(--shadow);
 }
 .g-round svg{width:18px; height:18px;}
-.g-pills{display:inline-flex; gap:0.15rem; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-pill); padding:2px;}
-.g-pills .cp{padding:0.15rem 0.55rem; font-size:0.68rem;}
 .g-num{
   display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%;
   background:var(--ink); color:var(--paper); font-family:var(--font-display); font-weight:800; font-size:0.9rem; margin-right:0.15rem;
@@ -1992,12 +1990,12 @@ function livePlayHtml(g, st, scoring){
   let pane;
   if (mode === 'event'){
     const ev = UI.pendingEvent;
-    pane = `<div class="sec-label">1. What happened</div>
+    pane = `<div class="sec-label">Step 1: What happened</div>
       <div class="ev-grid">
         <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
         <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
       </div>
-      <div class="sec-label">2. Who did it${ev ? '' : ' <span class="hint">(choose Goal or Miss first)</span>'}</div>
+      <div class="sec-label">Step 2: Who did it${ev ? '' : ' <span class="hint">(tap Goal or Miss first)</span>'}</div>
       <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
       <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
       ${subBtnHtml()}`;
@@ -2124,33 +2122,34 @@ function scoreboardHtml(g, st){
     phase = !isInPlay(g) ? 'Break' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
     clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
-  let centre = '';
-  if (isInPlay(g) && st.centre){
-    const pill = (t, label) => `<span class="cp ${st.centre === t ? 'on' : ''}">${label}</span>`;
-    const inner = `<span class="cp-label">Next Centre Pass</span>${pill('us', 'Us')}${pill('them', 'Them')}`;
-    // Switching takes two taps, so a stray tap near the clock can't change it.
-    const armedCp = scoring && isArmed('swap-centre');
-    centre = scoring
-      ? `<button class="cp-wrap ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
-          ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(st.centre)))}`
-          : `Centre pass: ${escapeHtml(teamLabel(g, st.centre))}. Tap twice to switch.`}">${armedCp
-          ? `<span class="cp-confirm">Switch to ${st.centre === 'us' ? 'Them' : 'Us'}? Tap again</span>` : inner}</button>`
-      : `<span class="cp-wrap" aria-label="Centre pass: ${escapeHtml(teamLabel(g, st.centre))}">${inner}</span>`;
-  }
+  // Next centre pass: a marker under the team that takes it. The other team
+  // gets an invisible copy so the two scores stay level. For the scorer the
+  // marker is a button; switching takes two taps, so a stray tap can't change it.
+  const showCp = isInPlay(g) && st.centre;
+  const armedCp = scoring && isArmed('swap-centre');
+  const cpMark = t => {
+    if (!showCp) return '';
+    if (st.centre !== t) return '<span class="cp-mark ghost" aria-hidden="true">Centre pass</span>';
+    if (!scoring) return `<span class="cp-mark" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">Centre pass</span>`;
+    return `<button class="cp-mark ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
+        ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
+        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Tap twice to switch.`}">${armedCp ? 'Switch? Tap again' : 'Centre pass'}</button>`;
+  };
   let play = '';
   if (scoring && isInPlay(g)){
     play = L.phase === 'running'
       ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg><span class="play-label">Pause</span></button>`
       : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span class="play-label">Resume</span></button>`;
   }
+  // One block: period and clock on the left, the score (with the centre
+  // pass marker) in the middle, Pause/Resume on the right.
   return `<div class="sb2">
-      <div class="sb2-top"><span class="sb2-period">${escapeHtml(period)}</span>${centre}<span class="sb2-phase">${phase}</span></div>
       <div class="sb2-main">
-        <div class="sb2-clock">${clock}</div>
-        <div class="sb2-score">
-          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'us'))}</span><b>${pad2(st.us)}</b></div>
+        <div class="sb2-clock"><span class="sb2-period">${escapeHtml(period)}</span>${clock}${phase ? `<span class="sb2-phase">${phase}</span>` : ''}</div>
+        <div class="sb2-score ${showCp ? 'with-cp' : ''}">
+          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'us'))}</span><b>${pad2(st.us)}</b>${cpMark('us')}</div>
           <span class="sb2-sep" aria-hidden="true"></span>
-          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'them'))}</span><b>${pad2(st.them)}</b></div>
+          <div class="sb2-team"><span class="sb2-name">${escapeHtml(teamLabel(g, 'them'))}</span><b>${pad2(st.them)}</b>${cpMark('them')}</div>
         </div>
         <div class="sb2-play">${play}</div>
       </div>
@@ -2200,8 +2199,8 @@ function guideSheetHtml(g){
       'Umpire stops play? Tap Pause.'],
     [`<span class="g-btn">⇄ Substitution</span>`,
       'Player swapped? Tap Substitution, then the position, then who came on.'],
-    ['<span class="g-pills"><span class="cp on">Us</span><span class="cp">Them</span></span>',
-      'Next centre pass wrong? Tap it twice to switch.'],
+    ['<span class="cp-mark">Centre pass</span>',
+      'Centre pass marker on the wrong team? Tap it twice to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Break over? Tap Start ${q2} when the umpire restarts play.`],
     ['<span class="g-btn go">Finalise</span>',
