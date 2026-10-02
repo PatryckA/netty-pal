@@ -2,7 +2,7 @@
   "name": "Netty Pal",
   "short_name": "Netty Pal",
   "description": "Court time, positions and live scoring for junior netball teams.",
-  "id": "./?app=netty-pal-2",
+  "id": "./?app=netty-pal-3",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
