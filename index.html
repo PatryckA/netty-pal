@@ -1781,7 +1781,8 @@ function pickerSheetHtml(g, p, plan, avail, posOf, countOf, note){
 }
 
 function renderAvailTab(g){
-  const editable = canEditGames();
+  // Coach/Managers, Scorers and the admin can change who's playing.
+  const editable = canScore();
   const avail = new Set(availableIds(g));
   const players = CUR.players.filter(p => p.active !== false || avail.has(p.id))
     .sort((a,b) => (a.name || '').localeCompare(b.name || ''));
