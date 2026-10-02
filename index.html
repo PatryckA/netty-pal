@@ -1078,6 +1078,19 @@ function render(){
   }
   app.innerHTML = body;
   restoreInputs(keep);
+  showActiveTabs();
+}
+
+// The tab rows scroll sideways on a phone. Slide each row so the selected
+// tab is fully visible (sideways only, so the page itself never jumps).
+function showActiveTabs(){
+  document.querySelectorAll('.tabs').forEach(row => {
+    const tab = row.querySelector('.tab.active');
+    if (!tab) return;
+    const left = tab.offsetLeft - row.offsetLeft, right = left + tab.offsetWidth;
+    if (left < row.scrollLeft) row.scrollLeft = left - 8;
+    else if (right > row.scrollLeft + row.clientWidth) row.scrollLeft = right - row.clientWidth + 8;
+  });
 }
 
 function renderTopbar(){
@@ -1345,11 +1358,11 @@ function renderSeason(){
   if (!t || !s || !CUR.loaded.members) return `<button class="back-link" data-action="go-home">‹ All teams</button>
     <div class="loading-state">Loading…</div>`;
 
-  // Parents without a role see Games, Season Stats and Helpers only.
+  // Parents without a role see Games, Season Stats and Support Crew only.
   const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
   const tabs = [['games','Games'], ['stats','Season Stats']];
   if (staff) tabs.push(['players','Players']);
-  tabs.push(['people','Helpers']);
+  tabs.push(['people','Support Crew']);
   if (isAdmin()) tabs.push(['settings','Settings']);
   if (!tabs.some(([k]) => k === UI.tab)) UI.tab = 'games';
 
@@ -2069,7 +2082,7 @@ function subSheetHtml(g, st){
 function askToScoreHtml(){
   if (canScore()) return '';
   return `<div class="panel ask-score">
-      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach or team admin to make you a Scorer. They can do it in the Helpers tab.</p>
+      <p style="margin:0${canPractise() ? ' 0 0.5rem' : ''}"><b>Want to help score?</b> Ask your coach or team admin to make you a Scorer. They can do it in the Support Crew tab.</p>
       ${canPractise() ? '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>' : ''}
     </div>`;
 }
@@ -2811,7 +2824,7 @@ function renderPeopleTab(){
     </div>`;
 
   return `${codeCard}
-    <h3 class="subhead">Helpers <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
+    <h3 class="subhead">Support Crew <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
     <div class="list-card">${rows}</div>
     ${admin ? `<p class="hint role-help"><b>Coach:</b> manages the lineup and court time.<br>
       <b>Scorer:</b> scores games. One person can be both.<br>
