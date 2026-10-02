@@ -2438,7 +2438,7 @@ function renderSummaryTab(g){
 
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">
-      <button class="btn" data-action="share-summary">Share result</button>
+      <button class="btn" data-action="share-summary">${over ? 'Share result' : 'Share score'}</button>
     </div>`;
   return head + share + byPeriod + shooting + court;
 }
