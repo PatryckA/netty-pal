@@ -1568,7 +1568,11 @@ function renderGame(){
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
   if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
   if (!practice){
-    tabs.push(['avail','Players'], ['lineup','Lineup'], ['fair','Time on court']);
+    // Who's available is for the people running the team; viewers can see
+    // who's playing on the Lineup tab instead.
+    const staff = isAdmin() || myRoles().some(r => r === 'coach' || r === 'scorer');
+    if (staff) tabs.push(['avail','Players']);
+    tabs.push(['lineup','Lineup'], ['fair','Time on court']);
     if (canEditGames()) tabs.push(['details','Details']);
   }
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
