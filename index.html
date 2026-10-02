@@ -2156,7 +2156,7 @@ function scoreboardHtml(g, st){
     if (!scoring) return `<span class="cp-mark" role="img" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">${cpBallSvg()}</span>`;
     return `<button class="cp-mark ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
         ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
-        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Tap twice to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
+        : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Double tap to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
   };
   let play = '';
   if (scoring && isInPlay(g)){
@@ -2223,7 +2223,7 @@ function guideSheetHtml(g){
     [`<span class="g-btn">⇄ Substitution</span>`,
       'Player swapped? Tap Substitution, then the position, then who came on.'],
     [`<span class="cp-mark">${cpBallSvg()}</span>`,
-      'The ball under a score shows who takes the next centre pass. Wrong team? Tap it twice to switch.'],
+      'The ball under a score shows who takes the next centre pass. Wrong team? Double tap to switch.'],
     [`<span class="g-btn go">Start ${q2}</span>`,
       `Break over? Tap Start ${q2} when the umpire restarts play.`],
     ['<span class="g-btn go">Finalise</span>',
