@@ -437,6 +437,8 @@ button.cp-mark{cursor:pointer;}
 /* Black with white text in both modes. ".panel" is included so the general
    panel colours further down can't override it. */
 .panel.practice-invite{margin-bottom:1rem; background:var(--bar); color:var(--bar-ink); border-color:var(--bar);}
+/* Game day reminder for Coach/Managers (pink tint, so it stands out from the black practice box). */
+.panel.gameday-nudge{background:var(--accent-bg); border:1.5px solid var(--pop);}
 .practice-invite .btn{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
 
 /* Scoring modes and position tiles */
@@ -893,6 +895,18 @@ function lineupFor(g, p){
   const avail = new Set(availableIds(g)), lineup = {};
   POSITIONS.forEach(pos => { if (own[pos] && avail.has(own[pos])) lineup[pos] = own[pos]; });
   return lineup;
+}
+// Ready to play: someone has ticked who's playing, and every quarter has all
+// seven positions filled with players who are playing (a quarter without its
+// own plan carries on from the one before, as on the Lineup tab).
+function lineupReady(g){
+  if (!Array.isArray(g.available)) return false;
+  const avail = new Set(availableIds(g));
+  for (let p = 1; p <= periodCount(g); p++){
+    const plan = planFor(g, p);
+    if (!POSITIONS.every(pos => plan[pos] && avail.has(plan[pos]))) return false;
+  }
+  return true;
 }
 function plannedCount(g){
   let n = 0;
@@ -1445,7 +1459,20 @@ function renderGamesTab(){
       <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
     </div>` : '';
   // Adding fixtures is occasional, so it lives below the list (the form opens in the same spot).
-  return `${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+  return `${gameDayNudgeHtml(games)}${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+}
+
+// Game day reminder for the people who set lineups: today's games that
+// haven't started and aren't ready yet. Goes away once the lineup is done.
+function gameDayNudgeHtml(games){
+  if (!canEditGames()) return '';
+  const today = todayIso();
+  const due = games.filter(g => g.date === today && (g.status || 'scheduled') === 'scheduled' && !lineupReady(g));
+  return due.map(g => `<div class="panel gameday-nudge" role="status">
+      <p style="margin:0 0 0.5rem"><b>Game day: ${escapeHtml(gameTitle(g))}${g.time ? ' at ' + escapeHtml(fmtTime(g.time)) : ''}.</b>
+        Check who's playing and finalise the lineup before the game.</p>
+      <button class="btn small" data-action="finalise-lineup" data-game="${escapeHtml(g.id)}">Finalise lineup</button>
+    </div>`).join('');
 }
 
 // Confirmation before archiving (or restoring) a game.
@@ -4145,6 +4172,10 @@ document.addEventListener('click', async (e) => {
       await shareCode();
     } else if (a === 'open-game'){
       openGame(btn.dataset.game);
+    } else if (a === 'finalise-lineup'){
+      // Start with who's playing; the Lineup tab is next to it.
+      openGame(btn.dataset.game);
+      UI.gameTab = 'avail'; saveNav(); render();
     } else if (a === 'back-to-games'){
       backToGames();
     } else if (a === 'game-tab'){
