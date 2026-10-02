@@ -291,9 +291,9 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .follow-note.own{border-style:solid;}
 .court-tip{font-size:0.82rem; color:var(--ink-soft); text-align:center; margin:0 auto 0.5rem; max-width:320px;}
 /* ---- Court ---- */
-:root{ --court-bg:#CFE4F5; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#172B42; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
-:root[data-theme="dark"]{ --court-bg:#172B42; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; }
+:root{ --court-bg:#C4DDF2; --court-mid:#DCEBF8; --court-line:#FFFFFF; --chip-ink:#FFFFFF; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --court-bg:#172B42; --court-mid:#203A57; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; } }
+:root[data-theme="dark"]{ --court-bg:#172B42; --court-mid:#203A57; --court-line:rgba(255,255,255,0.38); --chip-ink:#0D1522; }
 .sheet .grow{flex:1; min-width:0;}
 .court-wrap{max-width:320px; margin:0 auto 1rem;}
 .court-end{
@@ -304,6 +304,8 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .court-lines{position:absolute; inset:0; width:100%; height:100%;}
 .court-lines *{fill:none; stroke:var(--court-line); stroke-width:1; vector-effect:non-scaling-stroke;}
 .court-lines rect,.court-lines line,.court-lines path,.court-lines circle{stroke-width:2.5px;}
+/* The centre third is a shade lighter so the three zones read at a glance. */
+.court-lines .court-mid{fill:var(--court-mid); stroke:none;}
 .court-token{
   position:absolute; transform:translate(-50%, -30%); display:flex; flex-direction:column; align-items:center;
   gap:0.2rem; background:none; border:none; padding:0.2rem; cursor:pointer; color:var(--ink); width:6.5rem;
@@ -1731,6 +1733,7 @@ function courtHtml(plan, editable, g, p, avail){
       <div class="court-end">Attacking end</div>
       <div class="court" role="group" ${editable ? 'data-dnd' : ''} aria-label="Court positions, ${escapeHtml(periodName(g, p))}">
         <svg class="court-lines" viewBox="0 0 100 135" preserveAspectRatio="none" aria-hidden="true">
+          <rect class="court-mid" x="0" y="45" width="100" height="45" />
           <rect x="1" y="1" width="98" height="133" rx="1.5" />
           <line x1="1" y1="45" x2="99" y2="45" />
           <line x1="1" y1="90" x2="99" y2="90" />
