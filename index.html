@@ -1786,13 +1786,16 @@ function renderFairTab(g){
   const games = sortGames(CUR.games).filter(x => !x.archived || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
   const rows = {};
-  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, games:new Set(), avail:new Set() });
-  const add = (id, pos, v, game) => {
+  // v is in periods (the Detailed view); ms is the same time in milliseconds
+  // (the Simple view, shown in minutes).
+  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, ms:0, thisMs:0, games:new Set(), avail:new Set() });
+  const add = (id, pos, v, game, ms) => {
     const r = ensure(id);
     r.pos[pos] = (r.pos[pos] || 0) + v;
     r.total += v;
+    r.ms += ms;
     if (v >= 0.05){ r.games.add(game.id); r.avail.add(game.id); } // counts as a game played
-    if (game.id === g.id) r.thisGame += v;
+    if (game.id === g.id){ r.thisGame += v; r.thisMs += ms; }
   };
   CUR.players.filter(p => p.active !== false).forEach(p => ensure(p.id));
   let playedGames = 0;
@@ -1804,12 +1807,12 @@ function renderFairTab(g){
       playedGames++;
       const pms = periodMs(game);
       Object.entries(game.summary.courtTime).forEach(([id, byPos]) =>
-        Object.entries(byPos).forEach(([pos, ms]) => add(id, pos, ms / pms, game)));
+        Object.entries(byPos).forEach(([pos, ms]) => add(id, pos, ms / pms, game, ms)));
       return;
     }
     for (let k = 1; k <= periodCount(game); k++){
       const plan = planFor(game, k);
-      POSITIONS.forEach(pos => { if (plan[pos]) add(plan[pos], pos, 1, game); });
+      POSITIONS.forEach(pos => { if (plan[pos]) add(plan[pos], pos, 1, game, periodMs(game)); });
     }
   });
   const fmt = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
@@ -1827,26 +1830,26 @@ function renderFairTab(g){
     : 'These count the planned lineups. Games scored live will count real court time instead.';
 
   if (!detailed){
-    // Simple: just totals, least court time first. All figures are quarters.
-    const simple = list.slice().sort((a, b) => a.total - b.total || playerName(a.id).localeCompare(playerName(b.id)));
-    const rowsHtml = simple.map(r => {
-      const games = r.games.size, avail = r.avail.size;
-      return `<tr>
+    // Simple: whole minutes, lowest average first so whoever is owed time is at the top.
+    const avgMs = r => r.avail.size ? r.ms / r.avail.size : 0;
+    const simple = list.slice().sort((a, b) => avgMs(a) - avgMs(b) || playerName(a.id).localeCompare(playerName(b.id)));
+    const rowsHtml = simple.map(r => `<tr>
         <td>${escapeHtml(playerName(r.id))}</td>
-        <td class="total">${fmt(r.total)}</td>
-        <td>${games}</td>
-        <td>${avail ? fmt(r.total / avail) : '·'}</td>
-        <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
-      </tr>`;
-    }).join('');
-    return `<h3 class="subhead">Court time so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in ${noun})</span></h3>
+        <td>${r.games.size}</td>
+        <td class="total">${r.avail.size ? wholeMins(avgMs(r)) : '·'}</td>
+        <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? wholeMins(r.thisMs) : 'out'}</td>
+      </tr>`).join('');
+    const simpleNote = playedGames
+      ? `${playedGames} of these game${playedGames === 1 ? ' was' : 's were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time. The rest count the planned lineup.`
+      : 'These count the planned lineups. Games scored live will count real court time instead.';
+    return `<h3 class="subhead">Court time so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in minutes)</span></h3>
       ${toggle}
       <div class="fair-wrap"><table class="fair simple">
-        <thead><tr><th scope="col">Player</th><th scope="col">Season total</th><th scope="col">Games played</th>
-          <th scope="col">Avg played per game available</th><th scope="col">This game</th></tr></thead>
-        <tbody>${rowsHtml || '<tr><td colspan="5">No players yet.</td></tr>'}</tbody>
+        <thead><tr><th scope="col">Player</th><th scope="col">Games played</th>
+          <th scope="col">Avg mins played per game available</th><th scope="col">This game</th></tr></thead>
+        <tbody>${rowsHtml || '<tr><td colspan="4">No players yet.</td></tr>'}</tbody>
       </table></div>
-      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's total by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${note}</p>`;
+      <p class="hint">Minutes on court, rounded to the nearest minute, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${simpleNote}</p>`;
   }
 
   const body = list.map(r => `<tr>
@@ -2288,7 +2291,7 @@ function liveStatsHtml(g, st){
   const rows = list.map(id => {
     const r = st.players[id] || { ms:0, goal:0, miss:0 };
     const shots = r.goal + r.miss;
-    return `<tr><td>${escapeHtml(playerName(id))}</td><td>${fmtMins(r.ms)}</td>
+    return `<tr><td>${escapeHtml(playerName(id))}</td><td>${wholeMins(r.ms)}</td>
       <td>${shots ? r.goal + '/' + shots : '·'}</td><td>${pct(r.goal, shots)}</td></tr>`;
   }).join('');
   const oppShots = st.them + st.oppMiss;
@@ -2360,6 +2363,8 @@ function correctionFormHtml(g, playerOpts){
 function pctText(goals, shots){ return shots ? Math.round(100 * goals / shots) + '%' : '·'; }
 function resultWord(us, them){ return us > them ? 'Won' : us < them ? 'Lost' : 'Drew'; }
 function minsText(ms){ return ms ? String(Math.round(ms / 60000)) : '·'; }
+// Court time in whole minutes (0 shows as 0).
+function wholeMins(ms){ return String(Math.round((ms || 0) / 60000)); }
 
 // Court time table: minutes per position for each player, plus a total.
 // fmt turns milliseconds into what's shown in each cell.
@@ -2445,8 +2450,8 @@ function renderSummaryTab(g){
     .sort((a, b) => a.ms - b.ms);
   const benched = rows.filter(r => !r.ms && playing.has(r.id)).length;
   const court = `<h3 class="subhead">Court time</h3>
-    ${courtTimeTable(rows, fmtMins, playing)}
-    <p class="hint">Minutes and seconds in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
+    ${courtTimeTable(rows, wholeMins, playing)}
+    <p class="hint">Minutes in each position, rounded to the nearest minute.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
 
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">
@@ -2692,7 +2697,7 @@ function renderSeasonStatsTab(){
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
       <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th><th scope="col">%</th></tr></thead>
-      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? (p.ms / 60000 / p.avail).toFixed(1).replace(/\.0$/, '') : '·'}</td>
+      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? wholeMins(p.ms / p.avail) : '·'}</td>
         <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
     </table></div>
     <p class="hint">Games counts games where they got on court. Mins is total court time. The average divides their court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do.</p>`;
