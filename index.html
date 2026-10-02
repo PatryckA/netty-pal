@@ -1786,17 +1786,19 @@ function renderFairTab(g){
   const games = sortGames(CUR.games).filter(x => !x.archived || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
   const rows = {};
-  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, games:new Set() });
+  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, games:new Set(), avail:new Set() });
   const add = (id, pos, v, game) => {
     const r = ensure(id);
     r.pos[pos] = (r.pos[pos] || 0) + v;
     r.total += v;
-    if (v >= 0.05) r.games.add(game.id); // counts as a game played
+    if (v >= 0.05){ r.games.add(game.id); r.avail.add(game.id); } // counts as a game played
     if (game.id === g.id) r.thisGame += v;
   };
   CUR.players.filter(p => p.active !== false).forEach(p => ensure(p.id));
   let playedGames = 0;
   upto.forEach(game => {
+    // Available for this game: marked as playing (or got on court, above).
+    availableIds(game).forEach(id => ensure(id).avail.add(game.id));
     const played = game.summary && game.summary.courtTime && (game.status === 'live' || game.status === 'final');
     if (played){
       playedGames++;
@@ -1828,12 +1830,12 @@ function renderFairTab(g){
     // Simple: just totals, least court time first. All figures are quarters.
     const simple = list.slice().sort((a, b) => a.total - b.total || playerName(a.id).localeCompare(playerName(b.id)));
     const rowsHtml = simple.map(r => {
-      const games = r.games.size;
+      const games = r.games.size, avail = r.avail.size;
       return `<tr>
         <td>${escapeHtml(playerName(r.id))}</td>
         <td class="total">${fmt(r.total)}</td>
         <td>${games}</td>
-        <td>${games ? fmt(r.total / games) : '·'}</td>
+        <td>${avail ? fmt(r.total / avail) : '·'}</td>
         <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
       </tr>`;
     }).join('');
@@ -1841,10 +1843,10 @@ function renderFairTab(g){
       ${toggle}
       <div class="fair-wrap"><table class="fair simple">
         <thead><tr><th scope="col">Player</th><th scope="col">Season total</th><th scope="col">Games played</th>
-          <th scope="col">Average per game played</th><th scope="col">This game</th></tr></thead>
+          <th scope="col">Avg played per game available</th><th scope="col">This game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="5">No players yet.</td></tr>'}</tbody>
       </table></div>
-      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Average per game played only counts games the player got on court, so missing a game doesn't pull it down. "Out" means not playing this game. ${note}</p>`;
+      <p class="hint">All numbers are ${noun} on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's total by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${note}</p>`;
   }
 
   const body = list.map(r => `<tr>
