@@ -279,6 +279,10 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .game-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
 .game-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
 .game-card.past{opacity:0.8;}
+/* A bye: dashed and quieter, since there's no game. */
+.game-card.bye{border-style:dashed; background:var(--surface-2);}
+.game-card.bye .gopp{color:var(--ink-soft);}
+.form-card.is-bye .not-bye{display:none;}
 .game-date{flex:none; width:3rem; text-align:center; font-family:var(--font-display); line-height:1;}
 .game-date .dw{font-size:0.7rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700; letter-spacing:0.05em;}
 .game-date .dd{font-size:1.7rem; font-weight:800;}
@@ -961,11 +965,6 @@ function lineupReady(g){
   }
   return true;
 }
-function plannedCount(g){
-  let n = 0;
-  for (let p = 1; p <= periodCount(g); p++) if (isPeriodPlanned(g, p)) n++;
-  return n;
-}
 // Players ticked as playing this game. Until the coach sets it, that's
 // every active player.
 function availableIds(g){
@@ -1003,7 +1002,7 @@ function nextRound(){
   const nums = CUR.games.map(g => parseInt(g.round, 10)).filter(n => !isNaN(n));
   return nums.length ? Math.max(...nums) + 1 : 1;
 }
-function gameTitle(g){ return `vs ${g.opponent || 'TBC'}`; }
+function gameTitle(g){ return g.bye ? 'Bye' : `vs ${g.opponent || 'TBC'}`; }
 function gameFormatLabel(g){ return formatLabel({ format:g.format, periodMinutes:g.periodMinutes }); }
 
 /* ---------------------------------------------------------------------
@@ -1170,7 +1169,19 @@ function render(){
   }
   app.innerHTML = body;
   restoreInputs(keep);
+  // A half-filled fixture form keeps its bye tick (and hidden fields) through a redraw.
+  document.querySelectorAll('input[data-field="bye-toggle"]').forEach(syncByeForm);
   showActiveTabs();
+}
+
+// "This round is a bye" ticked: hide the fields a bye doesn't need, and the
+// opponent is no longer required.
+function syncByeForm(el){
+  const form = el.closest('form');
+  if (!form) return;
+  form.classList.toggle('is-bye', el.checked);
+  const opp = form.querySelector('input[name="opponent"]');
+  if (opp) opp.required = !el.checked;
 }
 
 // The tab rows scroll sideways on a phone. Slide each row so the selected
@@ -1443,8 +1454,33 @@ function renderHome(){
     ${UI.invitePick ? invitePickHtml() : ''}`;
 }
 
+// Coach/Managers of a team (and the app owner) can invite with a role.
+function homeIsManager(it){ return isOwner() || (it.roles || []).includes('coach'); }
+
 // "Invite someone to a team": with more than one team, ask which one first.
+// For a Coach/Manager, then ask which role (UI.invitePick is { index }).
 function invitePickHtml(){
+  const pick = UI.invitePick;
+  const it = typeof pick === 'object' ? HOME.items[pick.index] : null;
+  if (it){
+    const role = (key, title, text) => `<button class="pick-row" data-action="invite-role" data-role="${key}">
+        <span class="grow"><span class="pname">${title}</span><span class="psub">${text}</span></span>
+      </button>`;
+    return `<div class="sheet-backdrop" data-action="invite-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="invite-title">Invite them as…</h3><div class="psub">${escapeHtml(it.teamName)} · ${escapeHtml(it.seasonName)}</div></div>
+        <button class="btn ghost small" data-action="invite-close">Close</button>
+      </div>
+      <div class="sheet-body">
+        <div class="list-label">Choose a role</div>
+        ${role('viewer', 'Viewer', 'Follows games and sees the stats. The usual team link: fine to share with the whole parents\' group.')}
+        ${role('scorer', 'Scorer', 'Can also keep score. A one-time link for one person.')}
+        ${role('coach', 'Coach/Manager', 'Can also run the team: players, games, lineups and roles. A one-time link for one person.')}
+        <p class="hint">You'll get a link to send them. They tap it, sign in, and they're in the team with that role.</p>
+      </div>
+    </div>`;
+  }
   return `<div class="sheet-backdrop" data-action="invite-close"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="invite-title">
       <div class="sheet-head">
@@ -1658,7 +1694,7 @@ function setupCardHtml(){
 
 function managerGuideHtml(){
   const s = setupState();
-  const next = sortGames(CUR.games).find(g => !g.archived && g.status !== 'final' && (!g.date || g.date >= todayIso()));
+  const next = sortGames(CUR.games).find(g => !g.archived && !g.bye && g.status !== 'final' && (!g.date || g.date >= todayIso()));
   const step = (n, done, title, text, status, button) => `<div class="mg-step">
       <span class="mg-num ${done ? 'done' : ''}" aria-hidden="true">${done ? '✓' : n}</span>
       <div class="grow">
@@ -1704,7 +1740,7 @@ function managerGuideHtml(){
 function gameDayNudgeHtml(games){
   if (!canEditGames()) return '';
   const today = todayIso();
-  const due = games.filter(g => g.date === today && (g.status || 'scheduled') === 'scheduled' && !lineupReady(g));
+  const due = games.filter(g => !g.bye && g.date === today && (g.status || 'scheduled') === 'scheduled' && !lineupReady(g));
   return due.map(g => `<div class="panel gameday-nudge" role="status">
       <p style="margin:0 0 0.5rem"><b>Game day: ${escapeHtml(gameTitle(g))}${g.time ? ' at ' + escapeHtml(fmtTime(g.time)) : ''}.</b>
         Check who's playing and finalise the lineup before the game.</p>
@@ -1739,22 +1775,22 @@ function gameCardHtml(g, past){
     ? `<div class="game-date"><div class="dw">${d.toLocaleDateString('en-AU', { weekday:'short' })}</div>
         <div class="dd">${d.getDate()}</div><div class="dm">${d.toLocaleDateString('en-AU', { month:'short' })}</div></div>`
     : `<div class="game-date tbc"><div class="dd">TBC</div></div>`;
-  const n = periodCount(g), planned = plannedCount(g);
   const s = g.summary;
   let status;
-  if (g.status === 'final' && s){
+  if (g.bye){
+    status = '<div class="gstatus">No game this round</div>';
+  } else if (g.status === 'final' && s){
     const res = s.us > s.them ? 'Won' : s.us < s.them ? 'Lost' : 'Drew';
     status = `<div class="gstatus ok">${res} ${s.us} : ${s.them}</div>`;
   } else if (g.status === 'live'){
     status = `<div class="gstatus todo">Live now. Tap to follow.</div>`;
-  } else if (planned === n){
-    status = `<div class="gstatus ok">Lineup planned</div>`;
   } else {
-    status = `<div class="gstatus ${past ? '' : 'todo'}">Lineup: ${planned} of ${n} ${periodNoun(g, true)} planned</div>`;
+    // Not started: no status line (the game day reminder covers lineups).
+    status = '';
   }
-  const meta = [g.round ? 'Round ' + g.round : '', fmtTime(g.time), g.venue, g.court].filter(Boolean).join(' · ');
+  const meta = (g.bye ? [g.round ? 'Round ' + g.round : ''] : [g.round ? 'Round ' + g.round : '', fmtTime(g.time), g.venue, g.court]).filter(Boolean).join(' · ');
   if (g.archived) status = '<div class="gstatus">Archived</div>';
-  return `<button class="game-card ${past ? 'past' : ''}" data-action="open-game" data-game="${escapeHtml(g.id)}" ${canEditGames() ? 'data-longpress' : ''}>
+  return `<button class="game-card ${past ? 'past' : ''} ${g.bye ? 'bye' : ''}" data-action="open-game" data-game="${escapeHtml(g.id)}" ${canEditGames() ? 'data-longpress' : ''}>
       ${dateBlock}
       <div class="grow">
         <div class="gopp">${escapeHtml(gameTitle(g))}</div>
@@ -1767,16 +1803,21 @@ function gameCardHtml(g, past){
 // Shared fixture fields for "add fixture" and the game's Game settings tab.
 function gameFormHtml(prefix, g, formName, submitLabel){
   const fmt = g.format || 'quarters';
-  return `<form class="form-card" data-form="${formName}">
+  // A bye can only be set before a game has started. Ticking it hides the
+  // fields a bye doesn't need (see the bye-toggle change handler).
+  const canBye = (g.status || 'scheduled') === 'scheduled';
+  return `<form class="form-card ${g.bye ? 'is-bye' : ''}" data-form="${formName}">
       ${formName === 'add-game' ? '<h3>Add fixture</h3>' : ''}
+      ${canBye ? `<label class="check-row"><input type="checkbox" id="${prefix}-bye" name="bye" data-field="bye-toggle" ${g.bye ? 'checked' : ''}>
+        <span><b>This round is a bye</b> <span class="hint">(we don't play this round)</span></span></label>` : ''}
       <div class="field-row">
         <div class="field" style="max-width:6rem">
           <label for="${prefix}-round">Round</label>
           <input class="text-input" id="${prefix}-round" name="round" maxlength="12" value="${escapeHtml(g.round || '')}">
         </div>
-        <div class="field">
+        <div class="field not-bye">
           <label for="${prefix}-opp">Opponent</label>
-          <input class="text-input" id="${prefix}-opp" name="opponent" maxlength="60" required
+          <input class="text-input" id="${prefix}-opp" name="opponent" maxlength="60" ${g.bye ? '' : 'required'}
             placeholder="e.g. Kestrels 11U" value="${escapeHtml(g.opponent || '')}">
         </div>
       </div>
@@ -1785,12 +1826,12 @@ function gameFormHtml(prefix, g, formName, submitLabel){
           <label for="${prefix}-date">Date</label>
           <input class="text-input" id="${prefix}-date" name="date" type="date" value="${escapeHtml(g.date || '')}">
         </div>
-        <div class="field">
+        <div class="field not-bye">
           <label for="${prefix}-time">Time</label>
           <input class="text-input" id="${prefix}-time" name="time" type="time" value="${escapeHtml(g.time || '')}">
         </div>
       </div>
-      <div class="field-row">
+      <div class="field-row not-bye">
         <div class="field">
           <label for="${prefix}-venue">Venue <span class="hint">(optional)</span></label>
           <input class="text-input" id="${prefix}-venue" name="venue" maxlength="80" value="${escapeHtml(g.venue || '')}">
@@ -1800,7 +1841,7 @@ function gameFormHtml(prefix, g, formName, submitLabel){
           <input class="text-input" id="${prefix}-court" name="court" maxlength="30" placeholder="e.g. Court 3" value="${escapeHtml(g.court || '')}">
         </div>
       </div>
-      <div class="field-row">
+      <div class="field-row not-bye">
         <div class="field">
           <span class="label" id="${prefix}-fmt-label">Game format</span>
           <div class="segmented" role="radiogroup" aria-labelledby="${prefix}-fmt-label">
@@ -1831,6 +1872,24 @@ function renderGame(){
   if (!g) return back + '<div class="empty-state">This game has been deleted.</div>';
 
   const practice = isPractice(g);
+  // A bye has nothing to play or plan: just a note, and its settings.
+  if (g.bye){
+    const byeTabs = [['bye','Bye']];
+    if (canEditGames()) byeTabs.push(['details','Game settings']);
+    if (!byeTabs.some(([k]) => k === UI.gameTab)) UI.gameTab = 'bye';
+    const byeContent = UI.gameTab === 'details' ? renderDetailsTab(g)
+      : `<div class="placeholder-card"><b>Bye.</b> We don't play this round. Enjoy the week off!
+          ${canEditGames() ? '<br><span class="hint">Got a game after all? Untick "This round is a bye" in Game settings.</span>' : ''}</div>`;
+    return `<div class="season-head game-head">
+        ${back}
+        <h2>Bye</h2>
+        <div class="season-meta">${g.round ? 'Round ' + escapeHtml(g.round) + ' · ' : ''}${escapeHtml(fmtGameWhen({ date:g.date }))}</div>
+      </div>
+      <nav class="tabs" aria-label="Game sections">
+        ${byeTabs.map(([k, label]) => `<button class="tab ${UI.gameTab === k ? 'active' : ''}" data-action="game-tab" data-tab="${k}" ${UI.gameTab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
+      </nav>
+      ${byeContent}`;
+  }
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
   if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
   if (!practice){
@@ -2082,7 +2141,8 @@ function renderAvailTab(g){
 // time (in periods, so half a quarter shows as 0.5); games not yet
 // played count the planned lineup.
 function renderFairTab(g){
-  const games = sortGames(CUR.games).filter(x => !x.archived || x.id === g.id);
+  // Byes aren't games, so they don't count as games anyone was available for.
+  const games = sortGames(CUR.games).filter(x => (!x.archived && !x.bye) || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
   const rows = {};
   // v is in periods (the Detailed view); ms is the same time in milliseconds
@@ -3394,7 +3454,7 @@ function openGame(gameId){
   const gameDay = g && (g.status === 'live' || g.status === 'final' || g.date === todayIso());
   UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null, showTabs:false, subSheet:false, subReturn:false, handover:null };
   // First time a Scorer opens a game on this phone: show How to score.
-  if (myRoles().includes('scorer') && !guideSeen()) UI.showGuide = true;
+  if (g && !g.bye && myRoles().includes('scorer') && !guideSeen()) UI.showGuide = true;
   saveNav();
   render();
   window.scrollTo(0, 0);
@@ -3645,25 +3705,32 @@ function randomRoleCode(){
   crypto.getRandomValues(bytes);
   return Array.from(bytes, b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
 }
-function roleInviteText(role, code){
+// Which team an invite is for: the open season, unless given (the home
+// screen's "Invite someone to a team" passes the team picked there).
+function inviteTeam(t){
+  return t || { teamId:UI.teamId, seasonId:UI.seasonId, teamName:CUR.team.name, seasonName:CUR.season.name };
+}
+function roleInviteText(role, code, t){
+  t = inviteTeam(t);
   const url = `${location.origin}${location.pathname}?join=${encodeURIComponent(code)}`;
-  return `You're invited to be a ${ROLE_LABEL[role]} for ${CUR.team.name} (${CUR.season.name}) on Netty Pal: ${url}\n\nTap the link and sign in. This link works once, for one person, so please don't pass it on.`;
+  return `You're invited to be a ${ROLE_LABEL[role]} for ${t.teamName} (${t.seasonName}) on Netty Pal: ${url}\n\nTap the link and sign in. This link works once, for one person, so please don't pass it on.`;
 }
 // Saving starts first, but the share menu opens straight away without
 // waiting for it (phones only allow sharing right after a tap).
-async function createRoleInvite(role){
+async function createRoleInvite(role, t){
   if (!ROLE_LABEL[role]) return;
+  t = inviteTeam(t);
   const code = randomRoleCode();
   const batch = writeBatch(db);
-  batch.set(doc(db, 'roleInvites', code), { teamId:UI.teamId, seasonId:UI.seasonId, role, createdAt:serverTimestamp() });
-  batch.set(doc(seasonRef(), 'invites', code), { role, createdAt:serverTimestamp(), createdByName:memberProfile().name });
+  batch.set(doc(db, 'roleInvites', code), { teamId:t.teamId, seasonId:t.seasonId, role, createdAt:serverTimestamp() });
+  batch.set(doc(db, 'teams', t.teamId, 'seasons', t.seasonId, 'invites', code), { role, createdAt:serverTimestamp(), createdByName:memberProfile().name });
   const saving = batch.commit();
-  await sendRoleInvite(role, code);
+  await sendRoleInvite(role, code, t);
   try { await saving; }
   catch (err){ fail(err); toast("That invite link couldn't be saved, so it won't work. Please try again.", true); }
 }
-async function sendRoleInvite(role, code){
-  const text = roleInviteText(role, code);
+async function sendRoleInvite(role, code, t){
+  const text = roleInviteText(role, code, t);
   if (navigator.share){
     try { await navigator.share({ title:'Netty Pal', text }); } catch(e){ /* cancelled: the link stays in the list */ }
     return;
@@ -3760,20 +3827,26 @@ function readGameFields(fd){
     venue: String(fd.get('venue') || '').trim(),
     court: String(fd.get('court') || '').trim(),
     format: fd.get('format') === 'halves' ? 'halves' : 'quarters',
-    periodMinutes: (mins >= 1 && mins <= 30) ? mins : DEFAULT_PERIOD_MINUTES
+    periodMinutes: (mins >= 1 && mins <= 30) ? mins : DEFAULT_PERIOD_MINUTES,
+    // A bye: a round with no game for us. It keeps its round and date so
+    // the fixture list reads in order, but has no opponent.
+    bye: !!fd.get('bye')
   };
 }
 
 async function addGame(fd){
   const fields = readGameFields(fd);
-  if (!fields.opponent) return;
+  if (!fields.bye && !fields.opponent) return;
   await setDoc(doc(collection(seasonRef(), 'games')), { ...fields, status:'scheduled', plan:{}, createdAt:serverTimestamp() });
-  toast('Fixture added.');
+  toast(fields.bye ? 'Bye added.' : 'Fixture added.');
 }
 
 async function saveGame(fd){
+  const g = findGame(UI.gameId);
   const fields = readGameFields(fd);
-  if (!fields.opponent) return;
+  // Game settings only offers the bye tick before a game starts.
+  if (g && (g.status || 'scheduled') !== 'scheduled') fields.bye = !!g.bye;
+  if (!fields.bye && !fields.opponent) return;
   await updateDoc(gameRef(UI.gameId), fields);
   toast('Game saved.');
 }
@@ -3996,6 +4069,8 @@ function parseFixtureTable(lines){
 function parseFixtures(text, ourName){
   const lines = String(text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const games = [];
+  // Our byes are kept too (as rounds with no game), so the season reads in order.
+  const byeRows = [];
   let byes = 0;
   const ourKey = nameKey(ourName);
   const isUs = (name) => {
@@ -4008,7 +4083,7 @@ function parseFixtures(text, ourName){
     const last = { date:'', round:'', venue:'' };
     table.forEach(r => {
       ['date', 'round', 'venue'].forEach(k => { if (r[k]) last[k] = r[k]; else r[k] = last[k]; });
-      if (r.bye){ if (isUs(r.home) || isUs(r.away) || isUs(r.opponent)) byes++; return; }
+      if (r.bye){ if (isUs(r.home) || isUs(r.away) || isUs(r.opponent)){ byes++; byeRows.push({ round:r.round, date:r.date }); } return; }
       if (r.opponent) games.push({ ...r, home:ourName, away:r.opponent });
       else if (r.home && r.away) games.push(r);
     });
@@ -4018,12 +4093,14 @@ function parseFixtures(text, ourName){
     lines.forEach(line => {
       const p = parseFixtureLine(line);
       if (!p.home || !p.away){
-        if (p.bye && isUs(line)) byes++;
         if (p.date) ctx.date = p.date;
         if (p.round) ctx.round = p.round;
+        if (p.bye && isUs(line)){ byes++; byeRows.push({ round:ctx.round, date:ctx.date }); }
         if (p.venue) ctx.venue = p.venue;
         return;
       }
+      // "Hawks v BYE": a bye written like a game.
+      if (p.bye){ if (isUs(p.home) || isUs(p.away)){ byes++; byeRows.push({ round:p.round || ctx.round, date:p.date || ctx.date }); } return; }
       games.push({ ...p, date:p.date || ctx.date, round:p.round || ctx.round, venue:p.venue || ctx.venue });
     });
   }
@@ -4034,6 +4111,9 @@ function parseFixtures(text, ourName){
     const dup = CUR.games.some(x => x.date && x.date === g.date && nameKey(x.opponent) === nameKey(opponent));
     return { round:g.round, date:g.date, time:g.time, court:g.court, venue:g.venue, opponent, dup };
   });
+  byeRows.forEach(b => rows.push({ round:b.round, date:b.date, time:'', court:'', venue:'', opponent:'', bye:true,
+    dup:CUR.games.some(x => x.bye && ((b.date && x.date === b.date) || (b.round && x.round === b.round))) }));
+  rows.sort((a, b) => (a.date || '9').localeCompare(b.date || '9') || String(a.round).localeCompare(String(b.round), undefined, { numeric:true }));
   return { rows, teams:Array.from(teams).filter(Boolean).sort(), total:games.length, byes };
 }
 
@@ -4128,10 +4208,11 @@ async function saveImport(fd){
   let n = 0;
   fd.getAll('inc').map(Number).forEach(i => {
     if (!rows[i]) return;
+    const bye = !!rows[i].bye;
     const opponent = String(fd.get(`opponent-${i}`) || '').trim();
-    if (!opponent) return;
+    if (!opponent && !bye) return;
     batch.set(doc(collection(seasonRef(), 'games')), {
-      round:String(fd.get(`round-${i}`) || '').trim(), opponent,
+      round:String(fd.get(`round-${i}`) || '').trim(), opponent, bye,
       date:String(fd.get(`date-${i}`) || ''), time:String(fd.get(`time-${i}`) || ''),
       venue:String(fd.get(`venue-${i}`) || '').trim(), court:String(fd.get(`court-${i}`) || '').trim(),
       format:CUR.season.format || 'quarters', periodMinutes:CUR.season.periodMinutes || DEFAULT_PERIOD_MINUTES,
@@ -4180,11 +4261,19 @@ function importHtml(){
   const pickTeam = !res.rows.length && res.teams.length ? `<div class="chip-wrap">${res.teams.slice(0, 40).map(t =>
       `<button type="button" class="btn ghost small" data-action="import-pick-team" data-team="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}</div>` : '';
   let summary;
-  if (res.rows.length) summary = `Found <b>${res.rows.length}</b> game${res.rows.length === 1 ? '' : 's'} for <b>${escapeHtml(teamName)}</b>${res.total > res.rows.length ? ` (out of ${res.total} in the draw)` : ''}.${res.byes ? ` ${res.byes} bye${res.byes === 1 ? '' : 's'} skipped.` : ''} Check each one, fix anything that's wrong, and untick any you don't want.`;
+  const gameRows = res.rows.filter(r => !r.bye).length;
+  if (res.rows.length) summary = `Found <b>${gameRows}</b> game${gameRows === 1 ? '' : 's'} for <b>${escapeHtml(teamName)}</b>${res.total > gameRows ? ` (out of ${res.total} in the draw)` : ''}${res.byes ? `, plus ${res.byes} bye${res.byes === 1 ? '' : 's'}` : ''}. Check each one, fix anything that's wrong, and untick any you don't want.`;
   else if (res.total) summary = `Found ${res.total} games in the draw, but none for <b>${escapeHtml(teamName)}</b>. Tap your team's name as it appears in the draw:`;
   else summary = `Couldn't find any games in that text. Games need to look something like "Hawks v Kestrels", with a date on the same line or in a heading above. Try copying the fixture from the competition website instead, or add games one at a time.`;
 
-  const rows = res.rows.map((r, i) => `<div class="imp-row ${r.dup ? 'dup' : ''}">
+  const rows = res.rows.map((r, i) => r.bye ? `<div class="imp-row ${r.dup ? 'dup' : ''}">
+      <label class="check-row imp-inc"><input type="checkbox" name="inc" value="${i}" id="imp-${i}-inc" ${r.dup ? '' : 'checked'}>
+        <span>${r.dup ? 'Bye already added (tick to add again)' : '<b>Bye</b>: add this round with no game'}</span></label>
+      <div class="imp-grid">
+        <div class="field"><label for="imp-${i}-round">Round</label><input class="text-input" id="imp-${i}-round" name="round-${i}" value="${escapeHtml(r.round)}" maxlength="12"></div>
+        <div class="field"><label for="imp-${i}-date">Date</label><input class="text-input" type="date" id="imp-${i}-date" name="date-${i}" value="${escapeHtml(r.date)}"></div>
+      </div>
+    </div>` : `<div class="imp-row ${r.dup ? 'dup' : ''}">
       <label class="check-row imp-inc"><input type="checkbox" name="inc" value="${i}" id="imp-${i}-inc" ${r.dup ? '' : 'checked'}>
         <span>${r.dup ? 'Already added (tick to add again)' : 'Add this game'}</span></label>
       <div class="imp-grid">
@@ -4612,14 +4701,23 @@ document.addEventListener('click', async (e) => {
       const key = 'rm-' + btn.dataset.member;
       if (!isArmed(key)) return arm(key);
       disarm(key); await removeMember(btn.dataset.member);
-    } else if (a === 'invite-start'){
-      // One team: share it straight away (phones only allow sharing right after a tap).
-      if (HOME.items.length === 1){ const it = HOME.items[0]; await shareInvite(it.teamName, it.seasonName, it.joinCode); }
-      else { UI.invitePick = true; render(); focusSheet(); }
-    } else if (a === 'invite-team'){
-      const it = HOME.items[parseInt(btn.dataset.index, 10)];
+    } else if (a === 'invite-start' || a === 'invite-team'){
+      // Which team (asked only if there's more than one), then, for a
+      // Coach/Manager, which role. A viewer's invite is shared straight
+      // away, since phones only allow sharing right after a tap.
+      const index = a === 'invite-team' ? parseInt(btn.dataset.index, 10) : (HOME.items.length === 1 ? 0 : null);
+      if (index === null){ UI.invitePick = true; render(); focusSheet(); return; }
+      const it = HOME.items[index];
+      if (!it) return;
+      if (homeIsManager(it)){ UI.invitePick = { index }; render(); focusSheet(); return; }
       UI.invitePick = false; render();
-      if (it) await shareInvite(it.teamName, it.seasonName, it.joinCode);
+      await shareInvite(it.teamName, it.seasonName, it.joinCode);
+    } else if (a === 'invite-role'){
+      const it = UI.invitePick && HOME.items[UI.invitePick.index];
+      UI.invitePick = false; render();
+      if (!it) return;
+      if (btn.dataset.role === 'viewer') await shareInvite(it.teamName, it.seasonName, it.joinCode);
+      else await createRoleInvite(btn.dataset.role, it);
     } else if (a === 'invite-close'){
       UI.invitePick = false; render();
     } else if (a === 'owner-teams'){
@@ -4842,6 +4940,9 @@ document.addEventListener('change', (e) => {
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
   if (el.matches('input[data-field="import-file"]') && el.files && el.files[0]) readImportFile(el.files[0]);
   if (el.matches('input[data-field="fair-view"]')){ UI.fairView = el.value; render(); }
+  // Ticking "This round is a bye" hides the fields a bye doesn't need, and
+  // the opponent is no longer required.
+  if (el.matches('input[data-field="bye-toggle"]')) syncByeForm(el);
   if (el.matches('select[data-field="event-player"]')){
     const g = findGame(UI.gameId);
     if (g) correctEvent(g, el.dataset.event, { playerId:el.value }).catch(err => { fail(err); render(); });

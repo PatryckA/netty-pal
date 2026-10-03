@@ -41,6 +41,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   and manage every team without being a member, and can list every team from the home
   screen. Nobody else sees this.
 - Any member can send the invite link from the home screen ("Invite someone to a team").
+  A Coach/Manager of the chosen team is asked which role: Viewer (the team link), Scorer or
+  Coach/Manager (a one-time role invite link, below).
 - (Added 2026-10-03.) **Role invite links**: in Support Crew, a Coach/Manager can send
   "Invite a Coach/Manager" or "Invite a Scorer". It's a one-time link (a long random code
   in the usual `?join=` link): the first person to use it joins with that role, and the
@@ -73,13 +75,16 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   competition draw. Only games involving our team are kept (the name in the draw is
   editable, with a pick-list of teams found). Understands round headings with games
   under them, one game per line, and tables with a heading row (PDF columns are
-  matched by position). Byes are skipped; games already added are unticked. The
+  matched by position). Our byes are kept as bye rounds; games and byes already added are unticked. The
   app shows an **editable list to review** before saving. Nothing is saved without
   review. PDFs are read in the browser with PDF.js from the jsDelivr CDN.
 - Built without a real fixture from the competition; tune it once one is available.
   Screenshot import (AI, option B) was considered and deferred.
 - Manual "add fixture" and "new game on the day" are always available.
 - Each game inherits the season's format and period length, and can override both.
+- (Added 2026-10-03.) A fixture can be marked as a **bye** (tick "This round is a bye" when adding
+  it or in Game settings, before it starts). A bye keeps its round and date, shows as "Bye" in
+  the games list, has no lineup or scoring, and is left out of stats and Time on court.
 
 ---
 
