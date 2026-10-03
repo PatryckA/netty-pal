@@ -191,6 +191,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
   padding:0.18rem 0.45rem; border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink-soft);
   border:1px solid var(--line); white-space:nowrap;
 }
+.badge.none{background:var(--surface-2); color:var(--critical); border-color:var(--critical);}
 .badge.owner{background:var(--warm-bg); color:var(--warm); border-color:transparent;}
 .badge.coach{background:var(--accent-bg); color:var(--pop-text); border-color:transparent;}
 .badge.scorer{background:var(--ok-bg); color:var(--ok); border-color:transparent;}
@@ -267,9 +268,16 @@ main{flex:1; padding:1rem 1rem 4rem;}
   font-size:0.85rem; font-weight:600; box-shadow:0 6px 20px var(--shadow); max-width:calc(100% - 2rem);
 }
 .toast.error{background:var(--critical); color:#fff;}
+.owner-team{display:flex; flex-direction:column; gap:0.4rem;}
+.owner-team-tools{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.4rem;}
+.team-card.static{cursor:default;}
 .danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
 .account-zone{display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:2rem; padding-top:1rem; border-top:1px dashed var(--line);}
-.account-zone a.btn{text-decoration:none;}
+.account-links{flex-basis:100%; margin:0.6rem 0 0; font-size:0.78rem; color:var(--ink-soft);}
+.account-links a,.link-btn{color:var(--ink-soft); text-decoration:underline;}
+.link-btn{background:none; border:0; padding:0; font:inherit; cursor:pointer;}
+.hero .install-card{text-align:left; width:100%; max-width:26rem; margin:0;}
+.hero .install-card p{max-width:none; color:var(--ink);}
 .install-steps{margin:0.4rem 0 0.8rem; padding-left:1.3rem;}
 .install-steps li{margin-bottom:0.45rem; font-size:0.92rem;}
 .inline-icon{vertical-align:-3px;}
@@ -1178,7 +1186,7 @@ function render(){
         <main>${main}</main>
       </div>`;
   }
-  if (USER && UI.showInstall) body += installSheetHtml();
+  if (UI.showInstall) body += installSheetHtml();
   app.innerHTML = body;
   restoreInputs(keep);
   // A half-filled fixture form keeps its bye tick (and hidden fields) through a redraw.
@@ -1292,7 +1300,8 @@ function renderSignedOut(){
         <button class="btn big signin-btn facebook" data-action="sign-in-facebook">${facebookSvg()}<span>Continue with Facebook</span></button>
         <button class="btn big signin-btn email" data-action="sign-in-email">${mailSvg()}<span>Continue with email</span></button>
       </div>
-      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a></p>`;
+      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a></p>
+      ${pendingInvite() || inAppBrowser() ? '' : installCardHtml()}`;
   }
   return `<div class="app-shell"><main>
     <div class="hero">
@@ -1466,8 +1475,7 @@ function renderHome(){
     ${ownerTeamsHtml()}
     ${UI.form ? '' : `<div class="account-zone">
       ${isInstalled() ? '' : '<button class="btn ghost small" data-action="install-open">Install on your phone</button>'}
-      <a class="btn ghost small" href="privacy.html">Privacy</a>
-      <button class="btn danger small" data-action="delete-account-open">Delete my account</button>
+      <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
     </div>`}
     ${UI.invitePick ? invitePickHtml() : ''}
     ${UI.deleteAcct ? deleteAccountHtml() : ''}`;
@@ -1526,34 +1534,80 @@ function ownerTeamsHtml(){
   if (all.loading) return '<div class="loading-state">Loading every team…</div>';
   if (all.error) return `<div class="panel" role="alert"><p style="margin:0 0 0.6rem">Couldn't load every team. If the security rules haven't been published yet, publish them first.</p>
     <button class="btn small" data-action="owner-teams">Try again</button></div>`;
-  return `<div class="list-label">Every team in Netty Pal (only you see this)</div>
-    <div class="team-list">${all.items.map(it => `
-      <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
+  const noUsers = '<span class="badge none">No users</span>';
+  const teamHtml = t => {
+    const key = 'del-team-' + t.teamId;
+    const empty = t.seasons.every(se => !se.members);
+    const seasons = t.seasons.map(se => `
+      <button class="team-card" data-action="open-season" data-team="${escapeHtml(t.teamId)}" data-season="${escapeHtml(se.seasonId)}">
         <div>
-          <div class="tname">${escapeHtml(it.teamName)}</div>
-          <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
+          <div class="tname">${escapeHtml(t.teamName)}</div>
+          <div class="tseason">${escapeHtml(se.seasonName)}${se.competition ? ' · ' + escapeHtml(se.competition) : ''} · ${se.members === 1 ? '1 user' : se.members + ' users'}</div>
         </div>
-      </button>`).join('') || '<div class="empty-state">No teams yet.</div>'}</div>
+        <div class="badges">${se.members ? '' : noUsers}</div>
+      </button>`).join('');
+    return `<div class="owner-team">
+      ${seasons || `<div class="team-card static"><div><div class="tname">${escapeHtml(t.teamName)}</div><div class="tseason">No seasons</div></div><div class="badges">${noUsers}</div></div>`}
+      <div class="owner-team-tools">
+        <button class="btn danger small ${isArmed(key) ? 'armed' : ''}" data-action="owner-delete-team" data-team="${escapeHtml(t.teamId)}" ${UI.busy ? 'disabled' : ''}>
+          ${isArmed(key) ? `Confirm delete ${escapeHtml(t.teamName)}${t.seasons.length > 1 ? ' and all its seasons' : ''}` : `Delete ${escapeHtml(t.teamName)}`}</button>
+        ${empty ? '' : '<span class="hint">People are still in this team.</span>'}
+      </div>
+    </div>`;
+  };
+  return `<div class="list-label">Every team in Netty Pal (only you see this)</div>
+    <div class="team-list">${all.teams.map(teamHtml).join('') || '<div class="empty-state">No teams yet.</div>'}</div>
     <div class="lineup-tools"><button class="btn ghost small" data-action="owner-teams-hide">Hide every team</button></div>`;
 }
 
+// Every team, with each season's number of members, for the owner.
 async function loadOwnerTeams(){
   HOME.all = { loading:true }; render();
   try {
-    const teams = await getDocs(collection(db, 'teams'));
-    const items = [];
-    await Promise.all(teams.docs.map(async t => {
-      const seasons = await getDocs(collection(db, 'teams', t.id, 'seasons'));
-      seasons.docs.forEach(s => items.push({ teamId:t.id, seasonId:s.id, teamName:t.data().name || 'Unnamed team',
-        seasonName:s.data().name || '', competition:s.data().competition || '' }));
+    const teamSnaps = await getDocs(collection(db, 'teams'));
+    const teams = await Promise.all(teamSnaps.docs.map(async t => {
+      const seasonSnaps = await getDocs(collection(db, 'teams', t.id, 'seasons'));
+      const seasons = await Promise.all(seasonSnaps.docs.map(async se => {
+        const members = await getDocs(collection(se.ref, 'members'));
+        return { seasonId:se.id, seasonName:se.data().name || '', competition:se.data().competition || '', members:members.docs.length };
+      }));
+      seasons.sort((a, b) => b.seasonName.localeCompare(a.seasonName));
+      return { teamId:t.id, teamName:t.data().name || 'Unnamed team', seasons };
     }));
-    items.sort((a, b) => a.teamName.localeCompare(b.teamName) || b.seasonName.localeCompare(a.seasonName));
-    HOME.all = { items };
+    teams.sort((a, b) => a.teamName.localeCompare(b.teamName));
+    HOME.all = { teams };
   } catch (err){
     console.warn('Netty Pal: every team', err);
     HOME.all = { error:true };
   }
   render();
+}
+
+// The owner deletes a whole team: every season and everything in it
+// (members, players, games and their events, invite links, codes), then the
+// team itself. Only the owner is allowed to do this (see firestore.rules).
+// People who were in it simply stop seeing it: their home screen tidies
+// away seasons they're no longer a member of.
+async function deleteTeam(teamId){
+  const seasonSnaps = await getDocs(collection(db, 'teams', teamId, 'seasons'));
+  for (const se of seasonSnaps.docs){
+    const [members, players, games, invites] = await Promise.all(['members', 'players', 'games', 'invites'].map(c => getDocs(collection(se.ref, c))));
+    const refs = [];
+    for (const g of games.docs){
+      const events = await getDocs(collection(g.ref, 'events'));
+      events.docs.forEach(e => refs.push(e.ref));
+    }
+    refs.push(...games.docs.map(d => d.ref), ...players.docs.map(d => d.ref));
+    invites.docs.forEach(d => { refs.push(d.ref); refs.push(doc(db, 'roleInvites', d.id)); });
+    if (se.data().joinCode) refs.push(doc(db, 'joinCodes', se.data().joinCode));
+    // Members last but one, then the season, so nothing is left orphaned if it stops part way.
+    refs.push(...members.docs.map(d => d.ref), se.ref);
+    await deleteDocs(refs);
+  }
+  await deleteDoc(doc(db, 'teams', teamId));
+  HOME.items = HOME.items.filter(it => it.teamId !== teamId);
+  toast('Team deleted.');
+  await loadOwnerTeams();
 }
 
 /* ---- Install on a phone ----
@@ -4971,7 +5025,7 @@ document.addEventListener('click', async (e) => {
       await installNow();
     } else if (a === 'install-hide'){
       try { localStorage.setItem(INSTALL_CARD_KEY, '1'); } catch(e){}
-      render(); toast('You can still install it from the bottom of this screen.');
+      render(); toast(USER ? 'You can still install it from the bottom of this screen.' : 'You can install it later from the bottom of the home screen.');
     } else if (a === 'delete-account-open'){
       await openDeleteAccount();
     } else if (a === 'delete-account-close'){
@@ -4985,6 +5039,10 @@ document.addEventListener('click', async (e) => {
       disarm('delete-account'); await runBusy(deleteAccount);
     } else if (a === 'owner-teams'){
       await loadOwnerTeams();
+    } else if (a === 'owner-delete-team'){
+      const key = 'del-team-' + btn.dataset.team;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); await runBusy(() => deleteTeam(btn.dataset.team));
     } else if (a === 'owner-teams-hide'){
       HOME.all = null; render();
     } else if (a === 'mg-open'){

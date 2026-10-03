@@ -66,6 +66,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - **Install on your phone**: a home screen card (until installed or put away) and a link at
   the bottom of the home screen open step-by-step instructions for iPhone/iPad and Android.
   Android browsers that support it get a one-tap Install button.
+- **Owner: delete a team.** In "Owner: show every team", each team has a Delete button
+  (two taps). It deletes every season and everything in it (members, players, games, game
+  events, invite links, codes) and then the team. Seasons with nobody in them show a
+  "No users" pill, and each season shows how many users it has. Only the owner can delete
+  seasons, teams and game events (enforced in `firestore.rules`).
+- The install card also shows on the sign-in screen (not when arriving from an invite
+  link, so the invite isn't lost, and not inside Facebook/Instagram's own browser).
+- "Delete my account" is a small text link at the bottom of the home screen, next to Privacy.
 - Confirmation buttons read "Confirm [action]" on the second tap (e.g. "Confirm delete game").
 
 ---
