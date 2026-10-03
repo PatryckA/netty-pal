@@ -143,6 +143,13 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .hero h1{font-size:3.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.03em; line-height:1;}
 .hero p{margin:0; color:var(--ink-soft); max-width:26rem;}
 .hero .fine{font-size:0.78rem;}
+/* Sign-in welcome: what Netty Pal is for, as a short list. */
+.welcome{max-width:22rem; text-align:left; display:flex; flex-direction:column; gap:0.5rem;}
+.hero .welcome p{max-width:none;}
+.hero .welcome .welcome-lead{color:var(--ink);}
+.welcome ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:0.4rem;}
+.welcome li{display:flex; gap:0.55rem; align-items:flex-start; color:var(--ink); font-size:0.95rem;}
+.welcome li::before{content:''; flex:none; width:0.55rem; height:0.55rem; margin-top:0.45rem; border-radius:50%; background:var(--pop);}
 .hero .invite-note{color:var(--ink); background:var(--accent-bg); border-radius:var(--r); padding:0.7rem 1rem;}
 .signin-options{display:flex; flex-direction:column; gap:0.6rem; width:100%; max-width:20rem;}
 .signin-btn{display:flex; align-items:center; justify-content:center; gap:0.6rem; width:100%; text-transform:none; letter-spacing:0; font-size:0.92rem;}
@@ -452,6 +459,10 @@ button.cp-mark{cursor:pointer;}
    lighter charcoal). ".panel" is included so the general panel colours
    further down can't override it. */
 .panel.practice-invite{margin-bottom:1rem; background:var(--invite-bg); color:var(--bar-ink); border:2px solid var(--pop);}
+.panel.practice-invite{position:relative;}
+.card-x{position:absolute; top:0.3rem; right:0.3rem; width:2.2rem; height:2.2rem; border:none; background:none; color:var(--bar-ink);
+  font-size:1.5rem; line-height:1; cursor:pointer; border-radius:var(--r-sm); opacity:0.8; font-family:var(--font-body);}
+.card-x:hover{opacity:1;}
 :root{ --invite-bg:#0B0B0D; }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --invite-bg:#2A2A31; } }
 :root[data-theme="dark"]{ --invite-bg:#2A2A31; }
@@ -1040,6 +1051,21 @@ function isInPlay(g){ const ph = g.live && g.live.phase; return g.status === 'li
 function isGameOver(g){
   return g.status === 'final' || (g.status === 'live' && !!g.live && g.live.phase === 'ended' && g.live.period >= periodCount(g));
 }
+// The break after period p: Quarter time, Half time, Three quarter time or Full time.
+function breakName(g, p){
+  if (p >= periodCount(g)) return 'Full time';
+  if (g.format === 'halves') return 'Half time';
+  return ['Quarter time', 'Half time', 'Three quarter time'][p - 1] || 'Break';
+}
+// How far through the game we are, e.g. "Not started", "Q2 in play",
+// "Half time" or "Full time".
+function gameStage(g){
+  const L = g.live;
+  if (!L || !L.period || g.status === 'scheduled') return 'Not started';
+  if (isGameOver(g)) return 'Full time';
+  if (!isInPlay(g)) return breakName(g, L.period);
+  return `${periodName(g, L.period)} in play`;
+}
 
 // Works out score, centre pass, lineups, court time and player stats from
 // the events. Court time counts only time played (the clock running),
@@ -1206,7 +1232,15 @@ function ballSvg(cls){
 function renderSignedOut(){
   const intro = pendingInvite()
     ? `<p class="invite-note"><b>You've been invited to join a team.</b> Sign in to accept.</p>`
-    : '<p>Court time, positions and live scoring for your netball team. Share the load: any parent with the team code can follow along, and the coach/manager can hand them the scoring.</p>';
+    : `<div class="welcome">
+        <p class="welcome-lead"><b>Welcome to Netty Pal</b>, an app for your netball team where:</p>
+        <ul>
+          <li>someone keeps score on their phone</li>
+          <li>everyone can see a live scoreboard, plus simple game and season stats</li>
+          <li>you can share the scoreboard with friends and family.</li>
+        </ul>
+        <p class="fine">Netty Pal doesn't replace Netball HQ, the official app for fixtures and court numbers.</p>
+      </div>`;
   let panel;
   if (UI.signin === 'sent'){
     panel = `<div class="signin-card">
@@ -1530,7 +1564,8 @@ function renderSeason(){
       ${tabs.map(([k, label]) => `<button class="tab ${UI.tab === k ? 'active' : ''}" data-action="tab" data-tab="${k}" ${UI.tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
     </nav>
     ${content}
-    ${UI.showMgGuide && isManager() ? managerGuideHtml() : ''}`;
+    ${UI.showMgGuide && isManager() ? managerGuideHtml() : ''}
+    ${UI.handover && findGame(UI.handover) ? handoverSheetHtml(findGame(UI.handover)) : ''}`;
 }
 
 function gamesErrorHtml(){
@@ -1582,12 +1617,17 @@ function renderGamesTab(){
       : `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived">Show archived games (${archived.length})</button></div>`;
   }
   // Sits above the games so a new parent sees it straight away.
-  const practice = canScore() && canPractise() ? `<div class="panel practice-invite">
-      <p style="margin:0 0 0.5rem"><b>New to scoring?</b> Try a practice game first. Nothing is saved.</p>
+  // The × hides it on this phone for good; the practice game stays available
+  // from a small button at the bottom of the list.
+  const canTry = canScore() && canPractise();
+  const practice = canTry && !practiceCardHidden() ? `<div class="panel practice-invite">
+      <button class="card-x" data-action="dismiss-practice-card" aria-label="Hide this">×</button>
+      <p style="margin:0 0 0.5rem; padding-right:1.8rem"><b>New to scoring?</b> Try a practice game first. Nothing is saved.</p>
       <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
     </div>` : '';
+  const practiceLink = canTry && !UI.form ? '<div class="lineup-tools"><button class="btn ghost small" data-action="start-practice">Try a practice game</button></div>' : '';
   // Adding fixtures is occasional, so it lives below the list (the form opens in the same spot).
-  return `${setupCardHtml()}${gameDayNudgeHtml(games)}${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+  return `${setupCardHtml()}${gameDayNudgeHtml(games)}${askToScoreHtml()}${practice}${body}${form}${addBtn}${practiceLink}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
 
 /* ---- Coach/Manager guide ----
@@ -1651,7 +1691,7 @@ function managerGuideHtml(){
         <h4 class="mg-head">Before each game</h4>
         ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail', 'Open'))}
         ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" shows who has played where, to help keep it fair.`, '', nextBtn('lineup', 'Open'))}
-        ${step(3, false, 'Line up a scorer', `Ask a parent to keep score on their phone. They need the Scorer role (in Support Crew, tap Scorer next to their name). On game day they open the game and tap Start when the umpire starts play. You can score too. ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
+        ${step(3, false, 'Assign a scorer', `Ask a parent to keep score on their phone. They need the Scorer role (in Support Crew, tap Scorer next to their name). On game day they open the game and tap Start when the umpire starts play. You can score too. Only one person can score at a time, but scoring can be passed from one Scorer to another in the Support Crew tab (or with Hand over scoring at a break). ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
           '<button class="btn ghost small" data-action="mg-tab" data-tab="people">Go to Support Crew</button>')}
         <p class="hint">On game day, Netty Pal reminds you on the Games tab if the lineup isn't finished. New to scoring? Try a practice game: nothing is saved.</p>
         <button class="btn big" style="width:100%" data-action="mg-close">Got it</button>
@@ -2030,7 +2070,11 @@ function renderAvailTab(g){
   return `<h3 class="subhead">Who's playing <span class="hint" style="font-family:var(--font-body); text-transform:none">${avail.size} of ${players.length}</span></h3>
     <div class="list-card">${rows || '<div class="empty-state">No players on the roster yet.</div>'}</div>
     ${editable ? `<div class="lineup-tools"><button class="btn ghost small" data-action="avail-all">Everyone's playing</button></div>
-      <p class="hint">Unticking a player also takes them out of this game's lineup plan.</p>` : ''}`;
+      <p class="hint">Unticking a player also takes them out of this game's lineup plan.</p>` : ''}
+    ${canEditGames() ? `<div class="panel">
+        <p style="margin:0 0 0.5rem"><b>Done?</b> Next, put the players in positions for each ${escapeHtml(periodNoun(g))}.</p>
+        <button class="btn" data-action="game-tab" data-tab="lineup">Assign positions</button>
+      </div>` : ''}`;
 }
 
 // Periods played in each position, across this game and every game
@@ -2150,7 +2194,8 @@ function renderLiveTab(g){
     UI.period = 1;
     const plan = planFor(g, 1);
     const empty = POSITIONS.filter(pos => !plan[pos] || !avail.includes(plan[pos])).length;
-    body = canScore() ? `<div class="form-card">
+    // The Start card sits above the scoreboard, so it's the first thing the scorer sees.
+    const startCard = canScore() ? `<div class="form-card">
         <h3>Start the game</h3>
         <div class="field">
           <span class="label" id="fc-label">First centre pass</span>
@@ -2166,8 +2211,8 @@ function renderLiveTab(g){
           <button class="btn ghost small" data-action="show-guide">New to scoring? How to score</button>
           ${isPractice(g) || !canPractise() ? '' : '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>'}
         </div>
-      </div>
-      <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
+      </div>` : '';
+    body = canScore() ? `<h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
       <p class="court-tip">${LINEUP_TIP}</p>
       ${courtHtml(plan, true, g, 1, avail)}`
       : `<div class="placeholder-card">This game hasn't started yet.</div>
@@ -2178,7 +2223,7 @@ function renderLiveTab(g){
       body += pickerSheetHtml(g, 1, plan, avail, posOf, planCountOf(g, gamePeriodCounts(g, avail)),
         `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`);
     }
-    return scoreboardHtml(g, st) + body;
+    return startCard + scoreboardHtml(g, st) + body;
   }
 
   body += scorerBarHtml(g);
@@ -2187,7 +2232,8 @@ function renderLiveTab(g){
   if (isInPlay(g)){
     const lineup = st.lineup || {};
     body += livePlayHtml(g, st, scoring);
-    if (UI.subSheet && scoring) body += subSheetHtml(g, st);
+    // Coach/Managers and Scorers can all make substitutions, not just whoever is scoring.
+    if (UI.subSheet && canScore()) body += subSheetHtml(g, st);
     else if (UI.statPos && scoring) body += statSheetHtml(g, st);
     else if (UI.pickPos && canScore()){
       UI.pickMode = 'live';
@@ -2201,8 +2247,10 @@ function renderLiveTab(g){
     const next = L.period + 1;
     UI.period = next;
     const plan = startLineup(g, next);
-    body += `<p class="big-note">End of ${escapeHtml(periodName(g, L.period))}</p>
+    prepareShare(g, st);
+    body += `<p class="big-note">${escapeHtml(breakName(g, L.period))}</p>
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
+      ${breakToolsHtml(g)}
       <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' ' + LINEUP_TIP : ''}</p>
       ${courtHtml(plan, canScore(), g, next, avail)}`;
     if (scoring) body += undoBarHtml(g);
@@ -2217,7 +2265,9 @@ function renderLiveTab(g){
     // Full time.
     const final = status === 'final';
     const canFix = canScore() && !final;
-    body += `<p class="big-note">${final ? 'Final' : 'Full time'}</p>`;
+    prepareShare(g, st);
+    body += `<p class="big-note">${final ? 'Final' : 'Full time'}</p>
+      <div class="lineup-tools" style="justify-content:center"><button class="btn small" data-action="share-summary">Share score</button></div>`;
     if (canFix) body += `<div class="panel">
         <p style="margin:0 0 0.6rem">Check the timeline below and fix any mistakes, then finalise to lock the game.</p>
         <button class="btn go" data-action="finalise-game" ${UI.busy ? 'disabled' : ''}>Finalise game</button>
@@ -2229,6 +2279,7 @@ function renderLiveTab(g){
 
   body += liveStatsHtml(g, st);
   if (isGameOver(g)) body += timelineHtml(g, true, canScore() && status !== 'final');
+  if (UI.handover === g.id) body += handoverSheetHtml(g);
   return scoreboardHtml(g, st) + body;
 }
 
@@ -2294,7 +2345,7 @@ function livePlayHtml(g, st, scoring){
       <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>
       ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>` : ''}
       ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>'
-        : canScore() ? '<p class="hint">Tap a position to make a substitution.</p>' : ''}`;
+        : canScore() ? subBtnHtml() + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
@@ -2406,7 +2457,7 @@ function scoreboardHtml(g, st){
     // The scorer's Pause/Resume button already shows whether the clock is
     // running, so no word is needed there (it would crowd the centre pass).
     // Followers have no button, so they still see "Paused".
-    phase = !isInPlay(g) ? 'Break' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
+    phase = !isInPlay(g) ? breakName(g, L.period) : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
     clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
   // Next centre pass: a small netball under the team that takes it. The other
@@ -2458,6 +2509,53 @@ function scorerBarHtml(g){
     ${canScore() ? `<button class="btn small ${armedTake ? 'armed' : ''}" data-action="take-over">${takeLabel}</button>` : ''}</div>`;
 }
 
+// At a break: share the score so far, and (for the scorer or a Coach/Manager)
+// an easy way to hand scoring to someone else for the next period.
+function breakToolsHtml(g){
+  const canHand = !isPractice(g) && (amScorer(g) || isManager()) && scorerChoices(g).length;
+  return `<div class="lineup-tools" style="justify-content:center">
+      <button class="btn small" data-action="share-summary">Share score</button>
+      ${canHand ? `<button class="btn ghost small" data-action="handover-open" data-game="${escapeHtml(g.id)}">Hand over scoring</button>` : ''}
+    </div>`;
+}
+
+// People who could take over scoring: anyone with the Scorer or
+// Coach/Manager role, apart from whoever is scoring now.
+function scorerChoices(g){
+  return CUR.members.filter(m => m.id !== g.scorerUid && (m.roles || []).some(r => r === 'scorer' || r === 'coach'))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}
+
+// Only one person scores a game at a time. This passes it to someone else;
+// their phone becomes the scoring phone and the old one switches to view-only.
+function handoverSheetHtml(g){
+  const people = scorerChoices(g);
+  return `<div class="sheet-backdrop" data-action="handover-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="handover-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="handover-title">Hand over scoring</h3>
+          <div class="psub">${escapeHtml(gameTitle(g))} · ${g.scorerName ? escapeHtml(g.scorerName) + ' is scoring now' : 'Nobody is scoring'}</div></div>
+        <button class="btn ghost small" data-action="handover-close">Close</button>
+      </div>
+      <div class="sheet-body">
+        <div class="list-label">Who's scoring next?</div>
+        ${people.map(m => `<button class="pick-row" data-action="handover-to" data-game="${escapeHtml(g.id)}" data-member="${escapeHtml(m.id)}">
+            ${avatarHtml(m.name, m.photoURL, 'small')}
+            <span class="grow"><span class="pname">${escapeHtml(m.name || 'Unknown')}${USER && m.id === USER.uid ? ' (you)' : ''}</span>
+              <span class="psub">${(m.roles || []).includes('scorer') ? 'Scorer' : 'Coach/Manager'}</span></span>
+          </button>`).join('') || '<div class="empty-state">Nobody else has the Scorer role yet. A Coach/Manager can give it to someone in the Support Crew tab.</div>'}
+        <p class="hint">Only one person can score at a time. They'll need Netty Pal open on their phone to carry on. Nothing recorded so far is lost.</p>
+      </div>
+    </div>`;
+}
+
+async function handOverScoring(gameId, memberId){
+  const m = CUR.members.find(x => x.id === memberId);
+  if (!m) return;
+  await updateDoc(gameRef(gameId), { scorerUid:m.id, scorerName:m.name || 'Unknown' });
+  toast(USER && m.id === USER.uid ? "You're now scoring this game." : `${m.name || 'They'} is now scoring.`);
+}
+
 // Undo the scorer's own most recent action (not period starts and ends).
 function lastUndoable(){
   return CUR.events.filter(e => !e.undone && e.by === (USER && USER.uid) && e.type !== 'periodEnd' && !e.start)
@@ -2497,7 +2595,7 @@ function guideSheetHtml(g){
     ...(voiceSupported() ? [[`<span class="g-round">${micSvg()}</span>`,
       'Or tap the mic and say "GS goal", "GA miss", "their goal" or "their miss".']] : [])
   ];
-  const note = `<p class="hint">Goals matter most. Recording ${escapeHtml(teamLabel(g, 'them'))}'s misses is optional: skip them if you're busy.</p>`;
+  const note = '';
   return `<div class="sheet-backdrop" data-action="close-guide"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="guide-title">
       <div class="sheet-head">
@@ -2508,7 +2606,7 @@ function guideSheetHtml(g){
         <div class="guide">${rows.map(([demo, text]) =>
           `<div class="g-row"><div class="g-demo" aria-hidden="true">${demo}</div><p>${text}</p></div>`).join('')}</div>
         ${note}
-        <p class="hint">Have to leave? Someone else with the Scorer role can tap Take over scoring.</p>
+        <p class="hint">Have to leave? Only one person scores at a time, but it can be passed on: tap Hand over scoring at a break, or a Coach/Manager can hand it to another Scorer in the Support Crew tab. Another Scorer can also tap Take over scoring.</p>
         <button class="btn big" style="width:100%" data-action="close-guide">Got it</button>
       </div>
     </div>`;
@@ -2651,7 +2749,8 @@ function progressLineHtml(g){
   const L = g.live;
   if (!L || !L.period) return '';
   const q = escapeHtml(periodName(g, L.period));
-  if (!isInPlay(g)) return `<div class="progress-line">End of ${q}. ${escapeHtml(periodName(g, L.period + 1))} next.</div>`;
+  // At a break the heading already says "Half time" etc.
+  if (!isInPlay(g)) return '';
   return `<div class="progress-line">${q} · <span data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</span> left${L.phase === 'paused' ? ' · clock paused' : ''}</div>`;
 }
 
@@ -2662,7 +2761,7 @@ function renderSummaryTab(g){
   const res = resultWord(st.us, st.them);
 
   const head = `<div class="result-card ${over ? res.toLowerCase() : ''}">
-      <div class="result-word">${over ? res : 'In progress'}</div>
+      <div class="result-word">${over ? res : escapeHtml(gameStage(g))}</div>
       <div class="result-score">
         <span>${escapeHtml(teamLabel(g, 'us'))}</span><b>${st.us}</b><i aria-hidden="true">:</i><b>${st.them}</b><span>${escapeHtml(teamLabel(g, 'them'))}</span>
       </div>
@@ -2728,7 +2827,7 @@ function renderSummaryTab(g){
 function summaryShareText(g, st){
   const n = periodCount(g), over = isGameOver(g);
   const lines = [`${teamLabel(g, 'us')} ${st.us} : ${st.them} ${teamLabel(g, 'them')}`];
-  lines.push([over ? resultWord(st.us, st.them) : 'In progress', g.round ? 'Round ' + g.round : '', g.date ? shareDate(g) : '']
+  lines.push([over ? `${resultWord(st.us, st.them)} (full time)` : gameStage(g), g.round ? 'Round ' + g.round : '', g.date ? shareDate(g) : '']
     .filter(Boolean).join(' · '));
   const periods = [];
   for (let p = 1; p <= n; p++) if (st.byPeriod[p]) periods.push(`${periodName(g, p)} ${st.byPeriod[p].us}:${st.byPeriod[p].them}`);
@@ -2788,7 +2887,15 @@ async function summaryImage(g, st){
   // Result word.
   x.textAlign = 'center';
   x.fillStyle = !over ? '#C8641C' : res === 'Won' ? '#2E7550' : res === 'Lost' ? '#B3261E' : '#0B0B0D';
-  x.font = display(90); x.fillText((over ? res : 'In progress').toUpperCase(), W / 2, 250);
+  // How far through the game: the result at full time, otherwise e.g.
+  // "Half time" or "Q3 in play", with a smaller line under it to match.
+  const headline = (over ? res : gameStage(g)).toUpperCase();
+  let hs = 90;
+  x.font = display(hs);
+  while (hs > 50 && x.measureText(headline).width > W - 120){ hs -= 4; x.font = display(hs); }
+  x.fillText(headline, W / 2, 240);
+  x.fillStyle = '#5F5F66'; x.font = body(30, 800);
+  x.fillText(over ? 'FULL TIME' : 'SCORE SO FAR', W / 2, 305);
 
   // Teams and score. Team names are never cut short: long ones get a
   // smaller font, and wrap onto a second line if still too wide.
@@ -3073,11 +3180,24 @@ function renderPeopleTab(){
         ${isArmed(leaveKey) ? 'Tap again to leave' : 'Leave this season'}</button>
     </div>`;
 
+  // Games being played now: who's scoring, and (for a Coach/Manager or the
+  // scorer) a way to pass scoring to someone else.
+  const live = CUR.games.filter(g => g.status === 'live' && !g.archived);
+  const scoringPanel = live.map(g => {
+    const canHand = (isManager() || amScorer(g)) && scorerChoices(g).length;
+    return `<div class="panel">
+      <p style="margin:0${canHand ? ' 0 0.5rem' : ''}"><b>Scoring ${escapeHtml(gameTitle(g))}:</b> ${g.scorerName ? escapeHtml(g.scorerName) : 'nobody yet'}.
+        <span class="hint">Only one person scores at a time.</span></p>
+      ${canHand ? `<button class="btn small" data-action="handover-open" data-game="${escapeHtml(g.id)}">Hand over scoring</button>` : ''}
+    </div>`;
+  }).join('');
+
   return `${codeCard}
+    ${scoringPanel}
     <h3 class="subhead">Support Crew <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
     <div class="list-card">${rows}</div>
     ${manager ? `<p class="hint role-help"><b>Coach/Manager:</b> runs the team: players, games, lineups, court time and who does what. A team can have more than one.<br>
-      <b>Scorer:</b> scores games. One person can be both.<br>
+      <b>Scorer:</b> scores games. Only one person scores a game at a time; during a game, scoring can be handed to another Scorer here. One person can be both Coach/Manager and Scorer.<br>
       <b>Everyone else:</b> can follow games and see the stats.</p>` : ''}
     ${leave}`;
 }
@@ -3191,7 +3311,7 @@ function closeSeason(){
 function openSeason(teamId, seasonId){
   closeSeason();
   PRACTICE = null;
-  UI = { ...UI, view:'season', teamId, seasonId, tab:'games', form:null, gameId:null, showMgGuide:false };
+  UI = { ...UI, view:'season', teamId, seasonId, tab:'games', form:null, gameId:null, showMgGuide:false, handover:null };
   saveNav();
   render();
   const seasonRef = doc(db, 'teams', teamId, 'seasons', seasonId);
@@ -3245,7 +3365,7 @@ function openSeason(teamId, seasonId){
 function openGame(gameId){
   const g = findGame(gameId);
   const gameDay = g && (g.status === 'live' || g.status === 'final' || g.date === todayIso());
-  UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null, showTabs:false, subSheet:false, subReturn:false };
+  UI = { ...UI, view:'game', gameId, gameTab:gameDay ? 'live' : 'lineup', period:1, form:null, pickPos:null, statPos:null, showTabs:false, subSheet:false, subReturn:false, handover:null };
   // First time a Scorer opens a game on this phone: show How to score.
   if (myRoles().includes('scorer') && !guideSeen()) UI.showGuide = true;
   saveNav();
@@ -3276,6 +3396,8 @@ function endPractice(){
   PRACTICE = null;
   backToGames();
 }
+const PRACTICE_CARD_KEY = 'nettyPalPracticeCardHidden';
+function practiceCardHidden(){ try { return localStorage.getItem(PRACTICE_CARD_KEY) === '1'; } catch(e){ return false; } }
 function practiceBannerHtml(){
   return `<div class="practice-banner" role="note">
       <span><b>Practice game.</b> Nothing is saved and it doesn't count in any stats. Try anything.</span>
@@ -3293,7 +3415,7 @@ function closeGuide(){
 function backToGames(){
   stopEvents();
   PRACTICE = null;
-  UI = { ...UI, view:'season', tab:'games', gameId:null, form:null, pickPos:null, statPos:null };
+  UI = { ...UI, view:'season', tab:'games', gameId:null, form:null, pickPos:null, statPos:null, handover:null, subSheet:false };
   saveNav();
   render();
 }
@@ -4420,7 +4542,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'back-to-games'){
       backToGames();
     } else if (a === 'game-tab'){
-      UI.gameTab = btn.dataset.tab; UI.pickPos = null; UI.statPos = null; saveNav(); render();
+      UI.gameTab = btn.dataset.tab; UI.pickPos = null; UI.statPos = null; saveNav(); render(); if (btn.closest("main") && !btn.closest(".tabs")) window.scrollTo(0, 0);
     } else if (a === 'period'){
       UI.period = parseInt(btn.dataset.period, 10) || 1; UI.pickPos = null; UI.statPos = null; disarm('clear-period'); render();
     } else if (a === 'pick-pos'){
@@ -4504,6 +4626,17 @@ document.addEventListener('click', async (e) => {
       disarm('swap-centre');
       const g = findGame(UI.gameId);
       if (g && isInPlay(g)) await swapCentre(g);
+    } else if (a === 'handover-open'){
+      UI.handover = btn.dataset.game; render(); focusSheet();
+    } else if (a === 'handover-close'){
+      UI.handover = null; render();
+    } else if (a === 'handover-to'){
+      UI.handover = null; render();
+      await handOverScoring(btn.dataset.game, btn.dataset.member);
+    } else if (a === 'dismiss-practice-card'){
+      try { localStorage.setItem(PRACTICE_CARD_KEY, '1'); } catch(e){}
+      toast('Hidden. You can still try a practice game from the bottom of the Games list.');
+      render();
     } else if (a === 'sub-open'){
       UI.subSheet = true; UI.statPos = null; UI.pickPos = null; UI.pendingEvent = null; render(); focusSheet();
     } else if (a === 'sub-close'){
@@ -4713,7 +4846,7 @@ function closePicker(){
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
-  if (e.key === 'Escape' && (UI.showMgGuide || UI.invitePick)){ UI.showMgGuide = false; UI.invitePick = false; render(); return; }
+  if (e.key === 'Escape' && (UI.showMgGuide || UI.invitePick || UI.handover)){ UI.showMgGuide = false; UI.invitePick = false; UI.handover = null; render(); return; }
   if (e.key === 'Escape' && UI.subSheet){ UI.subSheet = false; render(); return; }
   if (e.key === 'Escape' && (UI.pickPos || UI.statPos)) closePicker();
 });
@@ -4763,7 +4896,7 @@ setInterval(() => {
   if (g.live.phase === 'running' && amScorer(g) && elapsedMs(g) >= periodMs(g) && autoEndedKey !== key){
     autoEndedKey = key;
     if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
-    endPeriod(g).then(() => toast(`End of ${periodName(g, g.live.period)}.`))
+    endPeriod(g).then(() => toast(`${breakName(g, g.live.period)}.`))
       .catch(err => { autoEndedKey = null; fail(err); });
   }
 }, 250);

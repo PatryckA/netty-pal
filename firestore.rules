@@ -9,7 +9,8 @@ rules_version = '2';
 //   - Joining needs the season's current code.
 //   - Coach/Managers run the team: settings, roles, removing people, codes,
 //     players, games. (There is no separate "admin" any more.)
-//   - Scorers can run a game on the day.
+//   - Scorers can run a game on the day. Coach/Managers and Scorers can both
+//     make substitutions, but only whoever is scoring can start or stop the clock.
 //   - The app owner (one Google account, below) can read and manage every
 //     team without being a member.
 //   - A code can only ever be created once, never overwritten.
@@ -125,12 +126,22 @@ service cloud.firestore {
           }
           function notFinal() { return resource.data.get('status', 'scheduled') != 'final'; }
 
+          // The game clock (live: period, running or paused) can only be
+          // changed by whoever is scoring, or by the person starting the game
+          // (who becomes the scorer). Anyone else must take over scoring first.
+          function clockOk() {
+            return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['live'])
+              || isOwner()
+              || resource.data.get('scorerUid', '') == me()
+              || (resource.data.get('status', 'scheduled') == 'scheduled' && request.resource.data.get('scorerUid', '') == me());
+          }
+
           allow read: if canRead(teamId, seasonId);
           allow create, delete: if isManager(teamId, seasonId);
-          allow update: if isManager(teamId, seasonId)
+          allow update: if clockOk() && (isManager(teamId, seasonId)
             || (notFinal() && hasRole(teamId, seasonId, 'scorer')
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary']));
+                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary'])));
 
           // Everything that happens in a game. Events are never deleted:
           // undo and corrections mark them undone or change the player.

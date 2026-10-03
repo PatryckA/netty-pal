@@ -99,6 +99,13 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 ### Scorer handover
 - Anyone with the Scorer or Coach role can tap **Take over scoring**. The previous
   scorer's screen switches to view-only. Nothing is lost because everything saves live.
+- (Added 2026-10-03.) Only one person scores at a time. At each break the scorer (or a
+  Coach/Manager) can tap **Hand over scoring** and pick the next scorer; Coach/Managers
+  can also do this from the Support Crew tab while a game is live.
+- Only the person scoring can start, pause, resume or end a period (enforced in the
+  security rules). Coach/Managers and Scorers can all make substitutions.
+- Breaks are named Quarter time, Half time, Three quarter time and Full time, and each
+  break offers **Share score**. The shared picture says how far through the game it is.
 
 ### Clock
 - **Counts down** from the period length (e.g. 7:00). At 0:00 it stops, the phone
