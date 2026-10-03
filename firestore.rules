@@ -6,10 +6,12 @@ rules_version = '2';
 // Summary:
 //   - Everyone must be signed in.
 //   - A season's data can only be read by its members.
-//   - Joining needs the season's current code.
+//   - Joining needs the season's current code, or a one-time role invite
+//     link from a Coach/Manager (which makes them a Coach/Manager or Scorer).
 //   - Coach/Managers run the team: settings, roles, removing people, codes,
 //     players, games. (There is no separate "admin" any more.)
-//   - Scorers can run a game on the day.
+//   - Scorers can run a game on the day. Coach/Managers and Scorers can both
+//     make substitutions, but only whoever is scoring can start or stop the clock.
 //   - The app owner (one Google account, below) can read and manage every
 //     team without being a member.
 //   - A code can only ever be created once, never overwritten.
@@ -63,6 +65,36 @@ service cloud.firestore {
             && hasRole(teamId, getAfter(seasonPath(teamId, seasonId)).data.fromSeason, 'coach')));
     }
 
+    // Role invite links: a one-time link that makes someone a Coach/Manager
+    // or Scorer as they join. roleInvites/{code} says which team, season and
+    // role; the code is long and random, so it can't be guessed.
+    function rolePath(code) { return /databases/$(database)/documents/roleInvites/$(code); }
+    // The member record being written uses this invite: it must exist, be
+    // for this team and season, and be used up (deleted) in the same save.
+    function usingInvite(teamId, seasonId, code) {
+      return code is string && code.size() >= 12
+        && exists(rolePath(code))
+        && get(rolePath(code)).data.teamId == teamId
+        && get(rolePath(code)).data.seasonId == seasonId
+        && !existsAfter(rolePath(code));
+    }
+    // The person deleting an invite has just used it (their member record,
+    // after this save, names it).
+    function justUsed(teamId, seasonId, code) {
+      return signedIn() && getAfter(memberPath(teamId, seasonId, me())).data.get('invite', '') == code;
+    }
+
+    match /roleInvites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if isManager(request.resource.data.teamId, request.resource.data.seasonId)
+        && request.resource.data.role in ['coach', 'scorer']
+        && code.size() >= 12;
+      allow update: if false;
+      allow delete: if isManager(resource.data.teamId, resource.data.seasonId)
+        || justUsed(resource.data.teamId, resource.data.seasonId, code);
+    }
+
     // Each user's own list of seasons they belong to.
     match /users/{uid}/memberships/{seasonId} {
       allow read, write: if signedIn() && me() == uid;
@@ -100,14 +132,35 @@ service cloud.firestore {
         match /members/{uid} {
           allow read: if canRead(teamId, seasonId) || (signedIn() && me() == uid);
           // A Coach/Manager adds people (including themselves when creating
-          // a season), or a user adds themselves as a Viewer with the current code.
+          // a season), or a user adds themselves: as a Viewer with the current
+          // code, or with exactly the role a one-time invite link gives.
           allow create: if creatingSeason(teamId, seasonId) || isManager(teamId, seasonId)
             || (signedIn() && me() == uid
                 && request.resource.data.roles.size() == 0
-                && request.resource.data.code == get(seasonPath(teamId, seasonId)).data.joinCode);
-          allow update: if isManager(teamId, seasonId);
+                && request.resource.data.code == get(seasonPath(teamId, seasonId)).data.joinCode)
+            || (signedIn() && me() == uid
+                && usingInvite(teamId, seasonId, request.resource.data.get('invite', ''))
+                && request.resource.data.roles == [get(rolePath(request.resource.data.invite)).data.role]);
+          // A Coach/Manager changes roles, or someone already in the season
+          // adds the one role their invite link gives (and nothing else).
+          allow update: if isManager(teamId, seasonId)
+            || (signedIn() && me() == uid
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roles', 'invite'])
+                && usingInvite(teamId, seasonId, request.resource.data.get('invite', ''))
+                && request.resource.data.roles.hasAll(resource.data.roles)
+                && request.resource.data.roles.removeAll(resource.data.roles)
+                     .hasOnly([get(rolePath(request.resource.data.invite)).data.role]));
           // A Coach/Manager removes people; anyone can leave.
           allow delete: if isManager(teamId, seasonId) || (signedIn() && me() == uid);
+        }
+
+        // The list of unused role invite links, so Coach/Managers can see and
+        // cancel them. Each one matches a roleInvites/{code} doc.
+        match /invites/{code} {
+          allow read: if isManager(teamId, seasonId);
+          allow create: if isManager(teamId, seasonId) && existsAfter(rolePath(code));
+          allow update: if false;
+          allow delete: if isManager(teamId, seasonId) || justUsed(teamId, seasonId, code);
         }
 
         match /players/{playerId} {
@@ -125,12 +178,22 @@ service cloud.firestore {
           }
           function notFinal() { return resource.data.get('status', 'scheduled') != 'final'; }
 
+          // The game clock (live: period, running or paused) can only be
+          // changed by whoever is scoring, or by the person starting the game
+          // (who becomes the scorer). Anyone else must take over scoring first.
+          function clockOk() {
+            return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['live'])
+              || isOwner()
+              || resource.data.get('scorerUid', '') == me()
+              || (resource.data.get('status', 'scheduled') == 'scheduled' && request.resource.data.get('scorerUid', '') == me());
+          }
+
           allow read: if canRead(teamId, seasonId);
           allow create, delete: if isManager(teamId, seasonId);
-          allow update: if isManager(teamId, seasonId)
+          allow update: if clockOk() && (isManager(teamId, seasonId)
             || (notFinal() && hasRole(teamId, seasonId, 'scorer')
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary']));
+                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary'])));
 
           // Everything that happens in a game. Events are never deleted:
           // undo and corrections mark them undone or change the player.

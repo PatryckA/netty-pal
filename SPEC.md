@@ -41,6 +41,12 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   and manage every team without being a member, and can list every team from the home
   screen. Nobody else sees this.
 - Any member can send the invite link from the home screen ("Invite someone to a team").
+- (Added 2026-10-03.) **Role invite links**: in Support Crew, a Coach/Manager can send
+  "Invite a Coach/Manager" or "Invite a Scorer". It's a one-time link (a long random code
+  in the usual `?join=` link): the first person to use it joins with that role, and the
+  link stops working. Unused links are listed there and can be sent again or cancelled.
+  Stored as `roleInvites/{code}` (teamId, seasonId, role) plus the season's
+  `invites/{code}` (role, createdAt, createdByName); both are deleted when it's used.
 
 ### Season code
 - One code per team season. **Never expires.**
@@ -99,6 +105,13 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 ### Scorer handover
 - Anyone with the Scorer or Coach role can tap **Take over scoring**. The previous
   scorer's screen switches to view-only. Nothing is lost because everything saves live.
+- (Added 2026-10-03.) Only one person scores at a time. At each break the scorer (or a
+  Coach/Manager) can tap **Hand over scoring** and pick the next scorer; Coach/Managers
+  can also do this from the Support Crew tab while a game is live.
+- Only the person scoring can start, pause, resume or end a period (enforced in the
+  security rules). Coach/Managers and Scorers can all make substitutions.
+- Breaks are named Quarter time, Half time, Three quarter time and Full time, and each
+  break offers **Share score**. The shared picture says how far through the game it is.
 
 ### Clock
 - **Counts down** from the period length (e.g. 7:00). At 0:00 it stops, the phone
