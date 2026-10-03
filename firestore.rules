@@ -13,7 +13,8 @@ rules_version = '2';
 //   - Scorers can run a game on the day. Coach/Managers and Scorers can both
 //     make substitutions, but only whoever is scoring can start or stop the clock.
 //   - The app owner (one Google account, below) can read and manage every
-//     team without being a member.
+//     team without being a member, and is the only one who can delete a
+//     whole team (its seasons, games and game events).
 //   - A code can only ever be created once, never overwritten.
 
 service cloud.firestore {
@@ -121,13 +122,14 @@ service cloud.firestore {
       allow update: if isOwner()
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'editSeason'])
             && hasRole(teamId, request.resource.data.editSeason, 'coach'));
-      allow delete: if false;
+      // Only the owner deletes a team (and, below, its seasons and events).
+      allow delete: if isOwner();
 
       match /seasons/{seasonId} {
         allow read: if canRead(teamId, seasonId);
         allow create: if creatingSeason(teamId, seasonId);
         allow update: if isManager(teamId, seasonId);
-        allow delete: if false;
+        allow delete: if isOwner();
 
         match /members/{uid} {
           allow read: if canRead(teamId, seasonId) || (signedIn() && me() == uid);
@@ -197,6 +199,7 @@ service cloud.firestore {
 
           // Everything that happens in a game. Events are never deleted:
           // undo and corrections mark them undone or change the player.
+          // (Except by the owner, when deleting a whole team.)
           match /events/{eventId} {
             function gameNotFinal() {
               return get(/databases/$(database)/documents/teams/$(teamId)/seasons/$(seasonId)/games/$(gameId)).data.get('status', 'scheduled') != 'final';
@@ -205,7 +208,7 @@ service cloud.firestore {
             allow create: if canRunGame() && gameNotFinal() && request.resource.data.by == me();
             allow update: if canRunGame() && gameNotFinal()
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone', 'playerId']);
-            allow delete: if false;
+            allow delete: if isOwner();
           }
         }
       }

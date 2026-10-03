@@ -191,6 +191,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
   padding:0.18rem 0.45rem; border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink-soft);
   border:1px solid var(--line); white-space:nowrap;
 }
+.badge.none{background:var(--surface-2); color:var(--critical); border-color:var(--critical);}
 .badge.owner{background:var(--warm-bg); color:var(--warm); border-color:transparent;}
 .badge.coach{background:var(--accent-bg); color:var(--pop-text); border-color:transparent;}
 .badge.scorer{background:var(--ok-bg); color:var(--ok); border-color:transparent;}
@@ -267,7 +268,24 @@ main{flex:1; padding:1rem 1rem 4rem;}
   font-size:0.85rem; font-weight:600; box-shadow:0 6px 20px var(--shadow); max-width:calc(100% - 2rem);
 }
 .toast.error{background:var(--critical); color:#fff;}
+.owner-team{display:flex; flex-direction:column; gap:0.4rem;}
+.owner-team-tools{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.4rem;}
+.team-card.static{cursor:default;}
 .danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
+.account-zone{display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:2rem; padding-top:1rem; border-top:1px dashed var(--line);}
+.account-links{flex-basis:100%; margin:0.6rem 0 0; font-size:0.78rem; color:var(--ink-soft);}
+.account-links a,.link-btn{color:var(--ink-soft); text-decoration:underline;}
+.link-btn{background:none; border:0; padding:0; font:inherit; cursor:pointer;}
+.hero .install-card{text-align:left; width:100%; max-width:26rem; margin:0;}
+.hero .install-card p{max-width:none; color:var(--ink);}
+.install-steps{margin:0.4rem 0 0.8rem; padding-left:1.3rem;}
+.install-steps li{margin-bottom:0.45rem; font-size:0.92rem;}
+.inline-icon{vertical-align:-3px;}
+.install-other{margin:0.6rem 0 0.8rem;}
+.install-other summary{cursor:pointer; font-weight:700; color:var(--pop-text);}
+.delete-list{margin:0.5rem 0 0.8rem; padding-left:1.2rem;}
+.delete-list li{margin-bottom:0.5rem; font-size:0.92rem;}
+.delete-list .btn{margin-top:0.35rem;}
 
 /* ---- Games ---- */
 .game-list{display:flex; flex-direction:column; gap:0.6rem; margin-bottom:1rem;}
@@ -676,7 +694,8 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
   getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
-  sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile
+  sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile,
+  reauthenticateWithPopup, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc as fsUpdateDoc, deleteDoc,
@@ -813,7 +832,7 @@ let HOME = { loaded:false, items:[] };
 let CUR = { team:null, season:null, members:[], players:[], games:[], unsubs:[], loaded:{},
   events:[], eventsFor:null, eventsUnsub:null };
 
-let armed = new Map(); // key -> timeout id, for "tap again to confirm" buttons
+let armed = new Map(); // key -> timeout id, for "Confirm [action]" buttons
 
 /* ---------------------------------------------------------------------
    Helpers
@@ -875,7 +894,7 @@ function friendlyError(err){
 }
 function fail(err){ console.warn('Netty Pal:', err); toast(friendlyError(err), true); }
 
-// "Tap again to confirm" for anything destructive or hard to undo.
+// "Confirm [action]" second tap for anything destructive or hard to undo.
 function isArmed(key){ return armed.has(key); }
 function arm(key){
   clearTimeout(armed.get(key));
@@ -1167,6 +1186,7 @@ function render(){
         <main>${main}</main>
       </div>`;
   }
+  if (UI.showInstall) body += installSheetHtml();
   app.innerHTML = body;
   restoreInputs(keep);
   // A half-filled fixture form keeps its bye tick (and hidden fields) through a redraw.
@@ -1280,7 +1300,8 @@ function renderSignedOut(){
         <button class="btn big signin-btn facebook" data-action="sign-in-facebook">${facebookSvg()}<span>Continue with Facebook</span></button>
         <button class="btn big signin-btn email" data-action="sign-in-email">${mailSvg()}<span>Continue with email</span></button>
       </div>
-      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a></p>`;
+      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a></p>
+      ${pendingInvite() || inAppBrowser() ? '' : installCardHtml()}`;
   }
   return `<div class="app-shell"><main>
     <div class="hero">
@@ -1443,6 +1464,7 @@ function renderHome(){
   return `<h2 class="section-title">Your teams</h2>
     <p class="hint" style="margin:-0.4rem 0 0.9rem">Signed in as ${escapeHtml(USER.email || USER.displayName || '')}</p>
     ${inviteHtml()}
+    ${UI.form ? '' : installCardHtml()}
     ${form}
     ${list}
     ${UI.form ? '' : `<div class="home-actions">
@@ -1451,7 +1473,12 @@ function renderHome(){
       <button class="btn ghost" data-action="show-form" data-form-name="create-team">Create New Team</button>
     </div>`}
     ${ownerTeamsHtml()}
-    ${UI.invitePick ? invitePickHtml() : ''}`;
+    ${UI.form ? '' : `<div class="account-zone">
+      ${isInstalled() ? '' : '<button class="btn ghost small" data-action="install-open">Install on your phone</button>'}
+      <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
+    </div>`}
+    ${UI.invitePick ? invitePickHtml() : ''}
+    ${UI.deleteAcct ? deleteAccountHtml() : ''}`;
 }
 
 // Coach/Managers of a team (and the app owner) can invite with a role.
@@ -1507,34 +1534,302 @@ function ownerTeamsHtml(){
   if (all.loading) return '<div class="loading-state">Loading every team…</div>';
   if (all.error) return `<div class="panel" role="alert"><p style="margin:0 0 0.6rem">Couldn't load every team. If the security rules haven't been published yet, publish them first.</p>
     <button class="btn small" data-action="owner-teams">Try again</button></div>`;
-  return `<div class="list-label">Every team in Netty Pal (only you see this)</div>
-    <div class="team-list">${all.items.map(it => `
-      <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
+  const noUsers = '<span class="badge none">No users</span>';
+  const teamHtml = t => {
+    const key = 'del-team-' + t.teamId;
+    const empty = t.seasons.every(se => !se.members);
+    const seasons = t.seasons.map(se => `
+      <button class="team-card" data-action="open-season" data-team="${escapeHtml(t.teamId)}" data-season="${escapeHtml(se.seasonId)}">
         <div>
-          <div class="tname">${escapeHtml(it.teamName)}</div>
-          <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
+          <div class="tname">${escapeHtml(t.teamName)}</div>
+          <div class="tseason">${escapeHtml(se.seasonName)}${se.competition ? ' · ' + escapeHtml(se.competition) : ''} · ${se.members === 1 ? '1 user' : se.members + ' users'}</div>
         </div>
-      </button>`).join('') || '<div class="empty-state">No teams yet.</div>'}</div>
+        <div class="badges">${se.members ? '' : noUsers}</div>
+      </button>`).join('');
+    return `<div class="owner-team">
+      ${seasons || `<div class="team-card static"><div><div class="tname">${escapeHtml(t.teamName)}</div><div class="tseason">No seasons</div></div><div class="badges">${noUsers}</div></div>`}
+      <div class="owner-team-tools">
+        <button class="btn danger small ${isArmed(key) ? 'armed' : ''}" data-action="owner-delete-team" data-team="${escapeHtml(t.teamId)}" ${UI.busy ? 'disabled' : ''}>
+          ${isArmed(key) ? `Confirm delete ${escapeHtml(t.teamName)}${t.seasons.length > 1 ? ' and all its seasons' : ''}` : `Delete ${escapeHtml(t.teamName)}`}</button>
+        ${empty ? '' : '<span class="hint">People are still in this team.</span>'}
+      </div>
+    </div>`;
+  };
+  return `<div class="list-label">Every team in Netty Pal (only you see this)</div>
+    <div class="team-list">${all.teams.map(teamHtml).join('') || '<div class="empty-state">No teams yet.</div>'}</div>
     <div class="lineup-tools"><button class="btn ghost small" data-action="owner-teams-hide">Hide every team</button></div>`;
 }
 
+// Every team, with each season's number of members, for the owner.
 async function loadOwnerTeams(){
   HOME.all = { loading:true }; render();
   try {
-    const teams = await getDocs(collection(db, 'teams'));
-    const items = [];
-    await Promise.all(teams.docs.map(async t => {
-      const seasons = await getDocs(collection(db, 'teams', t.id, 'seasons'));
-      seasons.docs.forEach(s => items.push({ teamId:t.id, seasonId:s.id, teamName:t.data().name || 'Unnamed team',
-        seasonName:s.data().name || '', competition:s.data().competition || '' }));
+    const teamSnaps = await getDocs(collection(db, 'teams'));
+    const teams = await Promise.all(teamSnaps.docs.map(async t => {
+      const seasonSnaps = await getDocs(collection(db, 'teams', t.id, 'seasons'));
+      const seasons = await Promise.all(seasonSnaps.docs.map(async se => {
+        const members = await getDocs(collection(se.ref, 'members'));
+        return { seasonId:se.id, seasonName:se.data().name || '', competition:se.data().competition || '', members:members.docs.length };
+      }));
+      seasons.sort((a, b) => b.seasonName.localeCompare(a.seasonName));
+      return { teamId:t.id, teamName:t.data().name || 'Unnamed team', seasons };
     }));
-    items.sort((a, b) => a.teamName.localeCompare(b.teamName) || b.seasonName.localeCompare(a.seasonName));
-    HOME.all = { items };
+    teams.sort((a, b) => a.teamName.localeCompare(b.teamName));
+    HOME.all = { teams };
   } catch (err){
     console.warn('Netty Pal: every team', err);
     HOME.all = { error:true };
   }
   render();
+}
+
+// The owner deletes a whole team: every season and everything in it
+// (members, players, games and their events, invite links, codes), then the
+// team itself. Only the owner is allowed to do this (see firestore.rules).
+// People who were in it simply stop seeing it: their home screen tidies
+// away seasons they're no longer a member of.
+async function deleteTeam(teamId){
+  const seasonSnaps = await getDocs(collection(db, 'teams', teamId, 'seasons'));
+  for (const se of seasonSnaps.docs){
+    const [members, players, games, invites] = await Promise.all(['members', 'players', 'games', 'invites'].map(c => getDocs(collection(se.ref, c))));
+    const refs = [];
+    for (const g of games.docs){
+      const events = await getDocs(collection(g.ref, 'events'));
+      events.docs.forEach(e => refs.push(e.ref));
+    }
+    refs.push(...games.docs.map(d => d.ref), ...players.docs.map(d => d.ref));
+    invites.docs.forEach(d => { refs.push(d.ref); refs.push(doc(db, 'roleInvites', d.id)); });
+    if (se.data().joinCode) refs.push(doc(db, 'joinCodes', se.data().joinCode));
+    // Members last but one, then the season, so nothing is left orphaned if it stops part way.
+    refs.push(...members.docs.map(d => d.ref), se.ref);
+    await deleteDocs(refs);
+  }
+  await deleteDoc(doc(db, 'teams', teamId));
+  HOME.items = HOME.items.filter(it => it.teamId !== teamId);
+  toast('Team deleted.');
+  await loadOwnerTeams();
+}
+
+/* ---- Install on a phone ----
+   Netty Pal is a web app, but it can sit on a phone's home screen and open
+   full-screen like any other app, without the browser's address bar.
+   Android (Chrome, Edge, Samsung) can install it with one tap: the browser
+   offers a "beforeinstallprompt" event, which we keep and use for the
+   Install button. iPhone and iPad have no such button, so we show the
+   Share > Add to Home Screen steps instead. */
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; render(); });
+window.addEventListener('appinstalled', () => { installPrompt = null; UI.showInstall = false; render(); toast('Netty Pal is on your home screen.'); });
+const INSTALL_CARD_KEY = 'nettyPalInstallCardHidden';
+// Already running from the home screen (no address bar)?
+function isInstalled(){
+  try { if (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches) return true; } catch(e){}
+  return navigator.standalone === true;
+}
+function devicePlatform(){
+  const ua = navigator.userAgent || '';
+  // iPads say they're Macs, but Macs don't have touch screens.
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'other';
+}
+function installCardHidden(){ try { return localStorage.getItem(INSTALL_CARD_KEY) === '1'; } catch(e){ return false; } }
+// A reminder on the home screen until it's installed or put away.
+function installCardHtml(){
+  if (isInstalled() || installCardHidden() || devicePlatform() === 'other') return '';
+  return `<div class="panel install-card">
+      <p style="margin:0 0 0.6rem"><b>Put Netty Pal on your home screen.</b> It opens like an app, full-screen, with no address bar, so it's one tap away on game day.</p>
+      <div class="form-actions" style="justify-content:flex-start">
+        ${installPrompt ? '<button class="btn small" data-action="install-now">Install</button>' : '<button class="btn small" data-action="install-open">Show me how</button>'}
+        <button class="btn ghost small" data-action="install-hide">Not now</button>
+      </div>
+    </div>`;
+}
+function shareIconSvg(){
+  return `<svg class="inline-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+}
+// Step-by-step for both kinds of phone. The phone being used comes first,
+// and the other is folded away (handy for helping another parent).
+function installSheetHtml(){
+  const plat = devicePlatform();
+  const steps = list => `<ol class="install-steps">${list.map(t => `<li>${t}</li>`).join('')}</ol>`;
+  const ios = `<h4 class="mg-head">iPhone or iPad</h4>
+    ${steps([
+      `Open Netty Pal in <b>Safari</b>. (If it opened inside Facebook, Messenger or another app, tap <b>⋯</b> and choose <b>Open in Safari</b> first.)`,
+      `Tap the <b>Share</b> button ${shareIconSvg()} at the bottom of the screen (at the top on an iPad). You may need to tap <b>⋯</b> first.`,
+      `Scroll down and tap <b>Add to Home Screen</b>.`,
+      `If you see <b>Open as Web App</b>, leave it switched on. Tap <b>Add</b>.`,
+      `Open Netty Pal from the new icon on your home screen and sign in once more. (iPhones keep home screen apps separate from Safari, so this is needed once.)`
+    ])}`;
+  const android = `<h4 class="mg-head">Android</h4>
+    ${installPrompt ? `<p style="margin:0.3rem 0 0.6rem"><button class="btn" data-action="install-now">Install Netty Pal</button></p><p class="hint">Or do it yourself:</p>` : ''}
+    ${steps([
+      `Open Netty Pal in <b>Chrome</b>. (If it opened inside Facebook, Messenger or another app, tap <b>⋮</b> and choose <b>Open in Chrome</b> first.)`,
+      `Tap the <b>⋮</b> menu at the top right.`,
+      `Tap <b>Add to Home screen</b> (or <b>Install app</b>), then <b>Install</b>. On a Samsung phone using Samsung Internet: tap <b>≡</b>, then <b>Add page to</b>, then <b>Home screen</b>.`,
+      `Open Netty Pal from the new icon. You'll still be signed in.`
+    ])}`;
+  const first = plat === 'ios' ? ios : android, second = plat === 'ios' ? android : ios;
+  return `<div class="sheet-backdrop" data-action="install-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="install-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="install-title">Install on your phone</h3></div>
+        <button class="btn ghost small" data-action="install-close">Close</button>
+      </div>
+      <div class="sheet-body">
+        <p style="margin:0.8rem 0 0">Netty Pal goes on your home screen like any other app. It opens full-screen, without the address bar. It's free and there's nothing to download from an app store.</p>
+        ${plat === 'other' ? ios + android : `${first}<details class="install-other"><summary>${plat === 'ios' ? 'On Android instead?' : 'On an iPhone or iPad instead?'}</summary>${second}</details>`}
+        <p class="hint">Got an invite link? Tap it and join the team first, then install.</p>
+        <button class="btn big" style="width:100%" data-action="install-close">Done</button>
+      </div>
+    </div>`;
+}
+async function installNow(){
+  if (!installPrompt){ UI.showInstall = true; render(); return; }
+  const p = installPrompt;
+  installPrompt = null;
+  p.prompt();
+  try { await p.userChoice; } catch(e){}
+  render();
+}
+
+/* ---- Deleting your account ----
+   Anyone can delete their Netty Pal account from the home screen. It:
+   - leaves every team season they're in (their name, email and photo are
+     removed from Support Crew),
+   - deletes the players, games and invite links of any season where
+     nobody else is a member (the data would otherwise sit there unused),
+   - deletes their list of teams, and then their sign-in account.
+   A team always keeps a Coach/Manager: if they're the only one and other
+   people are in the team, they must make someone else Coach/Manager first.
+   Firebase only deletes a sign-in account if the person signed in
+   recently, so Google and Facebook users confirm with a quick sign-in
+   popup before anything is deleted. */
+// Looks at each season this person is in and works out what will happen.
+async function planAccountDeletion(){
+  const uid = USER.uid;
+  const ms = await getMembershipDocs();
+  const seasons = await Promise.all(ms.map(async ({ teamId, seasonId }) => {
+    const sRef = doc(db, 'teams', teamId, 'seasons', seasonId);
+    const meSnap = await getDoc(doc(sRef, 'members', uid));
+    if (!meSnap.exists()) return { teamId, seasonId, action:'gone' };
+    const [teamSnap, seasonSnap, membersSnap] = await Promise.all([getDoc(doc(db, 'teams', teamId)), getDoc(sRef), getDocs(collection(sRef, 'members'))]);
+    const others = membersSnap.docs.filter(d => d.id !== uid).map(d => d.data());
+    const coach = (meSnap.data().roles || []).includes('coach');
+    const action = !others.length && coach ? 'delete'
+      : coach && !others.some(m => (m.roles || []).includes('coach')) ? 'blocked' : 'leave';
+    return { teamId, seasonId, action, teamName:teamSnap.exists() ? teamSnap.data().name : 'A team',
+      seasonName:seasonSnap.exists() ? seasonSnap.data().name : '', joinCode:seasonSnap.exists() ? seasonSnap.data().joinCode || '' : '' };
+  }));
+  seasons.sort((a, b) => (a.teamName || '').localeCompare(b.teamName || ''));
+  return seasons;
+}
+async function openDeleteAccount(){
+  UI.deleteAcct = { loading:true }; render();
+  try { UI.deleteAcct = { seasons:await planAccountDeletion() }; }
+  catch (err){ console.warn('Netty Pal: delete plan', err); UI.deleteAcct = { error:true }; }
+  render(); focusSheet();
+}
+function deleteAccountHtml(){
+  const d = UI.deleteAcct;
+  let body;
+  if (d.loading) body = '<div class="loading-state">Checking your teams…</div>';
+  else if (d.error) body = `<p role="alert">Couldn't check your teams just now. This is usually a connection hiccup.</p>
+      <button class="btn small" data-action="delete-account-open">Try again</button>`;
+  else if (d.working) body = `<div class="loading-state" role="status">${escapeHtml(d.working)}</div>`;
+  else if (d.relogin) body = `<p role="alert"><b>Please sign in again first.</b> For your security, an account can only be deleted soon after signing in. Sign out, sign back in with your email link, then come back here and tap <b>Delete my account</b> straight away.</p>
+      <button class="btn" data-action="sign-out">Sign out</button>`;
+  else {
+    const label = s => `<b>${escapeHtml(s.teamName)}</b>${s.seasonName ? ' (' + escapeHtml(s.seasonName) + ')' : ''}`;
+    const list = d.seasons.filter(s => s.action !== 'gone');
+    const blocked = list.filter(s => s.action === 'blocked');
+    const rows = list.map(s => `<li>${label(s)}: ${
+      s.action === 'leave' ? "you'll leave the team. The team keeps its players, games and scores."
+      : s.action === 'delete' ? "nobody else is in this team, so its players, games and scores will be deleted too."
+      : `you're the only Coach/Manager and other people are in this team. Make someone else Coach/Manager in Support Crew first. <button class="btn ghost small" data-action="delete-account-team" data-team="${escapeHtml(s.teamId)}" data-season="${escapeHtml(s.seasonId)}">Open ${escapeHtml(s.teamName)}</button>`}</li>`).join('');
+    body = `<p style="margin:0.8rem 0 0">This permanently deletes your Netty Pal account. It can't be undone.</p>
+      <ul class="delete-list">
+        <li>Your name, email and photo are removed from every team you're in.</li>
+        <li>Your sign-in account is deleted and you'll be signed out.</li>
+        ${list.length ? '' : "<li>You're not in any teams, so nothing else is affected.</li>"}
+      </ul>
+      ${list.length ? `<div class="list-label">Your teams</div><ul class="delete-list">${rows}</ul>` : ''}
+      <p class="hint">Your name may still show on past games you scored. To have that removed too, email <a href="mailto:${OWNER_EMAIL}?subject=Netty%20Pal%20data%20deletion">${OWNER_EMAIL}</a>.</p>
+      ${blocked.length ? `<p class="hint" role="alert"><b>You can't delete your account yet.</b> ${blocked.length === 1 ? 'One team needs' : blocked.length + ' teams need'} another Coach/Manager first (see above).</p>`
+        : `<button class="btn danger big ${isArmed('delete-account') ? 'armed' : ''}" style="width:100%" data-action="delete-account" ${UI.busy ? 'disabled' : ''}>${isArmed('delete-account') ? 'Confirm delete my account' : 'Delete my account'}</button>`}`;
+  }
+  return `<div class="sheet-backdrop" data-action="delete-account-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="delete-title">Delete my account</h3></div>
+        ${d.working ? '' : '<button class="btn ghost small" data-action="delete-account-close">Close</button>'}
+      </div>
+      <div class="sheet-body">${body}</div>
+    </div>`;
+}
+// Google and Facebook users confirm who they are with a quick popup, unless
+// they signed in within the last few minutes. Email-link users can't do that
+// from here, so they're asked to sign in again. Runs before anything is
+// deleted, so nothing is left half done.
+async function confirmRecentSignIn(){
+  const user = auth.currentUser;
+  const last = Date.parse((user.metadata && user.metadata.lastSignInTime) || '') || 0;
+  if (Date.now() - last < 4 * 60000) return true;
+  const ids = (user.providerData || []).map(p => p.providerId);
+  if (ids.includes('google.com')){ await reauthenticateWithPopup(user, new GoogleAuthProvider()); return true; }
+  if (ids.includes('facebook.com')){ await reauthenticateWithPopup(user, new FacebookAuthProvider()); return true; }
+  return false;
+}
+// Deletes a list of documents, in batches (Firestore allows 500 per save).
+async function deleteDocs(refs){
+  for (let i = 0; i < refs.length; i += 400){
+    const batch = writeBatch(db);
+    refs.slice(i, i + 400).forEach(r => batch.delete(r));
+    await batch.commit();
+  }
+}
+// A season nobody else is in: delete its players, games, invite links and
+// code while we're still its Coach/Manager. (The season and team names stay;
+// the security rules don't allow deleting those.)
+async function deleteSeasonData(s){
+  const sRef = doc(db, 'teams', s.teamId, 'seasons', s.seasonId);
+  const [players, games, invites] = await Promise.all([
+    getDocs(collection(sRef, 'players')), getDocs(collection(sRef, 'games')), getDocs(collection(sRef, 'invites'))]);
+  const refs = [...players.docs.map(d => d.ref), ...games.docs.map(d => d.ref)];
+  invites.docs.forEach(d => { refs.push(d.ref); refs.push(doc(db, 'roleInvites', d.id)); });
+  if (s.joinCode) refs.push(doc(db, 'joinCodes', s.joinCode));
+  await deleteDocs(refs);
+}
+async function deleteAccount(){
+  const d = UI.deleteAcct;
+  if (!d || !d.seasons || d.seasons.some(s => s.action === 'blocked')) return;
+  try {
+    if (!(await confirmRecentSignIn())){ UI.deleteAcct = { ...d, relogin:true }; render(); return; }
+  } catch (err){
+    if (String(err && err.code).includes('user-mismatch')){ toast('Please confirm with the same account you signed in with.', true); return; }
+    throw err;
+  }
+  const uid = USER.uid;
+  closeSeason();
+  UI.deleteAcct = { ...d, working:'Deleting your account…' }; render();
+  try {
+    for (const s of d.seasons){
+      if (s.action === 'delete') await deleteSeasonData(s);
+      const batch = writeBatch(db);
+      if (s.action !== 'gone') batch.delete(doc(db, 'teams', s.teamId, 'seasons', s.seasonId, 'members', uid));
+      batch.delete(doc(db, 'users', uid, 'memberships', s.seasonId));
+      await batch.commit();
+    }
+    await deleteUser(auth.currentUser);
+  } catch (err){
+    UI.deleteAcct = { ...d, working:null };
+    if (String(err && err.code).includes('requires-recent-login')){ UI.deleteAcct.relogin = true; render(); return; }
+    throw err;
+  }
+  // Forget this phone's Netty Pal settings too.
+  try { Object.keys(localStorage).filter(k => k.startsWith('nettyPal')).forEach(k => localStorage.removeItem(k)); } catch(e){}
+  UI.deleteAcct = null;
+  toast('Your account has been deleted.');
 }
 
 // Shared season fields for "create team", "new season" and season settings.
@@ -1704,8 +1999,9 @@ function managerGuideHtml(){
       </div>
     </div>`;
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-  const nextBtn = (tab, label) => next
-    ? `<button class="btn ghost small" data-action="mg-game" data-game="${escapeHtml(next.id)}" data-tab="${tab}">${label}: ${escapeHtml(gameTitle(next))}</button>` : '';
+  // The button names the next game, e.g. "Hawks 11U vs Eagles".
+  const nextBtn = tab => next
+    ? `<button class="btn ghost small" data-action="mg-game" data-game="${escapeHtml(next.id)}" data-tab="${tab}">${escapeHtml(CUR.team ? CUR.team.name + ' ' : '')}${escapeHtml(gameTitle(next))}</button>` : '';
   return `<div class="sheet-backdrop" data-action="mg-close"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mg-title">
       <div class="sheet-head">
@@ -1725,8 +2021,8 @@ function managerGuideHtml(){
           s.others ? plural(s.others, 'person has', 'people have') + ' joined' : 'Nobody yet',
           `<button class="btn small" data-action="share-code">${navigator.share ? 'Send the team link' : 'Copy the team link'}</button>`)}
         <h4 class="mg-head">Before each game</h4>
-        ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail', 'Open'))}
-        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" shows who has played where, to help keep it fair.`, '', nextBtn('lineup', 'Open'))}
+        ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail'))}
+        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" shows who has played where, to help keep it fair.`, '', nextBtn('lineup'))}
         ${step(3, false, 'Assign a scorer', `Ask a parent to keep score on their phone. They need the Scorer role: in Support Crew, tap Scorer next to their name, or send them a Scorer invite link from there. On game day they open the game and tap Start when the umpire starts play. You can score too. Only one person can score at a time, but scoring can be passed from one Scorer to another in the Support Crew tab (or with Hand over scoring at a break). ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
           '<button class="btn ghost small" data-action="mg-tab" data-tab="people">Go to Support Crew</button>')}
         <p class="hint">On game day, Netty Pal reminds you on the Games tab if the lineup isn't finished. New to scoring? Try a practice game: nothing is saved.</p>
@@ -1989,10 +2285,10 @@ function renderLineupTab(g){
   if (editable){
     if (p === 1 && ownPlan(g, 1) && isPeriodPlanned(g, 1)){
       tools = `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
-        ${isArmed('clear-period') ? 'Tap again to clear' : 'Clear ' + escapeHtml(periodName(g, 1))}</button>`;
+        ${isArmed('clear-period') ? 'Confirm clear ' + escapeHtml(periodName(g, 1)) : 'Clear ' + escapeHtml(periodName(g, 1))}</button>`;
     } else if (p > 1 && ownPlan(g, p)){
       tools = `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
-        ${isArmed('clear-period') ? 'Tap again to undo changes' : 'Reset to match ' + prevName}</button>`;
+        ${isArmed('clear-period') ? 'Confirm reset to match ' + prevName : 'Reset to match ' + prevName}</button>`;
     }
     tools = tools ? `<div class="lineup-tools">${tools}</div>` : '';
   }
@@ -2334,7 +2630,7 @@ function renderLiveTab(g){
       </div>`;
     if (final && isManager()) body += `<div class="lineup-tools">
         <button class="btn ghost small ${isArmed('unlock-game') ? 'armed' : ''}" data-action="unlock-game">
-          ${isArmed('unlock-game') ? 'Tap again to unlock for corrections' : 'Unlock for corrections'}</button></div>`;
+          ${isArmed('unlock-game') ? 'Confirm unlock for corrections' : 'Unlock for corrections'}</button></div>`;
   }
 
   body += liveStatsHtml(g, st);
@@ -2374,7 +2670,7 @@ function livePlayHtml(g, st, scoring){
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
         <button class="btn ghost small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
-          ${isArmed('end-period') ? 'Tap again' : 'End ' + escapeHtml(periodName(g, L.period))}</button>
+          ${isArmed('end-period') ? 'Confirm end ' : 'End '}${escapeHtml(periodName(g, L.period))}</button>
       </div>`;
   }
 
@@ -2530,7 +2826,7 @@ function scoreboardHtml(g, st){
     if (st.centre !== t) return `<span class="cp-mark ghost" aria-hidden="true">${cpBallSvg()}</span>`;
     if (!scoring) return `<span class="cp-mark" role="img" aria-label="Next centre pass: ${escapeHtml(teamLabel(g, t))}">${cpBallSvg()}</span>`;
     return `<button class="cp-mark ${armedCp ? 'armed' : ''}" data-action="swap-centre" aria-label="${armedCp
-        ? `Tap again to switch the centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
+        ? `Confirm switch centre pass to ${escapeHtml(teamLabel(g, otherTeam(t)))}`
         : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Double tap to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
   };
   let play = '', help = '';
@@ -2564,7 +2860,7 @@ function scorerBarHtml(g){
   // other by accident.
   const armedTake = isArmed('take-over');
   const takeLabel = !armedTake ? 'Take over scoring'
-    : g.scorerUid ? `Take over from ${escapeHtml(who)}? Tap again` : 'Tap again to score this game';
+    : g.scorerUid ? `Confirm take over from ${escapeHtml(who)}` : 'Confirm score this game';
   return `<div class="scorer-bar"><span>${g.scorerUid ? escapeHtml(who) + ' is scoring.' : 'Nobody is scoring.'}</span>
     ${canScore() ? `<button class="btn small ${armedTake ? 'armed' : ''}" data-action="take-over">${takeLabel}</button>` : ''}</div>`;
 }
@@ -2741,7 +3037,7 @@ function timelineHtml(g, full, editable){
           ${playerOpts.map(id => `<option value="${escapeHtml(id)}" ${id === e.playerId ? 'selected' : ''}>${escapeHtml(playerName(id))}</option>`).join('')}
         </select>` : ''}
         <button class="btn danger small ${isArmed(rmKey) ? 'armed' : ''}" data-action="remove-event" data-event="${escapeHtml(e.id)}">
-          ${isArmed(rmKey) ? 'Tap again' : 'Remove'}</button>`;
+          ${isArmed(rmKey) ? 'Confirm remove' : 'Remove'}</button>`;
     }
     return `<div class="event-row ${isOurs ? '' : 'opp'}"><span class="event-when">${when}</span>
       <span class="event-what grow">${escapeHtml(isOurs && editable ? STAT_LABEL[e.type] + (e.pos ? ' (' + e.pos + ')' : '') : eventText(g, e))}</span>${controls}</div>`;
@@ -3143,7 +3439,7 @@ function renderDetailsTab(g){
     <div class="danger-zone">
       <button class="btn ghost small" data-action="archive-ask" data-game="${escapeHtml(g.id)}">${g.archived ? 'Restore game' : 'Archive game'}</button>
       <button class="btn danger small ${isArmed(delKey) ? 'armed' : ''}" data-action="delete-game">
-        ${isArmed(delKey) ? 'Tap again to delete this game' : 'Delete game'}</button>
+        ${isArmed(delKey) ? 'Confirm delete game' : 'Delete game'}</button>
     </div>
     ${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
@@ -3197,7 +3493,7 @@ function renderPeopleTab(){
       <div class="code-actions">
         <button class="btn small" data-action="share-code">${navigator.share ? 'Send invite link' : 'Copy invite link'}</button>
         ${manager ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
-          ${isArmed(regenKey) ? 'Tap again: old link and code stop working' : 'New code'}</button>` : ''}
+          ${isArmed(regenKey) ? 'Confirm new code (old link and code stop working)' : 'New code'}</button>` : ''}
       </div>
       <span class="label" style="margin-top:0.3rem">Team code</span>
       <span class="code-value">${escapeHtml(s.joinCode || '')}</span>
@@ -3226,7 +3522,7 @@ function renderPeopleTab(){
         </div>
         ${isMe || onlyCoach ? '' : `<div class="member-actions">
           <button class="btn danger small ${isArmed(rmKey) ? 'armed' : ''}" data-action="remove-member" data-member="${escapeHtml(m.id)}">
-            ${isArmed(rmKey) ? 'Tap again to remove' : 'Remove'}</button>
+            ${isArmed(rmKey) ? 'Confirm remove ' + escapeHtml(m.name || 'person') : 'Remove'}</button>
         </div>`}
       </div>`;
   }).join('');
@@ -3237,7 +3533,7 @@ function renderPeopleTab(){
     ? `<p class="hint danger-zone">You're the only Coach/Manager. To leave this season, make someone else Coach/Manager first.</p>`
     : `<div class="danger-zone">
       <button class="btn danger small ${isArmed(leaveKey) ? 'armed' : ''}" data-action="leave-season">
-        ${isArmed(leaveKey) ? 'Tap again to leave' : 'Leave this season'}</button>
+        ${isArmed(leaveKey) ? 'Confirm leave season' : 'Leave this season'}</button>
     </div>`;
 
   // Games being played now: who's scoring, and (for a Coach/Manager or the
@@ -3272,7 +3568,7 @@ function renderPeopleTab(){
               <span class="grow"><span class="pname">${escapeHtml(ROLE_LABEL[i.role] || i.role)} link</span>
                 <span class="psub">${[i.createdByName ? 'Made by ' + escapeHtml(i.createdByName) : '', escapeHtml(when)].filter(Boolean).join(' · ')}</span></span>
               <button class="btn ghost small" data-action="role-invite-resend" data-code="${escapeHtml(i.id)}" data-role="${escapeHtml(i.role)}">Send again</button>
-              <button class="btn danger small ${isArmed(key) ? 'armed' : ''}" data-action="role-invite-cancel" data-code="${escapeHtml(i.id)}">${isArmed(key) ? 'Tap again' : 'Cancel'}</button>
+              <button class="btn danger small ${isArmed(key) ? 'armed' : ''}" data-action="role-invite-cancel" data-code="${escapeHtml(i.id)}">${isArmed(key) ? 'Confirm cancel link' : 'Cancel'}</button>
             </div>`;
           }).join('')}` : ''}
       </div>`;
@@ -3679,7 +3975,7 @@ async function regenerateCode(){
 async function shareInvite(teamName, seasonName, code){
   if (!code){ toast("This team's code couldn't be found. Ask your coach/manager to send the invite.", true); return; }
   const url = `${location.origin}${location.pathname}?join=${encodeURIComponent(code)}`;
-  const text = `Join ${teamName} (${seasonName}) on Netty Pal: ${url}\n\nTap the link and sign in. That's it: you don't need the code. (If the link doesn't work, open Netty Pal, tap Join with Team Code and enter ${code}.)`;
+  const text = `Join ${teamName} (${seasonName}) on Netty Pal: ${url}\n\nTap the link and sign in. That's it: you don't need the code. (If the link doesn't work, open Netty Pal, tap Join with Team Code and enter ${code}.)\n\nOnce you've joined, tap "Install on your phone" in Netty Pal to put it on your home screen.`;
   if (navigator.share){
     try { await navigator.share({ title:'Netty Pal', text }); } catch(e){ /* cancelled */ }
     return;
@@ -4652,6 +4948,7 @@ document.addEventListener('click', async (e) => {
       UI.signin = null; render();
     } else if (a === 'sign-out'){
       closeSeason();
+      UI.deleteAcct = null; UI.showInstall = false;
       await signOut(auth);
     } else if (a === 'show-form'){
       UI.form = btn.dataset.formName; render();
@@ -4720,8 +5017,32 @@ document.addEventListener('click', async (e) => {
       else await createRoleInvite(btn.dataset.role, it);
     } else if (a === 'invite-close'){
       UI.invitePick = false; render();
+    } else if (a === 'install-open'){
+      UI.showInstall = true; render(); focusSheet();
+    } else if (a === 'install-close'){
+      UI.showInstall = false; render();
+    } else if (a === 'install-now'){
+      await installNow();
+    } else if (a === 'install-hide'){
+      try { localStorage.setItem(INSTALL_CARD_KEY, '1'); } catch(e){}
+      render(); toast(USER ? 'You can still install it from the bottom of this screen.' : 'You can install it later from the bottom of the home screen.');
+    } else if (a === 'delete-account-open'){
+      await openDeleteAccount();
+    } else if (a === 'delete-account-close'){
+      disarm('delete-account'); UI.deleteAcct = null; render();
+    } else if (a === 'delete-account-team'){
+      disarm('delete-account'); UI.deleteAcct = null;
+      openSeason(btn.dataset.team, btn.dataset.season);
+      UI.tab = 'people'; saveNav(); render();
+    } else if (a === 'delete-account'){
+      if (!isArmed('delete-account')) return arm('delete-account');
+      disarm('delete-account'); await runBusy(deleteAccount);
     } else if (a === 'owner-teams'){
       await loadOwnerTeams();
+    } else if (a === 'owner-delete-team'){
+      const key = 'del-team-' + btn.dataset.team;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); await runBusy(() => deleteTeam(btn.dataset.team));
     } else if (a === 'owner-teams-hide'){
       HOME.all = null; render();
     } else if (a === 'mg-open'){
