@@ -55,6 +55,19 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Joining: sign in with Google, enter code, become a Viewer of that season.
 - A Coach/Manager can remove a member and regenerate the code if it gets passed around.
 
+### Your account (added 2026-10-03)
+- **Delete my account** (bottom of the home screen): leaves every season (removes the
+  person's member record and their list of teams), deletes the players, games, invite links
+  and code of any season where nobody else is a member, then deletes the sign-in account.
+  Season and team names stay (the rules don't allow deleting them). Not allowed while they're
+  the only Coach/Manager of a season other people are in. Google and Facebook users confirm
+  with a sign-in popup first; email-link users are asked to sign in again. No rule changes
+  were needed: it only uses permissions members and Coach/Managers already have.
+- **Install on your phone**: a home screen card (until installed or put away) and a link at
+  the bottom of the home screen open step-by-step instructions for iPhone/iPad and Android.
+  Android browsers that support it get a one-tap Install button.
+- Confirmation buttons read "Confirm [action]" on the second tap (e.g. "Confirm delete game").
+
 ---
 
 ## 3. Teams, seasons, roster
