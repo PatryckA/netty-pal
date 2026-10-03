@@ -41,6 +41,12 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   and manage every team without being a member, and can list every team from the home
   screen. Nobody else sees this.
 - Any member can send the invite link from the home screen ("Invite someone to a team").
+- (Added 2026-10-03.) **Role invite links**: in Support Crew, a Coach/Manager can send
+  "Invite a Coach/Manager" or "Invite a Scorer". It's a one-time link (a long random code
+  in the usual `?join=` link): the first person to use it joins with that role, and the
+  link stops working. Unused links are listed there and can be sent again or cancelled.
+  Stored as `roleInvites/{code}` (teamId, seasonId, role) plus the season's
+  `invites/{code}` (role, createdAt, createdByName); both are deleted when it's used.
 
 ### Season code
 - One code per team season. **Never expires.**

@@ -1235,11 +1235,11 @@ function renderSignedOut(){
     : `<div class="welcome">
         <p class="welcome-lead"><b>Welcome to Netty Pal</b>, an app for your netball team where:</p>
         <ul>
-          <li>someone keeps score on their phone</li>
-          <li>everyone can see a live scoreboard, plus simple game and season stats</li>
-          <li>you can share the scoreboard with friends and family.</li>
+          <li>Someone keeps score on their phone.</li>
+          <li>Everyone can see a live scoreboard, plus simple game and season stats.</li>
+          <li>You can share the scoreboard with friends and family.</li>
         </ul>
-        <p class="fine">Netty Pal doesn't replace Netball HQ, the official app for fixtures and court numbers.</p>
+        <p class="fine">Netty Pal doesn't replace NetballHQ, the official app for fixtures and court numbers.</p>
       </div>`;
   let panel;
   if (UI.signin === 'sent'){
@@ -1685,13 +1685,13 @@ function managerGuideHtml(){
         ${step(2, s.games > 0, 'Add the games', "Add each game from the competition's draw (who you're playing, when and where). You can import the whole season at once from the draw's PDF.",
           s.games ? plural(s.games, 'game', 'games') + ' added' : 'Not done yet',
           '<button class="btn ghost small" data-action="mg-tab" data-tab="games">Go to Games</button>')}
-        ${step(3, s.others > 0, 'Invite the parents', 'Send the team link to your parents\' group chat. They tap it, sign in, and can follow every game live. You can make some of them Scorers or Coach/Managers in Support Crew.',
+        ${step(3, s.others > 0, 'Invite the parents', 'Send the team link to your parents\' group chat. They tap it, sign in, and can follow every game live. You can make some of them Scorers or Coach/Managers in Support Crew, or send someone a one-time invite link that gives them the role straight away.',
           s.others ? plural(s.others, 'person has', 'people have') + ' joined' : 'Nobody yet',
           `<button class="btn small" data-action="share-code">${navigator.share ? 'Send the team link' : 'Copy the team link'}</button>`)}
         <h4 class="mg-head">Before each game</h4>
         ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail', 'Open'))}
         ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" shows who has played where, to help keep it fair.`, '', nextBtn('lineup', 'Open'))}
-        ${step(3, false, 'Assign a scorer', `Ask a parent to keep score on their phone. They need the Scorer role (in Support Crew, tap Scorer next to their name). On game day they open the game and tap Start when the umpire starts play. You can score too. Only one person can score at a time, but scoring can be passed from one Scorer to another in the Support Crew tab (or with Hand over scoring at a break). ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
+        ${step(3, false, 'Assign a scorer', `Ask a parent to keep score on their phone. They need the Scorer role: in Support Crew, tap Scorer next to their name, or send them a Scorer invite link from there. On game day they open the game and tap Start when the umpire starts play. You can score too. Only one person can score at a time, but scoring can be passed from one Scorer to another in the Support Crew tab (or with Hand over scoring at a break). ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
           '<button class="btn ghost small" data-action="mg-tab" data-tab="people">Go to Support Crew</button>')}
         <p class="hint">On game day, Netty Pal reminds you on the Games tab if the lineup isn't finished. New to scoring? Try a practice game: nothing is saved.</p>
         <button class="btn big" style="width:100%" data-action="mg-close">Got it</button>
@@ -3192,7 +3192,34 @@ function renderPeopleTab(){
     </div>`;
   }).join('');
 
+  // One-time links that give someone a role as they join.
+  let helpers = '';
+  if (manager){
+    watchInvites();
+    const pending = (CUR.invites || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    helpers = `<div class="panel">
+        <h4>Invite a helper</h4>
+        <p style="margin:0 0 0.6rem">Send one person a link that makes them a Coach/Manager or a Scorer as soon as they join. Each link works once.</p>
+        <div class="lineup-tools" style="margin-bottom:0">
+          <button class="btn small" data-action="role-invite" data-role="coach">Invite a Coach/Manager</button>
+          <button class="btn small" data-action="role-invite" data-role="scorer">Invite a Scorer</button>
+        </div>
+        ${pending.length ? `<div class="list-label">Links not used yet</div>
+          ${pending.map(i => {
+            const key = 'rm-inv-' + i.id;
+            const when = i.createdAt ? new Date(i.createdAt.toMillis ? i.createdAt.toMillis() : i.createdAt).toLocaleDateString('en-AU', { day:'numeric', month:'short' }) : '';
+            return `<div class="list-row" style="padding-left:0; padding-right:0">
+              <span class="grow"><span class="pname">${escapeHtml(ROLE_LABEL[i.role] || i.role)} link</span>
+                <span class="psub">${[i.createdByName ? 'Made by ' + escapeHtml(i.createdByName) : '', escapeHtml(when)].filter(Boolean).join(' · ')}</span></span>
+              <button class="btn ghost small" data-action="role-invite-resend" data-code="${escapeHtml(i.id)}" data-role="${escapeHtml(i.role)}">Send again</button>
+              <button class="btn danger small ${isArmed(key) ? 'armed' : ''}" data-action="role-invite-cancel" data-code="${escapeHtml(i.id)}">${isArmed(key) ? 'Tap again' : 'Cancel'}</button>
+            </div>`;
+          }).join('')}` : ''}
+      </div>`;
+  }
+
   return `${codeCard}
+    ${helpers}
     ${scoringPanel}
     <h3 class="subhead">Support Crew <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
     <div class="list-card">${rows}</div>
@@ -3601,6 +3628,89 @@ async function shareInvite(teamName, seasonName, code){
   catch(e){ toast('Copy failed. The code is ' + code, true); }
 }
 function shareCode(){ return shareInvite(CUR.team.name, CUR.season.name, CUR.season.joinCode); }
+
+/* ---- Role invite links ----
+   A Coach/Manager can send someone a one-time link that makes them a
+   Coach/Manager or Scorer as soon as they join. It uses the same ?join=
+   link as the team code, but with a much longer code (so it can't be
+   guessed), which is how the two are told apart. Each link is saved twice:
+   roleInvites/{code} (looked up by the person joining) and the season's
+   invites/{code} (so Coach/Managers can see and cancel unused links).
+   Using the link deletes both, so it only ever works once. */
+const ROLE_CODE_LENGTH = 14;
+const ROLE_LABEL = { coach:'Coach/Manager', scorer:'Scorer' };
+function isRoleCode(code){ return String(code || '').length >= 12; }
+function randomRoleCode(){
+  const bytes = new Uint32Array(ROLE_CODE_LENGTH);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
+}
+function roleInviteText(role, code){
+  const url = `${location.origin}${location.pathname}?join=${encodeURIComponent(code)}`;
+  return `You're invited to be a ${ROLE_LABEL[role]} for ${CUR.team.name} (${CUR.season.name}) on Netty Pal: ${url}\n\nTap the link and sign in. This link works once, for one person, so please don't pass it on.`;
+}
+// Saving starts first, but the share menu opens straight away without
+// waiting for it (phones only allow sharing right after a tap).
+async function createRoleInvite(role){
+  if (!ROLE_LABEL[role]) return;
+  const code = randomRoleCode();
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'roleInvites', code), { teamId:UI.teamId, seasonId:UI.seasonId, role, createdAt:serverTimestamp() });
+  batch.set(doc(seasonRef(), 'invites', code), { role, createdAt:serverTimestamp(), createdByName:memberProfile().name });
+  const saving = batch.commit();
+  await sendRoleInvite(role, code);
+  try { await saving; }
+  catch (err){ fail(err); toast("That invite link couldn't be saved, so it won't work. Please try again.", true); }
+}
+async function sendRoleInvite(role, code){
+  const text = roleInviteText(role, code);
+  if (navigator.share){
+    try { await navigator.share({ title:'Netty Pal', text }); } catch(e){ /* cancelled: the link stays in the list */ }
+    return;
+  }
+  try { await navigator.clipboard.writeText(text); toast(`${ROLE_LABEL[role]} invite copied. Send it to one person.`); }
+  catch(e){ toast("Couldn't copy the invite.", true); }
+}
+async function cancelRoleInvite(code){
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'roleInvites', code));
+  batch.delete(doc(seasonRef(), 'invites', code));
+  await batch.commit();
+  toast('Invite link cancelled. It no longer works.');
+}
+// Keeps the unused invite links up to date while a Coach/Manager has the
+// Support Crew tab open (only they're allowed to read them).
+function watchInvites(){
+  if (CUR.invitesFor === UI.seasonId) return;
+  if (CUR.invitesUnsub) CUR.invitesUnsub();
+  CUR.invitesFor = UI.seasonId;
+  CUR.invites = null;
+  CUR.invitesUnsub = onSnapshot(collection(seasonRef(), 'invites'), (snap) => {
+    CUR.invites = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    render();
+  }, (err) => { console.warn('Netty Pal: invites', err); CUR.invites = []; render(); });
+  CUR.unsubs.push(() => { if (CUR.invitesUnsub) CUR.invitesUnsub(); });
+}
+// Accepting a role invite: join (or, if already in the season, add the
+// role) and use up the link, all in one save.
+async function acceptRoleInvite(inv){
+  const { code, role, teamId, seasonId } = inv;
+  const memberRef = doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid);
+  const existing = await getDoc(memberRef);
+  const batch = writeBatch(db);
+  if (existing.exists()){
+    const roles = Array.from(new Set([...(existing.data().roles || []), role]));
+    batch.update(memberRef, { roles, invite:code });
+  } else {
+    batch.set(memberRef, { ...memberProfile(), roles:[role], invite:code, joinedAt:serverTimestamp() });
+  }
+  batch.delete(doc(db, 'roleInvites', code));
+  batch.delete(doc(db, 'teams', teamId, 'seasons', seasonId, 'invites', code));
+  batch.set(doc(db, 'users', USER.uid, 'memberships', seasonId), { teamId, seasonId });
+  await batch.commit();
+  toast(`You're now a ${ROLE_LABEL[role]} for ${inv.teamName}.`);
+  openSeason(teamId, seasonId);
+}
 
 async function saveTeamSettings(fd){
   const name = String(fd.get('teamName') || '').trim();
@@ -4486,7 +4596,8 @@ document.addEventListener('click', async (e) => {
       const inv = HOME.invite;
       if (!inv) return;
       if (inv.already){ clearInvite(); openSeason(inv.teamId, inv.seasonId); return; }
-      await runBusy(async () => { await joinByCode(inv.code); clearInvite(); });
+      if (inv.role) await runBusy(async () => { await acceptRoleInvite(inv); clearInvite(); });
+      else await runBusy(async () => { await joinByCode(inv.code); clearInvite(); });
     } else if (a === 'dismiss-invite'){
       clearInvite(); render();
     } else if (a === 'retry-invite'){
@@ -4626,6 +4737,14 @@ document.addEventListener('click', async (e) => {
       disarm('swap-centre');
       const g = findGame(UI.gameId);
       if (g && isInPlay(g)) await swapCentre(g);
+    } else if (a === 'role-invite'){
+      await createRoleInvite(btn.dataset.role);
+    } else if (a === 'role-invite-resend'){
+      await sendRoleInvite(btn.dataset.role, btn.dataset.code);
+    } else if (a === 'role-invite-cancel'){
+      const key = 'rm-inv-' + btn.dataset.code;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); await cancelRoleInvite(btn.dataset.code);
     } else if (a === 'handover-open'){
       UI.handover = btn.dataset.game; render(); focusSheet();
     } else if (a === 'handover-close'){
@@ -4951,15 +5070,18 @@ async function lookupInvite(){
   HOME.invite = { code, loading:true };
   render();
   try {
-    const codeSnap = await getDoc(doc(db, 'joinCodes', code));
-    if (!codeSnap.exists()){ HOME.invite = { code, bad:true }; render(); return; }
+    // A long code is a one-time role invite; a short one is the team code.
+    const role = isRoleCode(code);
+    const codeSnap = await getDoc(doc(db, role ? 'roleInvites' : 'joinCodes', code));
+    if (!codeSnap.exists()){ HOME.invite = { code, bad:true, role }; render(); return; }
     const { teamId, seasonId } = codeSnap.data();
     const [teamSnap, memberSnap] = await Promise.all([
       getDoc(doc(db, 'teams', teamId)),
       getDoc(doc(db, 'teams', teamId, 'seasons', seasonId, 'members', USER.uid))
     ]);
     HOME.invite = { code, teamId, seasonId, teamName:teamSnap.exists() ? teamSnap.data().name : 'a team',
-      already:memberSnap.exists() };
+      role: role ? codeSnap.data().role : null,
+      already: memberSnap.exists() && (!role || (memberSnap.data().roles || []).includes(codeSnap.data().role)) };
   } catch (err){
     console.warn('Netty Pal: invite lookup', err);
     HOME.invite = { code, error:true };
@@ -4972,7 +5094,8 @@ function inviteHtml(){
   if (!inv) return '';
   if (inv.loading) return '<div class="panel invite-panel">Checking your invite…</div>';
   if (inv.bad) return `<div class="panel invite-panel" role="alert">
-      <p>That invite link isn't valid any more (the team may have made a new code). Ask your coach/manager for a new link.</p>
+      <p>${inv.role ? 'That invite link has already been used or was cancelled. Each one only works once. Ask your coach/manager for a new link.'
+        : "That invite link isn't valid any more (the team may have made a new code). Ask your coach/manager for a new link."}</p>
       <button class="btn ghost small" data-action="dismiss-invite">OK</button></div>`;
   if (inv.error) return `<div class="panel invite-panel" role="alert">
       <p>Couldn't check your invite just now.</p>
@@ -4980,12 +5103,13 @@ function inviteHtml(){
         <button class="btn small" data-action="retry-invite">Try again</button>
         <button class="btn ghost small" data-action="dismiss-invite">Not now</button></div></div>`;
   if (inv.already) return `<div class="panel invite-panel">
-      <p>You're already in <b>${escapeHtml(inv.teamName)}</b>.</p>
+      <p>You're already ${inv.role ? 'a ' + ROLE_LABEL[inv.role] + ' in' : 'in'} <b>${escapeHtml(inv.teamName)}</b>.</p>
       <button class="btn small" data-action="accept-invite">Open team</button></div>`;
   return `<div class="panel invite-panel">
-      <p>You've been invited to join <b>${escapeHtml(inv.teamName)}</b>.</p>
+      <p>${inv.role ? `You've been invited to be a <b>${ROLE_LABEL[inv.role]}</b> for <b>${escapeHtml(inv.teamName)}</b>.`
+        : `You've been invited to join <b>${escapeHtml(inv.teamName)}</b>.`}</p>
       <div class="form-actions" style="justify-content:flex-start">
-        <button class="btn" data-action="accept-invite" ${UI.busy ? 'disabled' : ''}>Join team</button>
+        <button class="btn" data-action="accept-invite" ${UI.busy ? 'disabled' : ''}>${inv.role ? 'Accept' : 'Join team'}</button>
         <button class="btn ghost" data-action="dismiss-invite">Not now</button></div></div>`;
 }
 
