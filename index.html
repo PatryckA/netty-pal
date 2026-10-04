@@ -112,6 +112,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .btn.small{padding:0.35rem 0.65rem; font-size:0.78rem;}
 .btn.big{padding:0.8rem 1.4rem; font-size:1rem;}
 .btn.danger{background:none; color:var(--critical); border-color:var(--critical);}
+.btn.time-up{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
 .btn.danger.armed,.btn.armed{background:var(--critical); color:#fff; border-color:var(--critical);}
 .btn:disabled{opacity:0.55; cursor:default;}
 .text-input,.select-input{
@@ -506,6 +507,7 @@ button.cp-mark{cursor:pointer;}
 
 /* Scoring modes and position tiles */
 .mode-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem;}
+.time-up-note{margin:0.2rem 0 0.5rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--pop); color:var(--pop-ink); font-size:0.85rem; font-weight:700; text-align:center;}
 .mode-tabs{display:flex; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-pill); padding:2px;}
 .mode-tab{border:none; background:none; padding:0.35rem 0.75rem; border-radius:var(--r-pill); font-size:0.78rem; font-weight:800; color:var(--ink-soft); cursor:pointer; font-family:var(--font-body);}
 .mode-tab.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px var(--shadow);}
@@ -1067,6 +1069,9 @@ function periodStartCentre(g, p){
   return p % 2 === 1 ? first : otherTeam(first);
 }
 function isInPlay(g){ const ph = g.live && g.live.phase; return g.status === 'live' && (ph === 'running' || ph === 'paused'); }
+// The clock has reached 0:00 but the scorer hasn't ended the period yet, so a
+// shot that was in the air on the whistle can still be recorded.
+function isTimeUp(g){ return isInPlay(g) && elapsedMs(g) >= periodMs(g); }
 function isGameOver(g){
   return g.status === 'final' || (g.status === 'live' && !!g.live && g.live.phase === 'ended' && g.live.period >= periodCount(g));
 }
@@ -2668,14 +2673,17 @@ function livePlayHtml(g, st, scoring){
 
   let controls = '';
   if (scoring){
+    // At 0:00 the End button stands out, with a reminder to add any last shot.
+    const timeUp = isTimeUp(g);
     controls = `<div class="mode-row">
         <div class="mode-tabs" role="tablist" aria-label="Scoring mode">
           <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Goal/Miss first</button>
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
-        <button class="btn ghost small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
+        <button class="btn ${timeUp ? 'time-up' : 'ghost'} small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
           ${isArmed('end-period') ? 'Confirm end ' : 'End '}${escapeHtml(periodName(g, L.period))}</button>
-      </div>`;
+      </div>
+      ${timeUp ? `<p class="time-up-note" role="status">Time. Add any last goal or miss, then tap End ${escapeHtml(periodName(g, L.period))}.</p>` : ''}`;
   }
 
   let pane;
@@ -2819,7 +2827,7 @@ function scoreboardHtml(g, st){
     // The scorer's Pause/Resume button already shows whether the clock is
     // running, so no word is needed there (it would crowd the centre pass).
     // Followers have no button, so they still see "Paused".
-    phase = !isInPlay(g) ? breakName(g, L.period) : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
+    phase = !isInPlay(g) ? breakName(g, L.period) : isTimeUp(g) ? 'Time' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
     clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
   }
   // Next centre pass: a small netball under the team that takes it. The other
@@ -2837,7 +2845,8 @@ function scoreboardHtml(g, st){
   };
   let play = '', help = '';
   if (scoring && isInPlay(g)){
-    play = L.phase === 'running'
+    // No Pause/Resume at 0:00: there's no time left to play.
+    play = isTimeUp(g) ? '' : L.phase === 'running'
       ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg><span class="play-label">Pause</span></button>`
       : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span class="play-label">Resume</span></button>`;
     help = '<button class="help-btn" data-action="show-guide" aria-label="How to score"><b aria-hidden="true">?</b><span class="play-label">Help</span></button>';
@@ -3113,6 +3122,7 @@ function progressLineHtml(g){
   const q = escapeHtml(periodName(g, L.period));
   // At a break the heading already says "Half time" etc.
   if (!isInPlay(g)) return '';
+  if (isTimeUp(g)) return `<div class="progress-line">${q} · Time</div>`;
   return `<div class="progress-line">${q} · <span data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</span> left${L.phase === 'paused' ? ' · clock paused' : ''}</div>`;
 }
 
@@ -5206,7 +5216,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'pause-clock'){
       const g = findGame(UI.gameId); if (g) await pauseClock(g);
     } else if (a === 'resume-clock'){
-      const g = findGame(UI.gameId); if (g) await resumeClock(g);
+      const g = findGame(UI.gameId); if (g && !isTimeUp(g)) await resumeClock(g);
     } else if (a === 'end-period'){
       if (!isArmed('end-period')) return arm('end-period');
       disarm('end-period');
@@ -5420,10 +5430,11 @@ document.addEventListener('touchend', (e) => {
 }, { passive:true });
 
 /* ---------------------------------------------------------------------
-   Game clock. Ticks the clock on screen, and on the scorer's phone ends
-   the period at 0:00 (with a vibration) and keeps the screen awake.
+   Game clock. Ticks the clock on screen, and on the scorer's phone stops
+   the clock at 0:00 (with a vibration) and keeps the screen awake. The
+   scorer then ends the period, after adding any shot from the whistle.
 --------------------------------------------------------------------- */
-let autoEndedKey = null, tickCount = 0;
+let timeUpKey = null, tickCount = 0;
 let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
   const g = UI.view === 'game' ? findGame(UI.gameId) : null;
@@ -5440,11 +5451,10 @@ setInterval(() => {
     tiles.forEach(t => { const id = t.dataset.ptime; if (id) t.textContent = fmtMins((st.players[id] || {}).ms || 0); });
   }
   const key = g.id + ':' + g.live.period;
-  if (g.live.phase === 'running' && amScorer(g) && elapsedMs(g) >= periodMs(g) && autoEndedKey !== key){
-    autoEndedKey = key;
+  if (g.live.phase === 'running' && amScorer(g) && elapsedMs(g) >= periodMs(g) && timeUpKey !== key){
+    timeUpKey = key;
     if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
-    endPeriod(g).then(() => toast(`${breakName(g, g.live.period)}.`))
-      .catch(err => { autoEndedKey = null; fail(err); });
+    pauseClock(g).catch(err => { timeUpKey = null; fail(err); });
   }
 }, 250);
 
