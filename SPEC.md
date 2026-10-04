@@ -171,7 +171,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Floating **Undo** and **Redo**.
 
 ### After the game
-- Scorer or Coach can **correct the timeline** (add, remove or reassign events),
+- The full-time **Timeline** is shown only to Coach/Managers and Scorers (viewers
+  don't see it). Scorer or Coach can **correct the timeline** (add, remove or reassign events),
   then tap **Finalise** to lock the game. A Coach/Manager can unlock it if needed.
 
 ### Centre pass
