@@ -570,6 +570,7 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .pt-name{font-size:0.85rem; font-weight:700; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .pt-name.empty{font-style:italic; opacity:0.7;}
 .pt-time{font-size:0.72rem; font-variant-numeric:tabular-nums; opacity:0.8; min-height:0.9rem;}
+.pt-team{font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; opacity:0.85; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .ev-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;}
 .evbtn{padding:1rem; font-size:1.2rem; font-weight:800; border-radius:var(--r); border:2px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:var(--font-body);}
 .evbtn.goal.on{background:var(--pop); border-color:var(--pop); color:var(--pop-ink);}
@@ -2653,11 +2654,14 @@ function livePlayHtml(g, st, scoring){
     const shooter = SHOOTERS.includes(pos);
     const cls = `ptile ${side === 'them' ? 'opp' : ''} ${side === 'us' && shooter ? 'shooter' : ''} ${opts.wide ? 'wide' : ''} ${opts.dim ? 'dim' : ''}`;
     const label = side === 'them' ? (pos ? `${teamLabel(g, 'them')} ${pos}` : `${teamLabel(g, 'them')}, team`) : `${POS_NAMES[pos]}, ${pid ? playerName(pid) : 'empty'}`;
-    // The other team has one tile with their name (no positions).
+    // The other team has one tile with their name (no positions). When
+    // scoring, our shooters show our team name instead of time on court, so
+    // it's clear which buttons are ours.
     const inner = side === 'them' ? `<span class="pt-opp">${escapeHtml(teamLabel(g, 'them'))}</span><span class="pt-sub">Other team</span>`
       : `<span class="pt-pos">${pos || 'Team'}</span>
       ${side === 'us' ? `<span class="pt-name ${pid ? '' : 'empty'}">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</span>
-        <span class="pt-time" data-ptime="${escapeHtml(pid || '')}">${pid ? fmtMins(ms(pid)) : ''}</span>` : ''}`;
+        ${scoring && shooter ? `<span class="pt-team">${escapeHtml(teamLabel(g, 'us'))}</span>`
+          : `<span class="pt-time" data-ptime="${escapeHtml(pid || '')}">${pid ? fmtMins(ms(pid)) : ''}</span>`}` : ''}`;
     if (!action) return `<div class="${cls}" aria-label="${escapeHtml(label)}">${inner}</div>`;
     return `<button class="${cls}" data-action="${action}" data-side="${side}" data-pos="${pos}" aria-label="${escapeHtml(label)}" ${opts.disabled ? 'disabled' : ''}>${inner}</button>`;
   };
@@ -2694,12 +2698,14 @@ function livePlayHtml(g, st, scoring){
       </div>
       ${subBtnHtml()}`;
   } else {
+    // The scorer only needs the shooters (subs are under Sub Player(s));
+    // everyone else sees the whole team with time on court.
     const ourAction = scoring || canScore() ? 'tile' : null;
-    pane = `<div class="sec-label">Your positions</div>
+    pane = `<div class="sec-label">${scoring ? 'Who shot' : 'Your positions'}</div>
       <div class="pos-row two">${tile('GS', 'us', ourAction)}${tile('GA', 'us', ourAction)}</div>
-      <div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
-      <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>
-      ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>` : ''}
+      ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>`
+        : `<div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
+      <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>`}
       ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>'
         : canScore() ? subBtnHtml() + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
   }
