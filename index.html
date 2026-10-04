@@ -2698,12 +2698,14 @@ function livePlayHtml(g, st, scoring){
       </div>
       ${subBtnHtml()}`;
   } else {
+    // The scorer only needs the shooters (subs are under Sub Player(s));
+    // everyone else sees the whole team with time on court.
     const ourAction = scoring || canScore() ? 'tile' : null;
-    pane = `<div class="sec-label">Your positions</div>
+    pane = `<div class="sec-label">${scoring ? 'Who shot' : 'Your positions'}</div>
       <div class="pos-row two">${tile('GS', 'us', ourAction)}${tile('GA', 'us', ourAction)}</div>
-      <div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
-      <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>
-      ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>` : ''}
+      ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>`
+        : `<div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
+      <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>`}
       ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>'
         : canScore() ? subBtnHtml() + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
   }
