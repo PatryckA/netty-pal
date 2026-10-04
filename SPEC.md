@@ -156,14 +156,16 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 ### Scoring (revised by the owner after step 2b)
 - **Only goals and misses are recorded**, by GS and GA, for both teams. Intercepts
   and penalties were dropped. (Older games may still hold them; they are ignored.)
-- The in-play screen shows **position tiles**: GS and GA (highlighted shooters),
-  then WA, C, WD, then GD, GK, each with the player's name and court time this game;
-  then the opposition's GS, GA and Team. Below is an event log, newest first.
+- The scorer's in-play screen shows only **our GS and GA** (highlighted, with the
+  player's name and our team name), then one tile for the other team. Below is an
+  event log, newest first. Everyone else sees all seven positions, each with the
+  player's name and court time this game.
 - Two scoring modes; the scorer swipes left/right (or taps the tabs) to switch, and
   the choice is remembered on that phone:
   - **Player first**: tap a shooter, then Goal or Miss.
   - **Event first**: tap Goal or Miss, then who (our GS/GA, their GS/GA/Team).
-- Tapping a non-shooter (or "Substitution" under a shooter) makes a substitution.
+- The scorer makes substitutions with "Sub Player(s)". Coach/Managers who aren't
+  scoring can also tap any position to make one.
 - The stat is credited to whoever is in that position at that moment. Opposition
   shots record GS, GA or just the team.
 - Floating **Undo** and **Redo**.
