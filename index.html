@@ -571,7 +571,6 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .pt-pos{font-family:var(--font-display); font-size:1.5rem; font-weight:800; line-height:1;}
 .pt-name{font-size:0.85rem; font-weight:700; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .pt-name.empty{font-style:italic; opacity:0.7;}
-.pt-time{font-size:0.72rem; font-variant-numeric:tabular-nums; opacity:0.8; min-height:0.9rem;}
 .pt-team{font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; opacity:0.85; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .ev-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;}
 .evbtn{padding:1rem; font-size:1.2rem; font-weight:800; border-radius:var(--r); border:2px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:var(--font-body);}
@@ -823,7 +822,7 @@ let offlineMode = !navigator.onLine;
 // view is 'home', 'season' or 'game'; gameTab and period belong to the game screen.
 let UI = { view:'home', teamId:null, seasonId:null, tab:'games', form:null, busy:false,
   gameId:null, gameTab:'lineup', period:1, pickPos:null, pickMode:'plan', statPos:null, statSide:'us',
-  liveMode:'event', pendingEvent:null, statsOpen:{} };
+  liveMode:'event', pendingEvent:null };
 // Scoring mode: Goal/Miss first unless this phone chose Player first.
 try { if (localStorage.getItem('nettyPalLiveMode') === 'player') UI.liveMode = 'player'; } catch(e){}
 
@@ -2028,7 +2027,7 @@ function managerGuideHtml(){
           `<button class="btn small" data-action="share-code">${navigator.share ? 'Send the team link' : 'Copy the team link'}</button>`)}
         <h4 class="mg-head">Before each game</h4>
         ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail'))}
-        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" shows who has played where, to help keep it fair.`, '', nextBtn('lineup'))}
+        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" on the Game stats tab shows who has played where, to help keep it fair.`, '', nextBtn('lineup'))}
         ${step(3, false, 'Assign a scorer', `Ask a parent to keep score on their phone. They need the Scorer role: in Support Crew, tap Scorer next to their name, or send them a Scorer invite link from there. On game day they open the game and tap Start when the umpire starts play. You can score too. Only one person can score at a time, but scoring can be passed from one Scorer to another in the Support Crew tab (or with Hand over scoring at a break). ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
           '<button class="btn ghost small" data-action="mg-tab" data-tab="people">Go to Support Crew</button>')}
         <p class="hint">On game day, Netty Pal reminds you on the Games tab if the lineup isn't finished. New to scoring? Try a practice game: nothing is saved.</p>
@@ -2193,12 +2192,14 @@ function renderGame(){
       ${byeContent}`;
   }
   const tabs = [['live', g.status === 'live' ? 'Live' : 'Game']];
-  if (g.status === 'live' || g.status === 'final') tabs.push(['summary','Game stats']);
+  // Game stats includes Time on court, so (outside practice) it's there
+  // before the game too, to help plan a fair lineup.
+  if (g.status === 'live' || g.status === 'final' || !practice) tabs.push(['summary','Game stats']);
   if (!practice){
     // Who's available is for the people running the team; viewers can see
     // who's playing on the Lineup tab instead.
     if (isStaff()) tabs.push(['avail','Players']);
-    tabs.push(['lineup','Lineup'], ['fair','Time on court']);
+    tabs.push(['lineup','Lineup']);
     if (canEditGames()) tabs.push(['details','Game settings']);
   }
   if (!tabs.some(([k]) => k === UI.gameTab)) UI.gameTab = practice ? 'live' : 'lineup';
@@ -2209,7 +2210,6 @@ function renderGame(){
   else if (UI.gameTab === 'summary') content = renderSummaryTab(g);
   else if (UI.gameTab === 'lineup') content = renderLineupTab(g);
   else if (UI.gameTab === 'avail') content = renderAvailTab(g);
-  else if (UI.gameTab === 'fair') content = renderFairTab(g);
   else if (UI.gameTab === 'details') content = renderDetailsTab(g);
   if (UI.showGuide) content += guideSheetHtml(g);
 
@@ -2329,7 +2329,9 @@ function gamePeriodCounts(g, ids){
 // When editable, players can also be dragged between positions, and (if
 // avail is given) a bench of players not on court is shown underneath to
 // drag onto a position. Dropping a player on the bench empties their spot.
-function courtHtml(plan, editable, g, p, avail){
+// During play it's read-only; tapAction (if given) makes each bib a button
+// for that action instead (no dragging), e.g. to make a substitution.
+function courtHtml(plan, editable, g, p, avail, tapAction){
   const tokens = POSITIONS.map(pos => {
     const pid = plan[pos];
     const [x, y] = COURT_SPOTS[pos];
@@ -2337,6 +2339,8 @@ function courtHtml(plan, editable, g, p, avail){
     const inner = `<span class="pos-chip ${pid ? POS_ZONE[pos] : 'unfilled'}" aria-hidden="true">${pos}</span>
       <span class="token-name ${pid ? '' : 'empty'}">${escapeHtml(name)}</span>`;
     const style = `style="left:${x}%; top:${y}%"`;
+    if (!editable && tapAction) return `<button class="court-token" ${style} data-action="${tapAction}" data-side="us" data-pos="${pos}"
+        aria-label="${POS_NAMES[pos]}, ${escapeHtml(name)}. Make a substitution">${inner}</button>`;
     if (!editable) return `<div class="court-token" ${style} aria-label="${POS_NAMES[pos]}: ${escapeHtml(name)}">${inner}</div>`;
     return `<button class="court-token ${UI.pickPos === pos ? 'picking' : ''}" ${style} data-action="pick-pos" data-pos="${pos}" data-player="${escapeHtml(pid || '')}"
         aria-label="${POS_NAMES[pos]}, ${escapeHtml(name)}. Change who plays ${pos} in ${escapeHtml(periodName(g, p))}">${inner}</button>`;
@@ -2442,7 +2446,10 @@ function renderAvailTab(g){
 // before it this season. Games that have been played count real court
 // time (in periods, so half a quarter shows as 0.5); games not yet
 // played count the planned lineup.
-function renderFairTab(g){
+// Season court time up to this game, on the Game stats tab. Coach/Managers
+// and Scorers get Simple and Detailed (by position) views; for viewers
+// (staff false) it's just the Simple table, under the caller's heading.
+function seasonTimeHtml(g, staff){
   // Byes aren't games, so they don't count as games anyone was available for.
   const games = sortGames(CUR.games).filter(x => (!x.archived && !x.bye) || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
@@ -2463,11 +2470,16 @@ function renderFairTab(g){
   upto.forEach(game => {
     // Available for this game: marked as playing (or got on court, above).
     availableIds(game).forEach(id => ensure(id).avail.add(game.id));
-    const played = game.summary && game.summary.courtTime && (game.status === 'live' || game.status === 'final');
-    if (played){
+    // This game, once started, counts from its live events (its saved summary
+    // only updates at each break), so it matches this game's figures above.
+    const started = game.status === 'live' || game.status === 'final';
+    const courtTime = started && game.id === g.id && CUR.loaded.events
+      ? Object.fromEntries(Object.entries(computeGame(game, CUR.events).players).map(([id, r]) => [id, r.pos || {}]))
+      : started && game.summary && game.summary.courtTime;
+    if (courtTime){
       playedGames++;
       const pms = periodMs(game);
-      Object.entries(game.summary.courtTime).forEach(([id, byPos]) =>
+      Object.entries(courtTime).forEach(([id, byPos]) =>
         Object.entries(byPos).forEach(([pos, ms]) => add(id, pos, ms / pms, game, ms)));
       return;
     }
@@ -2481,13 +2493,13 @@ function renderFairTab(g){
   const max = Math.max(1, ...list.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
   const playing = new Set(availableIds(g));
   const noun = escapeHtml(periodNoun(g, true));
-  const detailed = UI.fairView === 'detailed';
+  const detailed = staff && UI.fairView === 'detailed';
   const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Time on court view">
       <label><input type="radio" name="fairView" data-field="fair-view" value="simple" ${detailed ? '' : 'checked'}><span>Simple</span></label>
       <label><input type="radio" name="fairView" data-field="fair-view" value="detailed" ${detailed ? 'checked' : ''}><span>Detailed</span></label>
     </div>`;
   const note = playedGames
-    ? `${playedGames} of these game${playedGames === 1 ? ' was' : 's were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time (0.5 means half a ${escapeHtml(periodNoun(g))}). The rest count the planned lineup.`
+    ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time (0.5 means half a ${escapeHtml(periodNoun(g))}). The rest count the planned lineup.`
     : 'These count the planned lineups. Games scored live will count real court time instead.';
 
   if (!detailed){
@@ -2501,10 +2513,10 @@ function renderFairTab(g){
         <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? wholeMins(r.thisMs) : 'out'}</td>
       </tr>`).join('');
     const simpleNote = playedGames
-      ? `${playedGames} of these game${playedGames === 1 ? ' was' : 's were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time. The rest count the planned lineup.`
+      ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time. The rest count the planned lineup.`
       : 'These count the planned lineups. Games scored live will count real court time instead.';
-    return `<h3 class="subhead">Court time so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in minutes)</span></h3>
-      ${toggle}
+    return `${staff ? `<h3 class="subhead">Court time so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in minutes)</span></h3>
+      ${toggle}` : ''}
       <div class="fair-wrap"><table class="fair simple">
         <thead><tr><th scope="col">Player</th><th scope="col">Games played</th>
           <th scope="col">Avg mins played per game available</th><th scope="col">This game</th></tr></thead>
@@ -2639,7 +2651,6 @@ function renderLiveTab(g){
           ${isArmed('unlock-game') ? 'Confirm unlock for corrections' : 'Unlock for corrections'}</button></div>`;
   }
 
-  body += liveStatsHtml(g, st);
   if (isGameOver(g)) body += timelineHtml(g, true, canScore() && status !== 'final');
   if (UI.handover === g.id) body += handoverSheetHtml(g);
   return scoreboardHtml(g, st) + body;
@@ -2652,21 +2663,19 @@ function livePlayHtml(g, st, scoring){
   const L = g.live;
   const lineup = st.lineup || {};
   const mode = scoring ? UI.liveMode : 'player';
-  const ms = id => (id && st.players[id] ? st.players[id].ms : 0);
   const tile = (pos, side, action, opts) => {
     opts = opts || {};
     const pid = side === 'us' ? lineup[pos] : null;
     const shooter = SHOOTERS.includes(pos);
     const cls = `ptile ${side === 'them' ? 'opp' : ''} ${side === 'us' && shooter ? 'shooter' : ''} ${opts.wide ? 'wide' : ''} ${opts.dim ? 'dim' : ''}`;
     const label = side === 'them' ? (pos ? `${teamLabel(g, 'them')} ${pos}` : `${teamLabel(g, 'them')}, team`) : `${POS_NAMES[pos]}, ${pid ? playerName(pid) : 'empty'}`;
-    // The other team has one tile with their name (no positions). When
-    // scoring, our shooters show our team name instead of time on court, so
-    // it's clear which buttons are ours.
+    // Tiles are only for the scorer. The other team has one tile with their
+    // name (no positions); our shooters show our team name, so it's clear
+    // which buttons are ours.
     const inner = side === 'them' ? `<span class="pt-opp">${escapeHtml(teamLabel(g, 'them'))}</span><span class="pt-sub">Other team</span>`
       : `<span class="pt-pos">${pos || 'Team'}</span>
       ${side === 'us' ? `<span class="pt-name ${pid ? '' : 'empty'}">${pid ? escapeHtml(playerName(pid)) : 'Empty'}</span>
-        ${scoring && shooter ? `<span class="pt-team">${escapeHtml(teamLabel(g, 'us'))}</span>`
-          : `<span class="pt-time" data-ptime="${escapeHtml(pid || '')}">${pid ? fmtMins(ms(pid)) : ''}</span>`}` : ''}`;
+        <span class="pt-team">${escapeHtml(teamLabel(g, 'us'))}</span>` : ''}`;
     if (!action) return `<div class="${cls}" aria-label="${escapeHtml(label)}">${inner}</div>`;
     return `<button class="${cls}" data-action="${action}" data-side="${side}" data-pos="${pos}" aria-label="${escapeHtml(label)}" ${opts.disabled ? 'disabled' : ''}>${inner}</button>`;
   };
@@ -2705,17 +2714,18 @@ function livePlayHtml(g, st, scoring){
         <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
       </div>
       ${subBtnHtml()}`;
+  } else if (scoring){
+    // The scorer only needs the shooters (subs are under Sub Player(s)).
+    pane = `<div class="sec-label">Who shot</div>
+      <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
+      <div class="pos-row one">${tile('', 'them', 'tile')}</div>
+      ${subBtnHtml()}<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>`;
   } else {
-    // The scorer only needs the shooters (subs are under Sub Player(s));
-    // everyone else sees the whole team with time on court.
-    const ourAction = scoring || canScore() ? 'tile' : null;
-    pane = `<div class="sec-label">${scoring ? 'Who shot' : 'Your positions'}</div>
-      <div class="pos-row two">${tile('GS', 'us', ourAction)}${tile('GA', 'us', ourAction)}</div>
-      ${scoring ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>`
-        : `<div class="pos-row three">${tile('WA', 'us', ourAction)}${tile('C', 'us', ourAction)}${tile('WD', 'us', ourAction)}</div>
-      <div class="pos-row two">${tile('GD', 'us', ourAction)}${tile('GK', 'us', ourAction)}</div>`}
-      ${scoring ? subBtnHtml() + '<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>'
-        : canScore() ? subBtnHtml() + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
+    // Everyone else sees who's on court on the court diagram, with the bench.
+    // Coach/Managers and Scorers can tap a position to make a substitution.
+    pane = `<div class="sec-label">Your team's lineup</div>
+      ${courtHtml(lineup, false, g, L.period, byName(availableIds(g)), canScore() ? 'tile' : null)}
+      ${canScore() ? subBtnHtml() + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
@@ -3009,32 +3019,6 @@ function statSheetHtml(g, st){
     </div>`;
 }
 
-// Folded away during play to keep the scoring screen simple; open by default
-// once the game is over. The scorer's choice is remembered per game.
-function liveStatsHtml(g, st){
-  const ids = new Set([...Object.keys(st.players), ...availableIds(g)]);
-  const list = byName(Array.from(ids));
-  if (!list.length) return '';
-  const open = g.id in UI.statsOpen ? UI.statsOpen[g.id] : isGameOver(g);
-  if (!open) return `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="0">Show stats</button></div>`;
-  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '·';
-  const rows = list.map(id => {
-    const r = st.players[id] || { ms:0, goal:0, miss:0 };
-    const shots = r.goal + r.miss;
-    return `<tr><td>${escapeHtml(playerName(id))}</td><td>${wholeMins(r.ms)}</td>
-      <td>${shots ? r.goal + '/' + shots : '·'}</td><td>${pct(r.goal, shots)}</td></tr>`;
-  }).join('');
-  const oppShots = st.them + st.oppMiss;
-  return `<h3 class="subhead">Stats</h3>
-    <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Court time (mins)</th><th scope="col">Goals</th><th scope="col">Accuracy</th></tr></thead>
-      <tbody>${rows}
-        <tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + oppShots : st.them}</td>
-          <td>${st.oppMiss ? pct(st.them, oppShots) : '·'}</td></tr></tbody>
-    </table></div>
-    <div class="lineup-tools"><button class="btn ghost small" data-action="toggle-live-stats" data-game="${escapeHtml(g.id)}" data-open="1">Hide stats</button></div>`;
-}
-
 // Recent events during play; the full timeline (with corrections) at full time.
 function timelineHtml(g, full, editable){
   const pms = periodMs(g);
@@ -3128,6 +3112,13 @@ function progressLineHtml(g){
 
 function renderSummaryTab(g){
   if (!CUR.loaded.events) return '<div class="loading-state">Loading…</div>';
+  const staff = isStaff();
+  const minsHead = '<span class="hint" style="font-family:var(--font-body); text-transform:none">(in minutes)</span>';
+  // Before the game there's no score yet, just season court time for planning.
+  if (g.status !== 'live' && g.status !== 'final'){
+    return `<p class="hint">The score, shooting and this game's court time appear here once the game starts.</p>
+      ${staff ? seasonTimeHtml(g, true) : `<h3 class="subhead">Time on court ${minsHead}</h3>${seasonTimeHtml(g, false)}`}`;
+  }
   const st = computeGame(g, CUR.events);
   const n = periodCount(g), over = isGameOver(g);
   const res = resultWord(st.us, st.them);
@@ -3180,9 +3171,29 @@ function renderSummaryTab(g){
   const rows = ids.map(id => ({ id, ms:(st.players[id] || {}).ms || 0, pos:(st.players[id] || {}).pos || {} }))
     .sort((a, b) => a.ms - b.ms);
   const benched = rows.filter(r => !r.ms && playing.has(r.id)).length;
-  const court = `<h3 class="subhead">Court time</h3>
-    ${courtTimeTable(rows, wholeMins, playing)}
-    <p class="hint">Minutes in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>`;
+  // Coach/Managers and Scorers see minutes in each position, then the season.
+  // Viewers switch between this game's minutes and the season (Simple).
+  let court;
+  if (staff){
+    court = `<h3 class="subhead">Court time</h3>
+      ${courtTimeTable(rows, wholeMins, playing)}
+      <p class="hint">Minutes in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>
+      ${isPractice(g) ? '' : seasonTimeHtml(g, true)}`;
+  } else {
+    const season = !isPractice(g) && UI.courtView === 'season';
+    const toggle = isPractice(g) ? '' : `<div class="segmented fair-toggle" role="tablist" aria-label="Time on court view">
+        <label><input type="radio" name="courtView" data-field="court-view" value="game" ${season ? '' : 'checked'}><span>Game</span></label>
+        <label><input type="radio" name="courtView" data-field="court-view" value="season" ${season ? 'checked' : ''}><span>Season</span></label>
+      </div>`;
+    const gameRows = byName(ids.filter(id => playing.has(id) || (st.players[id] || {}).ms))
+      .map(id => `<tr><td>${escapeHtml(playerName(id))}</td><td class="total">${wholeMins((st.players[id] || {}).ms || 0)}</td></tr>`).join('');
+    court = `<h3 class="subhead">Time on court ${minsHead}</h3>
+      ${toggle}
+      ${season ? seasonTimeHtml(g, false) : `<div class="fair-wrap"><table class="fair simple">
+          <thead><tr><th scope="col">Player</th><th scope="col">This game</th></tr></thead>
+          <tbody>${gameRows || '<tr><td colspan="2">No players yet.</td></tr>'}</tbody>
+        </table></div>`}`;
+  }
 
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">
@@ -3786,7 +3797,6 @@ function startPractice(){
     events:[]
   };
   stopEvents();
-  delete UI.statsOpen[PRACTICE_ID]; // each practice starts with stats folded
   UI = { ...UI, view:'game', gameId:PRACTICE_ID, gameTab:'live', period:1, form:null, pickPos:null, statPos:null, showGuide:true, showTabs:false, subSheet:false, subReturn:false };
   render();
   window.scrollTo(0, 0);
@@ -5140,8 +5150,6 @@ document.addEventListener('click', async (e) => {
       toggleVoice();
     } else if (a === 'toggle-archived'){
       UI.showArchived = !UI.showArchived; render();
-    } else if (a === 'toggle-live-stats'){
-      UI.statsOpen[btn.dataset.game] = btn.dataset.open !== '1'; render();
     } else if (a === 'archive-ask'){
       UI.archiveAsk = btn.dataset.game; render();
     } else if (a === 'archive-cancel'){
@@ -5277,6 +5285,7 @@ document.addEventListener('change', (e) => {
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
   if (el.matches('input[data-field="import-file"]') && el.files && el.files[0]) readImportFile(el.files[0]);
   if (el.matches('input[data-field="fair-view"]')){ UI.fairView = el.value; render(); }
+  if (el.matches('input[data-field="court-view"]')){ UI.courtView = el.value; render(); }
   // Ticking "This round is a bye" hides the fields a bye doesn't need, and
   // the opponent is no longer required.
   if (el.matches('input[data-field="bye-toggle"]')) syncByeForm(el);
@@ -5434,7 +5443,7 @@ document.addEventListener('touchend', (e) => {
    the clock at 0:00 (with a vibration) and keeps the screen awake. The
    scorer then ends the period, after adding any shot from the whistle.
 --------------------------------------------------------------------- */
-let timeUpKey = null, tickCount = 0;
+let timeUpKey = null;
 let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
   const g = UI.view === 'game' ? findGame(UI.gameId) : null;
@@ -5444,12 +5453,6 @@ setInterval(() => {
   // The clock runs on the Live tab and on Game stats (time left).
   if (!g || (UI.gameTab !== 'live' && UI.gameTab !== 'summary') || g.status !== 'live' || !g.live) return;
   document.querySelectorAll('[data-clock]').forEach(el => { el.textContent = fmtClock(periodMs(g) - elapsedMs(g)); });
-  // Court time on the position tiles, refreshed about once a second.
-  const tiles = document.querySelectorAll('[data-ptime]');
-  if (tiles.length && g.live.phase === 'running' && (tickCount++ % 4 === 0)){
-    const st = computeGame(g, CUR.events);
-    tiles.forEach(t => { const id = t.dataset.ptime; if (id) t.textContent = fmtMins((st.players[id] || {}).ms || 0); });
-  }
   const key = g.id + ':' + g.live.period;
   if (g.live.phase === 'running' && amScorer(g) && elapsedMs(g) >= periodMs(g) && timeUpKey !== key){
     timeUpKey = key;

@@ -158,14 +158,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   and penalties were dropped. (Older games may still hold them; they are ignored.)
 - The scorer's in-play screen shows only **our GS and GA** (highlighted, with the
   player's name and our team name), then one tile for the other team. Below is an
-  event log, newest first. Everyone else sees all seven positions, each with the
-  player's name and court time this game.
+  event log, newest first. Everyone else sees **Your team's lineup** on the court
+  diagram, with the bench (no court time; that's on the Game stats tab).
 - Two scoring modes; the scorer swipes left/right (or taps the tabs) to switch, and
   the choice is remembered on that phone:
   - **Player first**: tap a shooter, then Goal or Miss.
   - **Event first**: tap Goal or Miss, then who (our GS/GA, their GS/GA/Team).
-- The scorer makes substitutions with "Sub Player(s)". Coach/Managers who aren't
-  scoring can also tap any position to make one.
+- The scorer makes substitutions with "Sub Player(s)". Coach/Managers and Scorers
+  who aren't scoring can also tap a position on the court to make one.
 - The stat is credited to whoever is in that position at that moment. Opposition
   shots record GS, GA or just the team.
 - Floating **Undo** and **Redo**.
@@ -182,7 +182,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ### Live view
 - Everyone in the season (including Viewers) can follow, read-only: live score,
-  period, clock, who is on court in which position, and live stats.
+  period, clock and who is on court in which position. Stats are on the Game stats
+  tab (there's no stats section on the Live tab).
 
 ---
 
@@ -203,6 +204,12 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   (our shooters with positions, opposition by GS / GA / Team, team totals), court
   time per player per position (players marked as playing with no court time are
   highlighted).
+- (Revised 2026-10-04.) The separate Time on court tab is now part of **Game stats**,
+  which (outside practice games) is there before the game too. Coach/Managers and
+  Scorers see this game's court time by position, then season court time so far with
+  Simple (default) and Detailed views. Viewers see no by-position figures: a
+  **Game / Season** switch shows minutes this game (default) or the Simple season table.
+  Before the game starts, Game stats shows only the season court time.
 - Team **Stats** tab: record (played, won, lost, drawn, goals for : against, both
   teams' shooting %), results list (tap to open a game), players (games on court,
   minutes, goals, %) and court time by position in minutes.
