@@ -685,7 +685,7 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 .fair td.total{font-weight:800;}
 .fair td.this{font-weight:800; color:var(--accent);}
 .fair td.zero-this{color:var(--warm);}
-.fair-toggle{margin:0 0 0.6rem;}
+.toc-switches{display:flex; flex-wrap:wrap; gap:0.5rem; margin:0 0 0.6rem;}
 .fair.simple th{white-space:normal; line-height:1.15; font-size:0.85rem;}
 </style>
 </head>
@@ -2446,10 +2446,9 @@ function renderAvailTab(g){
 // before it this season. Games that have been played count real court
 // time (in periods, so half a quarter shows as 0.5); games not yet
 // played count the planned lineup.
-// Season court time up to this game, on the Game stats tab. Coach/Managers
-// and Scorers get Simple and Detailed (by position) views; for viewers
-// (staff false) it's just the Simple table, under the caller's heading.
-function seasonTimeHtml(g, staff){
+// Season court time up to this game, for the Game stats tab (which adds the
+// heading and switches). Simple is minutes; Detailed is periods in each position.
+function seasonTimeHtml(g, detailed){
   // Byes aren't games, so they don't count as games anyone was available for.
   const games = sortGames(CUR.games).filter(x => (!x.archived && !x.bye) || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
@@ -2493,11 +2492,6 @@ function seasonTimeHtml(g, staff){
   const max = Math.max(1, ...list.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
   const playing = new Set(availableIds(g));
   const noun = escapeHtml(periodNoun(g, true));
-  const detailed = staff && UI.fairView === 'detailed';
-  const toggle = `<div class="segmented fair-toggle" role="tablist" aria-label="Time on court view">
-      <label><input type="radio" name="fairView" data-field="fair-view" value="simple" ${detailed ? '' : 'checked'}><span>Simple</span></label>
-      <label><input type="radio" name="fairView" data-field="fair-view" value="detailed" ${detailed ? 'checked' : ''}><span>Detailed</span></label>
-    </div>`;
   const note = playedGames
     ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time (0.5 means half a ${escapeHtml(periodNoun(g))}). The rest count the planned lineup.`
     : 'These count the planned lineups. Games scored live will count real court time instead.';
@@ -2515,9 +2509,7 @@ function seasonTimeHtml(g, staff){
     const simpleNote = playedGames
       ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time. The rest count the planned lineup.`
       : 'These count the planned lineups. Games scored live will count real court time instead.';
-    return `${staff ? `<h3 class="subhead">Court time so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in minutes)</span></h3>
-      ${toggle}` : ''}
-      <div class="fair-wrap"><table class="fair simple">
+    return `<div class="fair-wrap"><table class="fair simple">
         <thead><tr><th scope="col">Player</th><th scope="col">Games played</th>
           <th scope="col">Avg mins played per game available</th><th scope="col">This game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="4">No players yet.</td></tr>'}</tbody>
@@ -2535,9 +2527,7 @@ function seasonTimeHtml(g, staff){
       <td class="total">${fmt(r.total)}</td>
       <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
     </tr>`).join('');
-  return `<h3 class="subhead">Positions so far <span class="hint" style="font-family:var(--font-body); text-transform:none">(in ${noun})</span></h3>
-    ${toggle}
-    <div class="fair-wrap"><table class="fair">
+  return `<div class="fair-wrap"><table class="fair">
       <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}
         <th scope="col">Total</th><th scope="col">This game</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${POSITIONS.length + 3}">No players yet.</td></tr>`}</tbody>
@@ -3110,14 +3100,58 @@ function progressLineHtml(g){
   return `<div class="progress-line">${q} · <span data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</span> left${L.phase === 'paused' ? ' · clock paused' : ''}</div>`;
 }
 
+// Time on court on the Game stats tab, one table at a time. A Game / Season
+// switch (Season only before the game, Game only in practice), and for
+// Coach/Managers and Scorers a Simple / Detailed switch: Detailed splits the
+// time by position. st is this game's figures, or null before it starts.
+function timeOnCourtHtml(g, st){
+  const staff = isStaff();
+  const canSeason = !isPractice(g);
+  const season = !st || (canSeason && UI.courtView === 'season');
+  const detailed = staff && UI.fairView === 'detailed';
+  const radio = (name, field, value, label, on) =>
+    `<label><input type="radio" name="${name}" data-field="${field}" value="${value}" ${on ? 'checked' : ''}><span>${label}</span></label>`;
+  const switches = [
+    st && canSeason ? `<div class="segmented" role="radiogroup" aria-label="Game or season">
+        ${radio('courtView', 'court-view', 'game', 'Game', !season)}${radio('courtView', 'court-view', 'season', 'Season', season)}</div>` : '',
+    staff ? `<div class="segmented" role="radiogroup" aria-label="Simple or detailed">
+        ${radio('fairView', 'fair-view', 'simple', 'Simple', !detailed)}${radio('fairView', 'fair-view', 'detailed', 'Detailed', detailed)}</div>` : ''
+  ].filter(Boolean).join('');
+  // Season Detailed counts periods (fairer to compare across games); the rest are minutes.
+  const unit = season && detailed ? escapeHtml(periodNoun(g, true)) : 'minutes';
+  const head = `<h3 class="subhead">Time on court <span class="hint" style="font-family:var(--font-body); text-transform:none">(in ${unit})</span></h3>
+    ${switches ? `<div class="toc-switches">${switches}</div>` : ''}`;
+  if (season) return head + seasonTimeHtml(g, detailed);
+
+  const playing = new Set(availableIds(g));
+  const ids = Array.from(new Set([...Object.keys(st.players).filter(id => st.players[id].ms), ...playing]));
+  const msOf = id => (st.players[id] || {}).ms || 0;
+  const benched = ids.filter(id => !msOf(id) && playing.has(id)).length;
+  const benchNote = staff && benched
+    ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : '';
+  if (detailed){
+    // Least court time first, so anyone who's missed out stands out.
+    const rows = ids.map(id => ({ id, ms:msOf(id), pos:(st.players[id] || {}).pos || {} })).sort((a, b) => a.ms - b.ms);
+    return `${head}${courtTimeTable(rows, wholeMins, playing)}
+      <p class="hint">Minutes in each position this game.${benchNote}</p>`;
+  }
+  // Simple: staff see least time first (who's owed a turn); viewers see names in order.
+  const order = staff ? ids.slice().sort((a, b) => msOf(a) - msOf(b) || playerName(a).localeCompare(playerName(b))) : byName(ids);
+  const rows = order.map(id => `<tr><td>${escapeHtml(playerName(id))}</td>
+      <td class="this ${staff && playing.has(id) && !msOf(id) ? 'zero-this' : ''}">${wholeMins(msOf(id))}</td></tr>`).join('');
+  return `${head}<div class="fair-wrap"><table class="fair simple">
+      <thead><tr><th scope="col">Player</th><th scope="col">This game</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="2">No players yet.</td></tr>'}</tbody>
+    </table></div>
+    ${benchNote ? `<p class="hint">${benchNote.trim()}</p>` : ''}`;
+}
+
 function renderSummaryTab(g){
   if (!CUR.loaded.events) return '<div class="loading-state">Loading…</div>';
-  const staff = isStaff();
-  const minsHead = '<span class="hint" style="font-family:var(--font-body); text-transform:none">(in minutes)</span>';
   // Before the game there's no score yet, just season court time for planning.
   if (g.status !== 'live' && g.status !== 'final'){
     return `<p class="hint">The score, shooting and this game's court time appear here once the game starts.</p>
-      ${staff ? seasonTimeHtml(g, true) : `<h3 class="subhead">Time on court ${minsHead}</h3>${seasonTimeHtml(g, false)}`}`;
+      ${timeOnCourtHtml(g, null)}`;
   }
   const st = computeGame(g, CUR.events);
   const n = periodCount(g), over = isGameOver(g);
@@ -3165,35 +3199,7 @@ function renderSummaryTab(g){
     </table></div>
     `;
 
-  const playing = new Set(availableIds(g));
-  const ids = byName(Array.from(new Set([...Object.keys(st.players).filter(id => st.players[id].ms), ...playing])));
-  // Least court time first, so anyone who's missed out stands out.
-  const rows = ids.map(id => ({ id, ms:(st.players[id] || {}).ms || 0, pos:(st.players[id] || {}).pos || {} }))
-    .sort((a, b) => a.ms - b.ms);
-  const benched = rows.filter(r => !r.ms && playing.has(r.id)).length;
-  // Coach/Managers and Scorers see minutes in each position, then the season.
-  // Viewers switch between this game's minutes and the season (Simple).
-  let court;
-  if (staff){
-    court = `<h3 class="subhead">Court time</h3>
-      ${courtTimeTable(rows, wholeMins, playing)}
-      <p class="hint">Minutes in each position.${benched ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : ''}</p>
-      ${isPractice(g) ? '' : seasonTimeHtml(g, true)}`;
-  } else {
-    const season = !isPractice(g) && UI.courtView === 'season';
-    const toggle = isPractice(g) ? '' : `<div class="segmented fair-toggle" role="tablist" aria-label="Time on court view">
-        <label><input type="radio" name="courtView" data-field="court-view" value="game" ${season ? '' : 'checked'}><span>Game</span></label>
-        <label><input type="radio" name="courtView" data-field="court-view" value="season" ${season ? 'checked' : ''}><span>Season</span></label>
-      </div>`;
-    const gameRows = byName(ids.filter(id => playing.has(id) || (st.players[id] || {}).ms))
-      .map(id => `<tr><td>${escapeHtml(playerName(id))}</td><td class="total">${wholeMins((st.players[id] || {}).ms || 0)}</td></tr>`).join('');
-    court = `<h3 class="subhead">Time on court ${minsHead}</h3>
-      ${toggle}
-      ${season ? seasonTimeHtml(g, false) : `<div class="fair-wrap"><table class="fair simple">
-          <thead><tr><th scope="col">Player</th><th scope="col">This game</th></tr></thead>
-          <tbody>${gameRows || '<tr><td colspan="2">No players yet.</td></tr>'}</tbody>
-        </table></div>`}`;
-  }
+  const court = timeOnCourtHtml(g, st);
 
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">

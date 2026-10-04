@@ -205,11 +205,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   time per player per position (players marked as playing with no court time are
   highlighted).
 - (Revised 2026-10-04.) The separate Time on court tab is now part of **Game stats**,
-  which (outside practice games) is there before the game too. Coach/Managers and
-  Scorers see this game's court time by position, then season court time so far with
-  Simple (default) and Detailed views. Viewers see no by-position figures: a
-  **Game / Season** switch shows minutes this game (default) or the Simple season table.
-  Before the game starts, Game stats shows only the season court time.
+  which (outside practice games) is there before the game too. One **Time on court**
+  table at a time, chosen with switches:
+  - **Game / Season** (everyone; default Game). Before the game starts only Season
+    is shown; practice games have only Game.
+  - **Simple / Detailed** (Coach/Managers and Scorers only; default Simple). Simple is
+    minutes per player. Detailed splits the time by position: minutes this game, or
+    periods (quarters or halves) so far this season. Viewers never see Detailed.
+  - The choices are remembered while moving between games (until the app reloads).
 - Team **Stats** tab: record (played, won, lost, drawn, goals for : against, both
   teams' shooting %), results list (tap to open a game), players (games on court,
   minutes, goals, %) and court time by position in minutes.
