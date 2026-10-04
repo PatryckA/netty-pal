@@ -141,7 +141,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ### Clock
 - **Counts down** from the period length (e.g. 7:00). At 0:00 it stops, the phone
-  vibrates, and the period ends automatically.
+  vibrates and the scoreboard shows "Time". Scoring stays open so a shot from the
+  whistle can still be recorded (at 0:00); the scorer then taps End to end the period.
 - Start, pause, resume, end period early. Pause is for injuries and umpire stoppages.
 - **Court time only accrues while the clock is running.**
 - Court time is calculated from timestamped events (on/off, clock start/stop), not
