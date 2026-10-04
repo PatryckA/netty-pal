@@ -252,10 +252,14 @@ main{flex:1; padding:1rem 1rem 4rem;}
   margin-bottom:1rem; display:flex; flex-direction:column; gap:0.6rem;
 }
 .code-card .label{font-size:0.75rem; font-weight:700; opacity:0.85; text-transform:uppercase; letter-spacing:0.08em;}
-.code-value{font-family:var(--font-display); font-size:2.6rem; font-weight:800; letter-spacing:0.18em; line-height:1;}
+.code-value{font-family:var(--font-display); font-size:1.3rem; font-weight:800; letter-spacing:0.12em; line-height:1;}
 .code-card .btn{background:var(--accent-contrast); color:var(--accent); border-color:var(--accent-contrast);}
 .code-card .btn.armed{background:var(--critical); color:#fff; border-color:var(--critical);}
-.code-actions{display:flex; gap:0.4rem; flex-wrap:wrap;}
+/* The invite link is the main way in, so its button is big; the code is a fallback. */
+.code-card .invite-btn{width:100%; padding:0.9rem 1rem; font-size:1.05rem;}
+.code-foot{display:flex; flex-direction:column; gap:0.4rem; margin-top:0.2rem; padding-top:0.7rem;
+  border-top:1px solid color-mix(in srgb, var(--accent-contrast) 30%, transparent);}
+.code-row{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;}
 .subhead{font-size:1.2rem; text-transform:uppercase; margin:0.2rem 0 0.6rem;}
 .placeholder-card{
   background:var(--surface); border:1.5px dashed var(--line); border-radius:var(--r); padding:1.5rem 1rem;
@@ -2641,7 +2645,8 @@ function renderLiveTab(g){
           ${isArmed('unlock-game') ? 'Confirm unlock for corrections' : 'Unlock for corrections'}</button></div>`;
   }
 
-  if (isGameOver(g)) body += timelineHtml(g, true, canScore() && status !== 'final');
+  // The full-time timeline is for Coach/Managers and Scorers (to check and fix); viewers don't see it.
+  if (isGameOver(g) && canScore()) body += timelineHtml(g, true, status !== 'final');
   if (UI.handover === g.id) body += handoverSheetHtml(g);
   return scoreboardHtml(g, st) + body;
 }
@@ -3523,14 +3528,16 @@ function renderPeopleTab(){
   const codeCard = `<div class="code-card">
       <span class="label">Invite parents</span>
       <span style="font-size:0.9rem">Send parents the invite link. They tap it, sign in, and they're in the team. They don't need to type the code.</span>
-      <div class="code-actions">
-        <button class="btn small" data-action="share-code">${navigator.share ? 'Send invite link' : 'Copy invite link'}</button>
-        ${manager ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
-          ${isArmed(regenKey) ? 'Confirm new code (old link and code stop working)' : 'New code'}</button>` : ''}
+      <button class="btn invite-btn" data-action="share-code">${navigator.share ? 'Send invite link' : 'Copy invite link'}</button>
+      <div class="code-foot">
+        <div class="code-row">
+          <span class="label">Team code</span>
+          <span class="code-value">${escapeHtml(s.joinCode || '')}</span>
+          ${manager ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
+            ${isArmed(regenKey) ? 'Confirm new code (old link and code stop working)' : 'New code'}</button>` : ''}
+        </div>
+        <span style="font-size:0.82rem; opacity:0.9">Only needed if the link doesn't work: they tap “Join with Team Code” and type this in. New people join as viewers until given a role.</span>
       </div>
-      <span class="label" style="margin-top:0.3rem">Team code</span>
-      <span class="code-value">${escapeHtml(s.joinCode || '')}</span>
-      <span style="font-size:0.82rem; opacity:0.9">Only needed if the link doesn't work: they tap “Join with Team Code” and type this in. New people join as viewers until given a role.</span>
     </div>`;
 
   const lastCoach = coachCount() <= 1;
