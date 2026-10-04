@@ -680,6 +680,8 @@ textarea.text-input{font-family:var(--font-body); font-size:0.9rem; resize:verti
 .avail-row.on .tick{background:var(--ok); border-color:var(--ok);}
 .fair-wrap{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); margin-bottom:0.6rem;}
 table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant-numeric:tabular-nums;}
+/* What the numbers in a table are (minutes or periods), above its header. */
+.fair caption{caption-side:top; text-align:left; padding:0.5rem 0.8rem 0.1rem; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--pop-text);}
 .fair th,.fair td{padding:0.5rem 0.3rem; text-align:center; border-top:1px solid var(--line);}
 .fair thead th:last-child{padding-right:0.6rem; line-height:1.05;}
 .fair thead th{border-top:none; font-family:var(--font-display); font-size:0.95rem; font-weight:700;}
@@ -2514,8 +2516,9 @@ function seasonTimeHtml(g, detailed){
       ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time. The rest count the planned lineup.`
       : 'These count the planned lineups. Games scored live will count real court time instead.';
     return `<div class="fair-wrap"><table class="fair simple">
+        <caption>Times in minutes</caption>
         <thead><tr><th scope="col">Player</th><th scope="col">Games played</th>
-          <th scope="col">Avg mins played per game available</th><th scope="col">This game</th></tr></thead>
+          <th scope="col">Avg mins played per game available</th><th scope="col">Mins this game</th></tr></thead>
         <tbody>${rowsHtml || '<tr><td colspan="4">No players yet.</td></tr>'}</tbody>
       </table></div>
       <p class="hint">Minutes on court, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). The average divides a player's court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do. "Out" means not playing this game. ${simpleNote}</p>`;
@@ -2531,9 +2534,11 @@ function seasonTimeHtml(g, detailed){
       <td class="total">${fmt(r.total)}</td>
       <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
     </tr>`).join('');
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
   return `<div class="fair-wrap"><table class="fair">
+      <caption>Times in ${noun} (0.5 = half a ${escapeHtml(periodNoun(g))})</caption>
       <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}
-        <th scope="col">Total</th><th scope="col">This game</th></tr></thead>
+        <th scope="col">Total ${noun}</th><th scope="col">${Noun} this game</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${POSITIONS.length + 3}">No players yet.</td></tr>`}</tbody>
     </table></div>
     <p class="hint">Number of ${noun} each player has had in each position, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Darker means more often. ${note}</p>`;
@@ -3088,7 +3093,8 @@ function courtTimeTable(rows, fmt, playingIds){
       <td class="total">${r.ms ? fmt(r.ms) : '0'}</td>
     </tr>`).join('');
   return `<div class="fair-wrap"><table class="fair">
-      <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}<th scope="col">Total</th></tr></thead>
+      <caption>Times in minutes</caption>
+      <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}<th scope="col">Total mins</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${POSITIONS.length + 2}">Nobody has been on court yet.</td></tr>`}</tbody>
     </table></div>`;
 }
@@ -3122,9 +3128,9 @@ function timeOnCourtHtml(g, st){
     staff ? `<div class="segmented" role="radiogroup" aria-label="Simple or detailed">
         ${radio('fairView', 'fair-view', 'simple', 'Simple', !detailed)}${radio('fairView', 'fair-view', 'detailed', 'Detailed', detailed)}</div>` : ''
   ].filter(Boolean).join('');
-  // Season Detailed counts periods (fairer to compare across games); the rest are minutes.
-  const unit = season && detailed ? escapeHtml(periodNoun(g, true)) : 'minutes';
-  const head = `<h3 class="subhead">Time on court <span class="hint" style="font-family:var(--font-body); text-transform:none">(in ${unit})</span></h3>
+  // Each table says its own unit at the top: Season Detailed counts periods
+  // (fairer to compare across games); the rest are minutes.
+  const head = `<h3 class="subhead">Time on court</h3>
     ${switches ? `<div class="toc-switches">${switches}</div>` : ''}`;
   if (season) return head + seasonTimeHtml(g, detailed);
 
@@ -3145,7 +3151,8 @@ function timeOnCourtHtml(g, st){
   const rows = order.map(id => `<tr><td>${escapeHtml(playerName(id))}</td>
       <td class="this ${staff && playing.has(id) && !msOf(id) ? 'zero-this' : ''}">${wholeMins(msOf(id))}</td></tr>`).join('');
   return `${head}<div class="fair-wrap"><table class="fair simple">
-      <thead><tr><th scope="col">Player</th><th scope="col">This game</th></tr></thead>
+      <caption>Times in minutes</caption>
+      <thead><tr><th scope="col">Player</th><th scope="col">Mins this game</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="2">No players yet.</td></tr>'}</tbody>
     </table></div>
     ${benchNote ? `<p class="hint">${benchNote.trim()}</p>` : ''}`;
