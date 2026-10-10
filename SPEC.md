@@ -9,7 +9,10 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ## 1. Tech approach (same pattern as Packing Pal)
 
-- A single-page web app (`index.html`), hosted on **GitHub Pages**.
+- A single-page web app (`index.html`), at **https://nettypal.au**, hosted on **Vercel**
+  (moved from GitHub Pages in October 2026; the old address forwards to the new one).
+- Sign-in emails come from `noreply@nettypal.au` (Firebase custom email domain, with
+  SPF, DKIM and DMARC records at Porkbun). Firebase project is on the Blaze plan.
 - Installable on a phone home screen (a PWA, with a small `sw.js` service worker).
 - **Firebase** for:
   - **Google sign-in** (Firebase Authentication)
@@ -273,7 +276,7 @@ undone and everything recalculates.
 
 - Create a new GitHub repo (`netty-pal`).
 - Create a new Firebase project, enable Google sign-in and Firestore, and add the
-  GitHub Pages address as an authorised domain.
+  site's address (now `nettypal.au` and `www.nettypal.au`) as an authorised domain.
 - Paste the Firebase web config (not a secret; it identifies the project) into the app.
 
 ---

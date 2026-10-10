@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Netty Pal</title>
 <meta name="description" content="Court time, positions and live scoring for junior netball teams.">
+<script>
+// Netty Pal moved from patrycka.github.io/netty-pal to nettypal.au. Anyone
+// opening the old address (including an old home screen icon) goes to the
+// same page on the new one, keeping invite codes and sign-in link details.
+if (location.hostname === 'patrycka.github.io'){
+  window.NETTY_PAL_MOVED = true;
+  location.replace('https://nettypal.au/' + location.pathname.replace(/^\/netty-pal(\/|$)/i, '') + location.search + location.hash);
+}
+</script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B0B0D">
 <link rel="icon" href="icon-netball-192.png">
@@ -709,6 +718,10 @@ import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc as fsUpdateDoc, deleteDoc,
   collection, onSnapshot, writeBatch as fsWriteBatch, serverTimestamp, deleteField
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+// On the old address the page is already moving to nettypal.au (see the
+// script in <head>): don't start the app here.
+if (window.NETTY_PAL_MOVED) throw new Error('Netty Pal has moved to nettypal.au');
 
 /* ---------------------------------------------------------------------
    Firebase. This config is not a secret: it only tells the page which
