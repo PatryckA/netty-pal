@@ -226,6 +226,32 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ---
 
+### Track more stats (added 2026-10-10)
+- Off by default. **Team Settings > This season > Track more stats** (folded away at the
+  bottom) picks extra stats for the season; **Game settings** can choose differently for one
+  game (it only keeps its own choice if it differs from the season's).
+- Goal and Miss are always tracked. Extras, by category:
+  Shooting: Feed. Gains: Rebound, Intercept, Deflection. Losses: Bad pass, Footwork,
+  Held ball, Out of court, Error. Penalties: Contact, Obstruction, Offside.
+- **Track for**: Our team, Other team, or Both. The other team's stats are for the team
+  as a whole (no names). Feeds are for our team only.
+- **Live scoring**: with extras for our team, every position gets a tile. Goal/Miss first
+  shows the extras as smaller buttons under Goal and Miss; Player first opens a panel with
+  that player's stats, grouped. After each of our goals, if Feed is tracked, the scorer is
+  asked "Who fed it?" (or Skip). A feed stops counting if its goal is undone.
+- **Voice scoring** understands tracked extras for any position ("WD intercept",
+  "their contact") and "GS goal fed by WA".
+- **Stats**: Game stats and Season Stats get a "More stats" table (one column per stat,
+  grouped, with our team total and the other team's row). A **Simple stats / All stats**
+  switch (remembered on each phone, All to start with) shows or hides it. Season totals
+  count each stat only from games that tracked it.
+- Stored as `stats { extra:[keys], teams:'us'|'them'|'both' }` on the season (and optionally
+  the game). Events: extras for our players use the stat key as `type` (with `pos`,
+  `playerId`); `feed` also has `goal` (the goal's event id); the other team's are
+  `{ type:'oppStat', stat }`. No security rule changes were needed.
+
+---
+
 ## 7. Draft data model (Firestore)
 
 ```

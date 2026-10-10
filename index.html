@@ -147,6 +147,15 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .form-card h3{font-size:1.2rem;}
 .form-actions{display:flex; gap:0.5rem; justify-content:flex-end; flex-wrap:wrap;}
 .check-row{display:flex; align-items:center; gap:0.5rem; font-size:0.88rem;}
+/* "Track more stats" in team Settings and Game settings. */
+.more-stats{border-top:1px dashed var(--line); padding-top:0.7rem;}
+.more-stats summary{cursor:pointer; font-weight:800; color:var(--pop-text);}
+.more-stats[open] summary{margin-bottom:0.5rem;}
+.more-stats > .hint{display:block; margin:0 0 0.6rem;}
+.stat-picks{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.6rem; margin-bottom:0.8rem;}
+.stat-picks fieldset{border:1px solid var(--line); border-radius:var(--r-sm); padding:0.4rem 0.6rem 0.5rem; margin:0; display:flex; flex-direction:column; gap:0.3rem;}
+.stat-picks legend{font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); padding:0 0.2rem;}
+@media (max-width:420px){ .stat-picks{grid-template-columns:1fr;} }
 
 /* ---- Sign in ---- */
 .hero{text-align:center; padding:3rem 1rem 2rem; display:flex; flex-direction:column; align-items:center; gap:1rem;}
@@ -589,6 +598,12 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .evbtn{padding:1rem; font-size:1.2rem; font-weight:800; border-radius:var(--r); border:2px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:var(--font-body);}
 .evbtn.goal.on{background:var(--pop); border-color:var(--pop); color:var(--pop-ink);}
 .evbtn.miss.on{background:var(--ink); border-color:var(--ink); color:var(--paper);}
+/* Extra stats ("Track more stats"): smaller buttons under Goal and Miss. */
+.ev-more{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.35rem; margin-top:0.45rem;}
+.evbtn.small{padding:0.5rem 0.25rem; font-size:0.82rem; border-width:1.5px;}
+.evbtn.small.on{background:var(--warm); border-color:var(--warm); color:#fff;}
+.stat-grid.small{grid-template-columns:repeat(3, minmax(0, 1fr)); margin-top:0.3rem;}
+.stat-grid.small .stat-btn{padding:0.7rem 0.3rem; font-size:0.88rem;}
 .pos-row.one{grid-template-columns:1fr;}
 .ptile.opp{background:var(--surface-2); min-height:3.6rem; border-style:dashed; border-color:var(--ink-soft);}
 .pt-opp{font-family:var(--font-display); font-size:1.3rem; font-weight:800; line-height:1.1; text-transform:uppercase; text-align:center; overflow-wrap:anywhere;}
@@ -702,6 +717,7 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 .fair td.zero-this{color:var(--warm);}
 .toc-switches{display:flex; flex-wrap:wrap; gap:0.5rem; margin:0 0 0.6rem;}
 .fair.simple th{white-space:normal; line-height:1.15; font-size:0.85rem;}
+.extra-stats th.grp{font-family:var(--font-body); font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); border-left:1px solid var(--line);}
 </style>
 </head>
 <body>
@@ -810,13 +826,15 @@ function practiceWrite(ops){
      teams/{teamId}                               name, adminUid (who created it; no longer
                                                   gives extra rights), editSeason
        seasons/{seasonId}                         name, competition, format, periodMinutes, joinCode,
-                                                  fromSeason (the season it was started from)
+                                                  fromSeason (the season it was started from),
+                                                  stats { extra[], teams } ("Track more stats")
          members/{uid}                            name, email, photoURL, roles[], code
          players/{playerId}                       name, active
          games/{gameId}                           round, date, time, opponent, venue, court,
                                                   format, periodMinutes, status,
                                                   available[] (player ids; missing = all active),
-                                                  plan { "1": { GS: playerId, ... }, "2": ... }
+                                                  plan { "1": { GS: playerId, ... }, "2": ... },
+                                                  stats (optional: overrides the season's)
      joinCodes/{code}                             teamId, seasonId
      users/{uid}/memberships/{seasonId}           teamId, seasonId (so "my teams" can be listed)
 --------------------------------------------------------------------- */
@@ -1053,18 +1071,50 @@ function gameFormatLabel(g){ return formatLabel({ format:g.format, periodMinutes
      games/{gameId}/events/{eventId}   type, period, t (ms of play into the
                                        period), at, by, plus per type:
        lineup      lineup { GS: playerId, ... }, start (true at period start)
-       goal, miss, intercept, held, obstruction, contact   pos, playerId
+       goal, miss, and the extra stats (EXTRA_STATS)   pos, playerId
+       feed        pos, playerId, goal (the id of the goal it led to)
        oppGoal, oppMiss
+       oppStat     stat (an extra stat key) for the other team as a whole
        centre      team ('us' or 'them'): who takes the next centre pass
        periodEnd
      undone: true marks an event as undone or removed.
 --------------------------------------------------------------------- */
-// Only goals and misses are recorded (by GS and GA, for both teams).
-// Games scored before this change may contain other stats; they keep
-// their labels here but are no longer offered.
+// Goals and misses (by GS and GA, for both teams) are always recorded.
+// "Track more stats" (team Settings, or a game's settings) adds any of
+// the extra stats below, for our players, the other team, or both.
 const STATS = [{ key:'goal', label:'Goal' }, { key:'miss', label:'Miss' }];
-const STAT_LABEL = { goal:'Goal', miss:'Miss', intercept:'Intercept', held:'Held ball', obstruction:'Obstruction', contact:'Contact' };
+// short is the column heading in stats tables.
+const STAT_GROUPS = [
+  { key:'shooting', label:'Shooting', stats:[{ key:'goal', label:'Goal', short:'Goals' }, { key:'miss', label:'Miss', short:'Misses' },
+    { key:'feed', label:'Feed', short:'Feeds' }] },
+  { key:'gains', label:'Gains', stats:[{ key:'rebound', label:'Rebound', short:'Reb' }, { key:'intercept', label:'Intercept', short:'Int' },
+    { key:'deflect', label:'Deflection', short:'Defl' }] },
+  { key:'losses', label:'Losses', stats:[{ key:'badPass', label:'Bad pass', short:'BP' }, { key:'footwork', label:'Footwork', short:'FW' },
+    { key:'held', label:'Held ball', short:'HB' }, { key:'outOfCourt', label:'Out of court', short:'OOC' }, { key:'error', label:'Error', short:'Err' }] },
+  { key:'penalties', label:'Penalties', stats:[{ key:'contact', label:'Contact', short:'Con' }, { key:'obstruction', label:'Obstruction', short:'Obs' },
+    { key:'offside', label:'Offside', short:'Off' }] }
+];
+const STAT_INFO = Object.fromEntries(STAT_GROUPS.flatMap(gr => gr.stats.map(st => [st.key, { ...st, group:gr.key }])));
+const EXTRA_STATS = Object.keys(STAT_INFO).filter(k => k !== 'goal' && k !== 'miss');
+// Every stat a player can be credited with (older games may hold intercept,
+// held, obstruction or contact from before scoring was simplified; those
+// only count where the game tracks them).
+const STAT_LABEL = Object.fromEntries(Object.entries(STAT_INFO).map(([k, v]) => [k, v.label]));
 const SHOOTERS = ['GS','GA'];
+
+// Which extra stats a game tracks: its own choice if it has one, otherwise
+// the season's. { extra:[keys], teams:'us' | 'them' | 'both' }
+function statConfig(g){
+  const c = (g && g.stats) || (CUR.season && CUR.season.stats) || {};
+  return { extra:(c.extra || []).filter(k => EXTRA_STATS.includes(k)), teams:c.teams === 'them' || c.teams === 'both' ? c.teams : 'us' };
+}
+// Extra stats recorded for our players, and for the other team (feeds are
+// only for our players: the other team has no names to credit).
+function usExtras(g){ const c = statConfig(g); return c.teams === 'them' ? [] : c.extra; }
+function themExtras(g){ const c = statConfig(g); return c.teams === 'us' ? [] : c.extra.filter(k => k !== 'feed'); }
+function tracksExtras(g){ return usExtras(g).length + themExtras(g).length > 0; }
+// The extra stats that can be tapped during play (feeds are asked for after a goal).
+function tapExtras(list){ return list.filter(k => k !== 'feed'); }
 
 // Anyone who can run a game: Coach/Manager or Scorer.
 function canScore(){ return inPractice() || isStaff(); }
@@ -1118,7 +1168,12 @@ function computeGame(g, events){
     .sort((a,b) => (a.period - b.period) || (a.t - b.t) || ((a.at || 0) - (b.at || 0)));
   const res = { us:0, them:0, oppMiss:0, byPeriod:{}, players:{}, lineup:null, centre:null,
     opp:{ GS:{ goal:0, miss:0 }, GA:{ goal:0, miss:0 }, Team:{ goal:0, miss:0 } } };
-  const P = id => res.players[id] || (res.players[id] = { ms:0, pos:{}, goal:0, miss:0, intercept:0, held:0, obstruction:0, contact:0 });
+  const P = id => res.players[id] || (res.players[id] = { ms:0, pos:{}, goal:0, miss:0 });
+  // Extra stats only count if this game tracks them (older games may hold
+  // stats from before they were optional). A feed counts while its goal stands.
+  const usOn = new Set(usExtras(g)), themOn = new Set(themExtras(g));
+  const goals = new Set(evs.filter(e => e.type === 'goal').map(e => e.id));
+  res.oppStats = {};
   for (let p = 1; p <= n; p++){
     const pe = evs.filter(e => e.period === p);
     const lineups = pe.filter(e => e.type === 'lineup');
@@ -1142,7 +1197,9 @@ function computeGame(g, events){
       else if (e.type === 'centre') centre = e.team;
       if (e.type === 'oppGoal' || e.type === 'oppMiss')
         res.opp[e.pos === 'GS' || e.pos === 'GA' ? e.pos : 'Team'][e.type === 'oppGoal' ? 'goal' : 'miss']++;
-      if (STAT_LABEL[e.type] && e.playerId) P(e.playerId)[e.type]++;
+      if (e.playerId && (e.type === 'goal' || e.type === 'miss' || (usOn.has(e.type) && (e.type !== 'feed' || goals.has(e.goal)))))
+        P(e.playerId)[e.type] = (P(e.playerId)[e.type] || 0) + 1;
+      if (e.type === 'oppStat' && themOn.has(e.stat)) res.oppStats[e.stat] = (res.oppStats[e.stat] || 0) + 1;
     });
     res.us += us; res.them += them;
     if (lineups.length) res.byPeriod[p] = { us, them };
@@ -1889,6 +1946,37 @@ function seasonFieldsHtml(prefix, s){
     <span class="hint">These are the defaults for every game this season. Each game can override them.</span>`;
 }
 
+// "Track more stats": folded away at the bottom of team Settings (for the
+// season) and Game settings (for one game), so new users never need it.
+// Goal and Miss are always on. cfg is { extra, teams } (see statConfig).
+function statsFieldsHtml(prefix, cfg, forGame){
+  const on = new Set(cfg.extra);
+  const team = (value, label) => `<label><input type="radio" name="statsTeams" value="${value}" ${cfg.teams === value ? 'checked' : ''}><span>${label}</span></label>`;
+  return `<details class="more-stats" ${on.size ? 'open' : ''}>
+      <summary>Track more stats${on.size ? ` <span class="hint">(${on.size} extra)</span>` : ''}</summary>
+      <p class="hint">Goals and misses are always tracked. Tick any extra stats to record during games${forGame ? ' (this game only; the season\'s choice is ticked to start with)' : ''}. Each one adds a button to the scoring screen, so only pick what your scorer can keep up with.</p>
+      <div class="stat-picks">${STAT_GROUPS.map(gr => `<fieldset>
+          <legend>${escapeHtml(gr.label)}</legend>
+          ${gr.stats.map(st => st.key === 'goal' || st.key === 'miss'
+            ? `<label class="check-row"><input type="checkbox" checked disabled> ${escapeHtml(st.label)} <span class="hint">(always)</span></label>`
+            : `<label class="check-row"><input type="checkbox" id="${prefix}-st-${st.key}" name="stat_${st.key}" ${on.has(st.key) ? 'checked' : ''}> ${escapeHtml(st.label)}${st.key === 'feed' ? ' <span class="hint">(asks who fed each goal)</span>' : ''}</label>`).join('')}
+        </fieldset>`).join('')}</div>
+      <div class="field">
+        <span class="label" id="${prefix}-st-teams">Track extra stats for</span>
+        <div class="segmented" role="radiogroup" aria-labelledby="${prefix}-st-teams">${team('us', 'Our team')}${team('them', 'Other team')}${team('both', 'Both')}</div>
+        <span class="hint">The other team's stats are counted for the team as a whole (no names). Feeds are for our team only.</span>
+      </div>
+    </details>`;
+}
+function readStatsFields(fd){
+  const extra = EXTRA_STATS.filter(k => fd.get('stat_' + k));
+  const t = fd.get('statsTeams');
+  return { extra, teams:extra.length && (t === 'them' || t === 'both') ? t : 'us' };
+}
+function sameStats(a, b){
+  return a.teams === b.teams && a.extra.length === b.extra.length && a.extra.every(k => b.extra.includes(k));
+}
+
 /* ---- Season ---- */
 function renderSeason(){
   const t = CUR.team, s = CUR.season;
@@ -2175,6 +2263,7 @@ function gameFormHtml(prefix, g, formName, submitLabel){
             value="${escapeHtml(g.periodMinutes || DEFAULT_PERIOD_MINUTES)}" style="max-width:7rem">
         </div>
       </div>
+      ${formName === 'edit-game' ? `<div class="not-bye">${statsFieldsHtml(prefix, statConfig(g), true)}</div>` : ''}
       <div class="form-actions">
         ${formName === 'add-game' ? '<button type="button" class="btn ghost" data-action="close-form">Cancel</button>' : ''}
         <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>${submitLabel}</button>
@@ -2617,6 +2706,7 @@ function renderLiveTab(g){
     body += livePlayHtml(g, st, scoring);
     // Coach/Managers and Scorers can all make substitutions, not just whoever is scoring.
     if (UI.subSheet && canScore()) body += subSheetHtml(g, st);
+    else if (UI.feedFor && scoring) body += feedSheetHtml(g, st);
     else if (UI.statPos && scoring) body += statSheetHtml(g, st);
     else if (UI.pickPos && canScore()){
       UI.pickMode = 'live';
@@ -2708,8 +2798,16 @@ function livePlayHtml(g, st, scoring){
   let pane;
   if (mode === 'event'){
     const ev = UI.pendingEvent;
+    // With extra stats tracked, they sit under Goal and Miss as smaller
+    // buttons, and Step 2 offers every position (only the ones that can
+    // have the chosen stat are enabled).
+    const usTap = tapExtras(usExtras(g)), themTap = themExtras(g);
+    const extras = EXTRA_STATS.filter(k => usTap.includes(k) || themTap.includes(k));
+    const shot = ev === 'goal' || ev === 'miss';
+    const usOk = pos => ev && (shot ? SHOOTERS.includes(pos) : usTap.includes(ev));
+    const themOk = ev && (shot || themTap.includes(ev));
     // A pink frame shows which step is next: Step 1 to start with, then
-    // Step 2 once Goal or Miss is chosen (and Step 1's heading fades). Both
+    // Step 2 once a stat is chosen (and Step 1's heading fades). Both
     // frames are always there (just invisible), so nothing on the screen moves.
     pane = `<div class="step-frame ${ev ? '' : 'active'}">
         <div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
@@ -2717,19 +2815,30 @@ function livePlayHtml(g, st, scoring){
           <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
           <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
         </div>
+        ${extras.length ? `<div class="ev-more">${extras.map(k => `<button class="evbtn small ${ev === k ? 'on' : ''}" data-action="ef-event" data-stat="${k}" aria-pressed="${ev === k}">${escapeHtml(STAT_LABEL[k])}</button>`).join('')}</div>` : ''}
       </div>
       <div class="step-frame ${ev ? 'active' : ''}">
-        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap Goal or Miss first)</span></div>
-        <div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!ev })}${tile('GA', 'us', 'ef-who', { disabled:!ev })}</div>
-        <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!ev })}</div>
+        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap ${extras.length ? 'a stat' : 'Goal or Miss'} first)</span></div>
+        ${usTap.length ? `<div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!usOk('GS') })}${tile('GA', 'us', 'ef-who', { disabled:!usOk('GA') })}</div>
+          <div class="pos-row three">${['WA','C','WD'].map(p => tile(p, 'us', 'ef-who', { disabled:!usOk(p) })).join('')}</div>
+          <div class="pos-row two">${tile('GD', 'us', 'ef-who', { disabled:!usOk('GD') })}${tile('GK', 'us', 'ef-who', { disabled:!usOk('GK') })}</div>`
+        : `<div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!usOk('GS') })}${tile('GA', 'us', 'ef-who', { disabled:!usOk('GA') })}</div>`}
+        <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!themOk })}</div>
       </div>
       ${subBtnHtml()}`;
   } else if (scoring){
     // The scorer only needs the shooters (subs are under Sub Player(s)).
-    pane = `<div class="sec-label">Who shot</div>
-      <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
-      <div class="pos-row one">${tile('', 'them', 'tile')}</div>
-      ${subBtnHtml()}<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>`;
+    pane = tapExtras(usExtras(g)).length
+      ? `<div class="sec-label">Who did it</div>
+        <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
+        <div class="pos-row three">${['WA','C','WD'].map(p => tile(p, 'us', 'tile')).join('')}</div>
+        <div class="pos-row two">${tile('GD', 'us', 'tile')}${tile('GK', 'us', 'tile')}</div>
+        <div class="pos-row one">${tile('', 'them', 'tile')}</div>
+        ${subBtnHtml()}<p class="hint">Tap a player (or the other team) to record a stat.</p>`
+      : `<div class="sec-label">Who shot</div>
+        <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
+        <div class="pos-row one">${tile('', 'them', 'tile')}</div>
+        ${subBtnHtml()}<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>`;
   } else {
     // Everyone else sees who's on court on the court diagram, with the bench.
     // Coach/Managers and Scorers can tap a position to make a substitution.
@@ -2740,7 +2849,7 @@ function livePlayHtml(g, st, scoring){
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
     ${scoring ? undoBarHtml(g) : ''}
-    ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? '<div class="mic-hint" role="status">Listening... say "GS goal"</div>' : ''}` : ''}`;
+    ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? `<div class="mic-hint" role="status">Listening... say "GS goal"${tapExtras(usExtras(g)).length ? ' or "WD intercept"' : ''}</div>` : ''}` : ''}`;
 }
 
 // Substitutions from either scoring mode.
@@ -2780,14 +2889,15 @@ function canPractise(){ return CUR.players.some(p => p.active !== false); }
 // can tap a row to undo that particular entry (not just the latest).
 function eventLogHtml(g){
   const pms = periodMs(g);
-  const evs = CUR.events.filter(e => !e.undone && (e.type === 'goal' || e.type === 'miss' || e.type === 'oppGoal' || e.type === 'oppMiss'))
+  const evs = CUR.events.filter(e => !e.undone && (STAT_LABEL[e.type] || e.type === 'oppGoal' || e.type === 'oppMiss' || e.type === 'oppStat'))
     .sort((a,b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
   if (!evs.length) return '';
   const tappable = canScore();
   return `<div class="event-log" aria-label="Latest">
     ${evs.map((e, i) => {
-      const opp = e.type === 'oppGoal' || e.type === 'oppMiss';
-      const what = e.type === 'goal' || e.type === 'oppGoal' ? 'Goal' : 'Miss';
+      const opp = e.type === 'oppGoal' || e.type === 'oppMiss' || e.type === 'oppStat';
+      const what = e.type === 'goal' || e.type === 'oppGoal' ? 'Goal' : e.type === 'miss' || e.type === 'oppMiss' ? 'Miss'
+        : STAT_LABEL[e.type === 'oppStat' ? e.stat : e.type] || 'Stat';
       const badge = opp ? 'Opp' : (e.pos || '?');
       const who = opp ? '' : (e.playerId ? ' · ' + escapeHtml(playerName(e.playerId)) : '');
       const inner = `<span class="log-badge ${opp ? 'opp' : ''}">${escapeHtml(badge)}</span>
@@ -2799,7 +2909,7 @@ function eventLogHtml(g){
           <button class="log-row ${i === 0 ? 'latest' : ''}" data-action="log-select" data-event="${escapeHtml(e.id)}" aria-expanded="${sel}"
             aria-label="${escapeHtml(eventText(g, e))}. Tap for options">${inner}</button>
           ${sel ? `<div class="log-actions">
-              <span>Undo this ${what.toLowerCase()}?</span>
+              <span>Undo this ${escapeHtml(what.toLowerCase())}?</span>
               <button class="btn danger small" data-action="log-undo" data-event="${escapeHtml(e.id)}">Undo</button>
               <button class="btn ghost small" data-action="log-cancel">Keep</button>
             </div>` : ''}
@@ -2956,6 +3066,7 @@ function eventText(g, e){
   if (STAT_LABEL[e.type]) return `${STAT_LABEL[e.type]}, ${e.playerId ? playerName(e.playerId) : 'unknown'}${e.pos ? ' (' + e.pos + ')' : ''}`;
   if (e.type === 'oppGoal') return `${teamLabel(g, 'them')}${e.pos ? ' ' + e.pos : ''} goal`;
   if (e.type === 'oppMiss') return `${teamLabel(g, 'them')}${e.pos ? ' ' + e.pos : ''} miss`;
+  if (e.type === 'oppStat') return `${STAT_LABEL[e.stat] || e.stat}, ${teamLabel(g, 'them')}`;
   if (e.type === 'centre') return `Centre pass to ${teamLabel(g, e.team)}`;
   if (e.type === 'lineup') return 'Lineup change';
   return e.type;
@@ -2966,11 +3077,16 @@ function eventText(g, e){
 function guideSheetHtml(g){
   const q2 = escapeHtml(periodName(g, 2));
   const pauseIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
+  const more = tapExtras(usExtras(g)).length + themExtras(g).length > 0;
   const rows = [
     [`<span class="g-num">1</span><span class="g-btn goal">Goal</span><span class="g-btn">Miss</span>`,
       '<b>What happened?</b> Tap Goal or Miss.'],
     [`<span class="g-num">2</span><span class="g-tile shooter">GS</span><span class="g-tile shooter">GA</span><span class="g-tile opp">Opp</span>`,
       `<b>Who did it?</b> Tap our shooter, or ${escapeHtml(teamLabel(g, 'them'))}. Done.`],
+    ...(more ? [[`<span class="g-btn">Intercept</span>`,
+      'This game tracks more stats: tap one of the smaller buttons (like Intercept), then who did it. In Player first, tap any player.']] : []),
+    ...(usExtras(g).includes('feed') ? [[`<span class="g-tile">WA</span>`,
+      'After each goal you\'re asked who fed it. Tap the player, or Skip.']] : []),
     [`<span class="g-round">${undoSvg()}</span>`,
       'Mistake? Tap undo, or tap the entry in the list.'],
     [`<span class="g-round">${pauseIcon}</span>`,
@@ -2984,7 +3100,7 @@ function guideSheetHtml(g){
     ['<span class="g-btn go">Finalise</span>',
       'Full time? Tap Finalise.'],
     ...(voiceSupported() ? [[`<span class="g-round">${micSvg()}</span>`,
-      'Or tap the mic and say "GS goal", "GA miss", "their goal" or "their miss".']] : [])
+      `Or tap the mic and say "GS goal", "GA miss", "their goal" or "their miss"${more ? ', or a tracked stat like "WD intercept"' : ''}${usExtras(g).includes('feed') ? '. Add "fed by WA" to a goal to skip the question' : ''}.`]] : [])
   ];
   const note = '';
   return `<div class="sheet-backdrop" data-action="close-guide"></div>
@@ -3010,7 +3126,10 @@ function statSheetHtml(g, st){
   const pid = !opp && st.lineup && st.lineup[pos];
   const title = opp ? `${teamLabel(g, 'them')} ${pos === 'Team' ? '' : pos}`.trim() : (pid ? playerName(pid) : 'Empty');
   const sub = opp ? (pos === 'Team' ? 'Other team' : 'Opposition ' + POS_NAMES[pos]) : POS_NAMES[pos];
-  const canShoot = opp || !!pid;
+  const canShoot = opp || (!!pid && SHOOTERS.includes(pos));
+  // Extra stats for this player or the other team, grouped (Gains, Losses...).
+  const extras = opp ? themExtras(g) : (pid ? tapExtras(usExtras(g)) : []);
+  const groups = STAT_GROUPS.map(gr => ({ label:gr.label, keys:gr.stats.map(x => x.key).filter(k => extras.includes(k)) })).filter(gr => gr.keys.length);
   return `<div class="sheet-backdrop" data-action="close-picker"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
       <div class="sheet-head">
@@ -3022,8 +3141,10 @@ function statSheetHtml(g, st){
         <button class="btn ghost small" data-action="close-picker">Close</button>
       </div>
       <div class="sheet-body">
-        ${canShoot ? `<div class="stat-grid">${STATS.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>`
-          : `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>`}
+        ${canShoot ? `<div class="stat-grid">${STATS.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>` : ''}
+        ${groups.map(gr => `<div class="list-label">${escapeHtml(gr.label)}</div>
+          <div class="stat-grid small">${gr.keys.map(k => `<button class="stat-btn" data-action="record-extra" data-stat="${k}">${escapeHtml(STAT_LABEL[k])}</button>`).join('')}</div>`).join('')}
+        ${!opp && !pid ? `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>` : ''}
         ${opp ? '' : `<button class="btn ghost" style="width:100%; margin-top:0.8rem" data-action="stat-change-player">Sub player at ${pos}</button>`}
       </div>
     </div>`;
@@ -3073,7 +3194,8 @@ function correctionFormHtml(g, playerOpts){
           </select></div>
         <div class="field"><label for="cf-stat">Stat</label>
           <select class="select-input" id="cf-stat" name="stat">
-            ${STATS.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+            ${['goal', 'miss', ...EXTRA_STATS.filter(k => k !== 'feed' && (usExtras(g).includes(k) || themExtras(g).includes(k)))]
+              .map(k => `<option value="${k}">${escapeHtml(STAT_LABEL[k])}</option>`).join('')}
           </select></div>
       </div>
       <div class="form-actions"><button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Add</button></div>
@@ -3167,6 +3289,38 @@ function timeOnCourtHtml(g, st){
     ${benchNote ? `<p class="hint">${benchNote.trim()}</p>` : ''}`;
 }
 
+// "Simple stats" or "All stats" on Game stats and Season Stats, when extra
+// stats are tracked. Each phone remembers its own choice (All to start with).
+function statsViewAll(){ try { return localStorage.getItem('nettyPalStatsView') !== 'simple'; } catch(e){ return true; } }
+function statsViewHtml(){
+  const all = statsViewAll();
+  return `<div class="toc-switches"><div class="segmented" role="radiogroup" aria-label="Which stats to show">
+      <label><input type="radio" name="statsView" data-field="stats-view" value="simple" ${all ? '' : 'checked'}><span>Simple stats</span></label>
+      <label><input type="radio" name="statsView" data-field="stats-view" value="all" ${all ? 'checked' : ''}><span>All stats</span></label>
+    </div></div>`;
+}
+// The extra stats as a table: one row per player (plus our team total, and
+// the other team when tracked), one column per stat, grouped (Gains...).
+// rows: [{ id, counts }]; usKeys/themKeys: the stats tracked for each side.
+function extraStatsTableHtml(rows, usKeys, themKeys, oppCounts, usName, themName){
+  const keys = EXTRA_STATS.filter(k => usKeys.includes(k) || themKeys.includes(k));
+  if (!keys.length) return '';
+  const groups = STAT_GROUPS.map(gr => ({ label:gr.label, n:gr.stats.filter(x => keys.includes(x.key)).length })).filter(gr => gr.n);
+  const cell = (on, v) => `<td>${on ? (v || 0) : '·'}</td>`;
+  const total = {};
+  rows.forEach(r => keys.forEach(k => { total[k] = (total[k] || 0) + (r.counts[k] || 0); }));
+  const body = rows.map(r => `<tr><td>${escapeHtml(playerName(r.id))}</td>${keys.map(k => cell(usKeys.includes(k), r.counts[k])).join('')}</tr>`).join('');
+  return `<div class="fair-wrap"><table class="fair stats-table extra-stats">
+      <thead><tr><th></th>${groups.map(gr => `<th scope="colgroup" colspan="${gr.n}" class="grp">${escapeHtml(gr.label)}</th>`).join('')}</tr>
+        <tr><th scope="col">Player</th>${keys.map(k => `<th scope="col" title="${escapeHtml(STAT_LABEL[k])}">${escapeHtml(STAT_INFO[k].short)}</th>`).join('')}</tr></thead>
+      <tbody>${usKeys.length ? body : ''}
+        ${usKeys.length ? `<tr class="team-total"><td>${escapeHtml(usName)}</td>${keys.map(k => cell(usKeys.includes(k), total[k])).join('')}</tr>` : ''}
+        ${themKeys.length ? `<tr class="team-total opp"><td>${escapeHtml(themName)}</td>${keys.map(k => cell(themKeys.includes(k), oppCounts[k])).join('')}</tr>` : ''}
+      </tbody>
+    </table></div>
+    <p class="hint">${keys.map(k => `${escapeHtml(STAT_INFO[k].short)} = ${escapeHtml(STAT_LABEL[k])}`).join(', ')}. A dot means that stat isn't tracked for them.</p>`;
+}
+
 function renderSummaryTab(g){
   if (!CUR.loaded.events) return '<div class="loading-state">Loading…</div>';
   // Before the game there's no score yet, just season court time for planning.
@@ -3222,11 +3376,21 @@ function renderSummaryTab(g){
 
   const court = timeOnCourtHtml(g, st);
 
+  // Extra stats, when this game tracks any (and "All stats" is chosen).
+  let extra = '';
+  if (tracksExtras(g) && statsViewAll()){
+    const rows = Object.entries(st.players).filter(([id, r]) => r.ms || EXTRA_STATS.some(k => r[k]))
+      .map(([id, r]) => ({ id, counts:r })).sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
+    extra = `<h3 class="subhead">More stats</h3>
+      ${extraStatsTableHtml(rows, usExtras(g), themExtras(g), st.oppStats, teamLabel(g, 'us'), teamLabel(g, 'them'))}`;
+  }
+  const view = tracksExtras(g) ? statsViewHtml() : '';
+
   prepareShare(g, st);
   const share = `<div class="lineup-tools" style="justify-content:center">
       <button class="btn" data-action="share-summary">${over ? 'Share result' : 'Share score'}</button>
     </div>`;
-  return head + share + byPeriod + shooting + court;
+  return head + share + view + byPeriod + shooting + extra + court;
 }
 
 /* ---- Sharing a game result ----
@@ -3431,15 +3595,21 @@ function renderSeasonStatsTab(){
   const players = {};
   // games: games they got on court. avail: games they were available for
   // (marked as playing, or got on court anyway), which the average divides by.
-  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0, avail:0 });
+  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0, avail:0, counts:{} });
+  // Extra stats: which ones were tracked in any finished game, for each side.
+  const usKeys = new Set(), themKeys = new Set(), oppCounts = {};
   const results = finished.map(g => {
     const st = computeGame(g, CUR.seasonEvents[g.id]);
+    usExtras(g).forEach(k => usKeys.add(k));
+    themExtras(g).forEach(k => themKeys.add(k));
+    Object.entries(st.oppStats).forEach(([k, v]) => { oppCounts[k] = (oppCounts[k] || 0) + v; });
     const r = resultWord(st.us, st.them);
     rec[r === 'Won' ? 'w' : r === 'Lost' ? 'l' : 'd']++;
     rec.gf += st.us; rec.ga += st.them; rec.oppShots += st.them + st.oppMiss;
     Object.entries(st.players).forEach(([id, s]) => {
       const p = P(id);
       p.ms += s.ms; p.goal += s.goal; p.miss += s.miss;
+      EXTRA_STATS.forEach(k => { if (s[k]) p.counts[k] = (p.counts[k] || 0) + s[k]; });
       rec.ourShots += s.goal + s.miss;
       if (s.ms) p.games++;
       Object.entries(s.pos).forEach(([pos, v]) => { p.pos[pos] = (p.pos[pos] || 0) + v; });
@@ -3483,7 +3653,15 @@ function renderSeasonStatsTab(){
     ${courtTimeTable(list, minsText)}
     <p class="hint">Total minutes in each position this season. Darker means more.</p>`;
 
-  return `${recordCard}${resultsList}${playerTable}${court}
+  // Extra stats tracked in any game this season. Each counts only the games
+  // that tracked it.
+  const anyExtra = usKeys.size + themKeys.size > 0;
+  const partly = finished.some(g => [...usKeys].some(k => !usExtras(g).includes(k)) || [...themKeys].some(k => !themExtras(g).includes(k)));
+  const extra = anyExtra && statsViewAll() ? `<h3 class="subhead">More stats</h3>
+    ${extraStatsTableHtml(list, [...usKeys], [...themKeys], oppCounts, CUR.team ? CUR.team.name : 'Our team', 'Other teams')}
+    ${partly ? '<p class="hint">Some stats weren\'t tracked in every game. Each one counts only the games that tracked it.</p>' : ''}` : '';
+
+  return `${anyExtra ? statsViewHtml() : ''}${recordCard}${resultsList}${playerTable}${extra}${court}
     <div class="lineup-tools"><button class="btn ghost small" data-action="reload-stats">Refresh</button></div>`;
 }
 
@@ -3666,6 +3844,7 @@ function renderSettingsTab(){
     <form class="form-card" data-form="season-settings">
       <h3>This season</h3>
       ${seasonFieldsHtml('ss', s)}
+      ${statsFieldsHtml('ss', statConfig(null), false)}
       <div class="form-actions"><button type="submit" class="btn">Save season</button></div>
     </form>
     ${newSeason}`;
@@ -4141,6 +4320,7 @@ async function saveTeamSettings(fd){
 async function saveSeasonSettings(fd){
   const fields = readSeasonFields(fd);
   if (!fields.name) return;
+  fields.stats = readStatsFields(fd);
   await updateDoc(seasonRef(), fields);
   toast('Season saved.');
 }
@@ -4148,6 +4328,7 @@ async function saveSeasonSettings(fd){
 async function createNewSeason(fd){
   const fields = readSeasonFields(fd);
   if (!fields.name) return;
+  if (CUR.season && CUR.season.stats) fields.stats = CUR.season.stats;
   const teamId = UI.teamId, seasonId = newId();
   const code = await uniqueCode();
   const batch = writeBatch(db);
@@ -4198,6 +4379,10 @@ async function saveGame(fd){
   // Game settings only offers the bye tick before a game starts.
   if (g && (g.status || 'scheduled') !== 'scheduled') fields.bye = !!g.bye;
   if (!fields.bye && !fields.opponent) return;
+  // A game only keeps its own stats choice if it differs from the season's,
+  // so changing the season later still reaches games that weren't changed.
+  const stats = readStatsFields(fd);
+  fields.stats = sameStats(stats, statConfig(null)) ? DELETE_FIELD : stats;
   await updateDoc(gameRef(UI.gameId), fields);
   toast('Game saved.');
 }
@@ -4688,7 +4873,8 @@ function newEvent(fields){ return { ...fields, by:USER.uid, at:Date.now() }; }
 // Writes events (and optionally game changes) together in one go.
 async function writeGame(g, events, gameUpdates){
   const batch = writeBatch(db);
-  events.forEach(ev => batch.set(doc(eventsRef(g.id)), ev));
+  // An event can bring its own id (_id), so a feed can point at its goal.
+  events.forEach(({ _id, ...ev }) => batch.set(_id ? doc(eventsRef(g.id), _id) : doc(eventsRef(g.id)), ev));
   if (gameUpdates) batch.update(gameRef(g.id), gameUpdates);
   // Anything new means there's nothing to redo. Cleared before saving, since
   // the screen redraws as soon as the change lands.
@@ -4745,12 +4931,63 @@ async function endPeriod(g){
 // iPhones don't let web apps vibrate, so nothing happens there.)
 function buzz(){ try { if (navigator.vibrate) navigator.vibrate(40); } catch(e){} }
 
-async function recordStat(g, pos, type){
+async function recordStat(g, pos, type, feedPos){
   const st = computeGame(g, CUR.events);
   const pid = st.lineup && st.lineup[pos];
   if (!pid) return;
-  await writeGame(g, [newEvent({ type, pos, playerId:pid, period:g.live.period, t:elapsedMs(g) })]);
+  const ev = newEvent({ type, pos, playerId:pid, period:g.live.period, t:elapsedMs(g) });
+  // With feeds tracked, a goal asks who fed it (see feedSheetHtml), unless
+  // the feeder was already said (voice scoring).
+  const feeds = type === 'goal' && usExtras(g).includes('feed');
+  if (feeds) ev._id = newId();
+  const fedBy = feeds && feedPos && st.lineup[feedPos];
+  const askFeed = feeds && !fedBy;
+  await writeGame(g, fedBy ? [ev, newEvent({ type:'feed', pos:feedPos, playerId:fedBy, goal:ev._id, period:ev.period, t:ev.t })] : [ev]);
   buzz();
+  if (askFeed){ UI.feedFor = { goal:ev._id, shooter:pos, period:ev.period, t:ev.t }; render(); focusSheet(); }
+}
+
+// One of the extra stats ("Track more stats"): for one of our players, or
+// for the other team as a whole.
+async function recordExtra(g, side, pos, stat){
+  if (side === 'them'){
+    if (!themExtras(g).includes(stat)) return;
+    await writeGame(g, [newEvent({ type:'oppStat', stat, period:g.live.period, t:elapsedMs(g) })]);
+    buzz();
+    return;
+  }
+  if (!usExtras(g).includes(stat)) return;
+  await recordStat(g, pos, stat);
+}
+
+// Who fed the goal that was just scored.
+async function recordFeed(g, pos){
+  const f = UI.feedFor;
+  UI.feedFor = null;
+  if (!f){ render(); return; }
+  const lineup = computeGame(g, CUR.events).lineup || {};
+  const pid = lineup[pos];
+  if (!pid){ render(); return; }
+  await writeGame(g, [newEvent({ type:'feed', pos, playerId:pid, goal:f.goal, period:f.period, t:f.t })]);
+  buzz();
+}
+function feedSheetHtml(g, st){
+  const f = UI.feedFor;
+  const lineup = st.lineup || {};
+  const who = POSITIONS.filter(pos => pos !== f.shooter && lineup[pos]);
+  return `<div class="sheet-backdrop" data-action="feed-skip"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="feed-title">
+      <div class="sheet-head">
+        <div class="grow"><h3 id="feed-title">Who fed it?</h3>
+          <div class="psub">Goal by ${escapeHtml(lineup[f.shooter] ? playerName(lineup[f.shooter]) : f.shooter)} (${escapeHtml(f.shooter)})</div></div>
+        <button class="btn ghost small" data-action="feed-skip">Skip</button>
+      </div>
+      <div class="sheet-body">
+        <div class="pos-row two" style="margin-top:0.8rem">${who.map(pos => `<button class="ptile" data-action="feed-who" data-pos="${pos}">
+            <span class="pt-pos">${pos}</span><span class="pt-name">${escapeHtml(playerName(lineup[pos]))}</span></button>`).join('')}</div>
+        <p class="hint">The pass that set up the goal. Tap Skip if nobody did (for example a rebound).</p>
+      </div>
+    </div>`;
 }
 
 // The other team's goals are recorded without a position. (Older games
@@ -4779,11 +5016,58 @@ const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let voiceRec = null;
 function voiceSupported(){ return !!SpeechRec; }
 
-// Turns what was heard into { side, pos, stat }, { undo:true } or { error }.
-// pos is 'GS' or 'GA', or '' for an opposition shot with no position.
+// Turns what was heard into { side, pos, stat, feeder }, { undo:true } or
+// { error }. pos is a position, or '' for the other team (no positions).
+// With extra stats tracked, any position and any tracked stat can be said
+// ("WD intercept", "their contact"), and a goal can say who fed it
+// ("GS goal fed by WA").
+const VOICE_POS = [
+  ['GS', /\b(goal shooter|shooter|g ?s|gee ess|gs)\b/],
+  ['GA', /\b(goal attack|g ?a|gee ay|ga)\b/],
+  ['WA', /\b(wing attack|w ?a|wa)\b/],
+  ['WD', /\b(wing defen[cs]e|w ?d|wd)\b/],
+  ['GD', /\b(goal defen[cs]e|g ?d|gd)\b/],
+  ['GK', /\b(goal ?keeper|keeper|g ?k|gk)\b/],
+  ['C', /\b(centre|center|c)\b/]
+];
+const VOICE_STATS = {
+  rebound:/\b(rebound|rebounds|rebounded)\b/,
+  intercept:/\b(intercept|intercepts|intercepted|interception|picked off|pick off)\b/,
+  deflect:/\b(deflect|deflects|deflected|deflection|tipped|tip)\b/,
+  badPass:/\b(bad pass|wild pass|loose pass|poor pass)\b/,
+  footwork:/\b(footwork|stepped|steps|travel|travelled|traveled|walked)\b/,
+  held:/\b(held ball|held)\b/,
+  outOfCourt:/\b(out of court|out of bounds|went out|ball out)\b/,
+  error:/\b(error|dropped|drop|fumble|fumbled|mistake)\b/,
+  contact:/\b(contact)\b/,
+  obstruction:/\b(obstruction|obstructed|obstructing)\b/,
+  offside:/\b(offside|off side|offsides)\b/
+};
+// Finds a position in t (by name of position, or a player's first name on
+// court), and returns [pos, t with it removed].
+function voicePos(t, lineup, allowed){
+  for (const [p, re] of VOICE_POS){
+    if (!allowed.includes(p)) continue;
+    const m = t.match(re);
+    if (m) return [p, t.replace(m[0], ' ')];
+  }
+  for (const p of allowed){
+    const first = nameKey(lineup[p] ? playerName(lineup[p]) : '').split(' ')[0];
+    if (first && first.length >= 2 && new RegExp(`\\b${first}\\b`).test(t)) return [p, t.replace(new RegExp(`\\b${first}\\b`), ' ')];
+  }
+  return [null, t];
+}
 function parseVoice(g, heard, lineup){
   let t = ' ' + String(heard || '').toLowerCase().replace(/[.,!?'"-]/g, ' ').replace(/\s+/g, ' ') + ' ';
   if (/\b(undo|scratch that|cancel that|delete that|take that back)\b/.test(t)) return { undo:true };
+  const usTap = tapExtras(usExtras(g)), themTap = themExtras(g);
+
+  // Who fed a goal: "fed by WA", "feed from Mia". Taken off first.
+  let feeder = null;
+  if (usExtras(g).includes('feed')){
+    const fm = t.match(/\b(fed by|fed from|feed from|feed by|fed|assisted by|assist from)\b(.*)$/);
+    if (fm){ [feeder] = voicePos(' ' + fm[2] + ' ', lineup, POSITIONS); t = t.slice(0, fm.index) + ' '; }
+  }
 
   // Which side: words for the other team, or their name.
   const oppWords = nameKey(g.opponent).split(' ').filter(w => w.length >= 3 && !['the', 'team', 'netball', 'club'].includes(w));
@@ -4791,34 +5075,31 @@ function parseVoice(g, heard, lineup){
   if (/\b(their|theirs|them|they|opposition|opponents?|other team|away|visitors?)\b/.test(t)
     || oppWords.some(w => new RegExp(`\\b${w}\\b`).test(t))) side = 'them';
 
-  // Position, checked before the event, since "goal shooter" contains "goal".
+  // Position, checked before the stat, since "goal shooter" contains "goal".
   let pos = null;
-  const posRules = [
-    ['GS', /\b(goal shooter|shooter|g ?s|gee ess|gs)\b/],
-    ['GA', /\b(goal attack|g ?a|gee ay|ga)\b/]
-  ];
-  for (const [p, re] of posRules){
-    const m = t.match(re);
-    if (m){ pos = p; t = t.replace(m[0], ' '); break; }
-  }
-  // Or one of our shooters by name ("Rianne goal").
-  if (!pos && side === 'us'){
-    for (const p of SHOOTERS){
-      const first = nameKey(lineup[p] ? playerName(lineup[p]) : '').split(' ')[0];
-      if (first && first.length >= 2 && new RegExp(`\\b${first}\\b`).test(t)){ pos = p; t = t.replace(new RegExp(`\\b${first}\\b`), ' '); break; }
-    }
-  }
-  if (!pos && /\b(wing attack|wing defen[cs]e|centre|center|goal defen[cs]e|goal ?keeper|keeper|w a|w d|g d|g k|wa|wd|gd|gk)\b/.test(t))
+  [pos, t] = voicePos(t, lineup, usTap.length ? POSITIONS : SHOOTERS);
+  if (!pos && !usTap.length && /\b(wing attack|wing defen[cs]e|centre|center|goal defen[cs]e|goal ?keeper|keeper|w a|w d|g d|g k|wa|wd|gd|gk)\b/.test(t))
     return { error:'Only GS and GA can shoot.' };
 
+  // The stat: a tracked extra, or goal / miss.
   let stat = null;
-  if (/\b(miss|missed|misses|missing|no goal|off target)\b/.test(t)) stat = 'miss';
-  else if (/\b(goal|goals|scored|scores|score|in)\b/.test(t)) stat = 'goal';
-  if (!stat) return { error:'Say "goal" or "miss".' };
-  // The other team's shots are recorded without a position.
+  const extras = side === 'them' ? themTap : usTap;
+  for (const k of EXTRA_STATS){
+    if (VOICE_STATS[k] && VOICE_STATS[k].test(t)){
+      if (!extras.includes(k)) return { error:`${STAT_LABEL[k]} isn't tracked for ${side === 'them' ? 'the other team' : 'your players'} in this game.` };
+      stat = k; break;
+    }
+  }
+  if (!stat){
+    if (/\b(miss|missed|misses|missing|no goal|off target)\b/.test(t)) stat = 'miss';
+    else if (/\b(goal|goals|scored|scores|score|in)\b/.test(t)) stat = 'goal';
+  }
+  if (!stat) return { error:usTap.length || themTap.length ? 'Say who and what, like "GS goal" or "WD intercept".' : 'Say "goal" or "miss".' };
+  // The other team's stats are recorded without a position.
   if (side === 'them') return { side, pos:'', stat };
   if (!pos) return { error:'Say who: "GS goal" or "GA miss".' };
-  return { side, pos, stat };
+  if ((stat === 'goal' || stat === 'miss') && !SHOOTERS.includes(pos)) return { error:'Only GS and GA can shoot.' };
+  return { side, pos, stat, feeder:stat === 'goal' && feeder !== pos ? feeder : null };
 }
 
 function voiceErrorText(code){
@@ -4878,12 +5159,15 @@ async function handleVoice(alts){
   if (!parsed){ toast(`Heard "${heard}". ${error || "Didn't understand."}`, true); return; }
   if (parsed.undo){ await undoLast(); return; }
   if (parsed.side === 'us' && !lineup[parsed.pos]){ toast(`Heard "${heard}", but nobody is playing ${parsed.pos}.`, true); return; }
-  await recordShot(g, parsed.side, parsed.pos, parsed.stat);
-  const what = parsed.stat === 'goal' ? 'Goal' : 'Miss';
+  const shot = parsed.stat === 'goal' || parsed.stat === 'miss';
+  if (!shot) await recordExtra(g, parsed.side, parsed.pos, parsed.stat);
+  else if (parsed.side === 'us') await recordStat(g, parsed.pos, parsed.stat, parsed.feeder && lineup[parsed.feeder] ? parsed.feeder : null);
+  else await recordShot(g, parsed.side, parsed.pos, parsed.stat);
   const who = parsed.side === 'them'
     ? `${teamLabel(g, 'them')}${parsed.pos ? ' ' + parsed.pos : ''}`
     : `${playerName(lineup[parsed.pos])} (${parsed.pos})`;
-  toast(`Heard "${heard}": ${what}, ${who}`);
+  const fed = parsed.feeder && lineup[parsed.feeder] ? `, fed by ${playerName(lineup[parsed.feeder])} (${parsed.feeder})` : '';
+  toast(`Heard "${heard}": ${STAT_LABEL[parsed.stat]}, ${who}${fed}`);
 }
 
 function micSvg(){
@@ -4959,14 +5243,20 @@ async function correctEvent(g, eventId, changes){
 async function addCorrection(g, fd){
   const period = parseInt(fd.get('period'), 10) || 1;
   const who = String(fd.get('who') || '');
-  let type = String(fd.get('stat') || '');
-  if (who === 'opp'){
-    type = type === 'goal' ? 'oppGoal' : 'oppMiss';
+  const stat = String(fd.get('stat') || '');
+  const shot = stat === 'goal' || stat === 'miss';
+  // Only stats this game tracks, for the side that tracks them.
+  if (!shot && !(who === 'opp' ? themExtras(g) : usExtras(g)).includes(stat)){
+    toast(`${STAT_LABEL[stat] || 'That stat'} isn't tracked for ${who === 'opp' ? teamLabel(g, 'them') : 'your players'} in this game.`, true);
+    return;
   }
   // Added at the end of the period, since the exact moment isn't known.
   const endEv = CUR.events.find(e => !e.undone && e.type === 'periodEnd' && e.period === period);
-  const fields = { type, period, t:endEv ? endEv.t : periodMs(g) };
-  if (who !== 'opp') fields.playerId = who;
+  const fields = { type:stat, period, t:endEv ? endEv.t : periodMs(g) };
+  if (who === 'opp'){
+    if (shot) fields.type = stat === 'goal' ? 'oppGoal' : 'oppMiss';
+    else { fields.type = 'oppStat'; fields.stat = stat; }
+  } else fields.playerId = who;
   const ev = newEvent(fields);
   await writeGame(g, [ev], { summary:gameSummary(g, [...CUR.events, ev]) });
   toast('Added.');
@@ -5152,7 +5442,7 @@ document.addEventListener('click', async (e) => {
       const g = findGame(UI.gameId);
       if (!g || !isInPlay(g)) return;
       const side = btn.dataset.side, pos = btn.dataset.pos || 'Team';
-      if (amScorer(g) && (side === 'them' || SHOOTERS.includes(pos))){ UI.statPos = pos; UI.statSide = side; UI.pickPos = null; }
+      if (amScorer(g) && (side === 'them' || SHOOTERS.includes(pos) || tapExtras(usExtras(g)).length)){ UI.statPos = pos; UI.statSide = side; UI.pickPos = null; }
       else if (side === 'us'){ UI.pickPos = pos; UI.pickMode = 'live'; UI.statPos = null; }
       render(); focusSheet();
     } else if (a === 'stat-change-player'){
@@ -5165,6 +5455,15 @@ document.addEventListener('click', async (e) => {
         const tile = document.querySelector(`.ptile[data-side="${side}"][data-pos="${pos === 'Team' ? '' : pos}"]`);
         if (tile) tile.focus();
       }
+    } else if (a === 'record-extra'){
+      const g = findGame(UI.gameId), pos = UI.statPos, side = UI.statSide || 'us';
+      UI.statPos = null; render();
+      if (g && pos && isInPlay(g)) await recordExtra(g, side, pos, btn.dataset.stat);
+    } else if (a === 'feed-who'){
+      const g = findGame(UI.gameId);
+      if (g) await recordFeed(g, btn.dataset.pos); else { UI.feedFor = null; render(); }
+    } else if (a === 'feed-skip'){
+      UI.feedFor = null; render();
     } else if (a === 'live-mode'){
       setLiveMode(btn.dataset.mode);
     } else if (a === 'ef-event'){
@@ -5174,7 +5473,8 @@ document.addEventListener('click', async (e) => {
       const g = findGame(UI.gameId), stat = UI.pendingEvent;
       if (!g || !stat || !isInPlay(g)) return;
       UI.pendingEvent = null; render();
-      await recordShot(g, btn.dataset.side, btn.dataset.pos, stat);
+      if (stat === 'goal' || stat === 'miss') await recordShot(g, btn.dataset.side, btn.dataset.pos, stat);
+      else await recordExtra(g, btn.dataset.side, btn.dataset.pos, stat);
     } else if (a === 'voice'){
       toggleVoice();
     } else if (a === 'toggle-archived'){
@@ -5314,6 +5614,7 @@ document.addEventListener('change', (e) => {
   if (el.matches('input[data-field="player-name"]')) renamePlayer(el.dataset.player, el.value).catch(fail);
   if (el.matches('input[data-field="import-file"]') && el.files && el.files[0]) readImportFile(el.files[0]);
   if (el.matches('input[data-field="fair-view"]')){ UI.fairView = el.value; render(); }
+  if (el.matches('input[data-field="stats-view"]')){ try { localStorage.setItem('nettyPalStatsView', el.value); } catch(e){} render(); }
   if (el.matches('input[data-field="court-view"]')){ UI.courtView = el.value; render(); }
   // Ticking "This round is a bye" hides the fields a bye doesn't need, and
   // the opponent is no longer required.
