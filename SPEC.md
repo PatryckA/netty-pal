@@ -260,6 +260,22 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ---
 
+### Player awards (added 2026-10-10)
+- **Off by default.** Switched on for the season in Team Settings (folded "Player awards"
+  section), or for one game in Game settings (which otherwise follows the season).
+- Up to **5 awards**, named by the Coach/Manager ("Coaches Award" to start with).
+- **Only Coach/Managers see awards** (enforced in `firestore.rules`: the season's `awards`
+  collection is readable and writable by Coach/Managers only). Parents and Scorers never see them.
+- Per game: on Game stats, tap players to give each award (joint winners allowed). Players
+  are sorted so anyone who hasn't had that award yet this season comes first ("not yet").
+  At full time a nudge offers "Give awards".
+- Season: Season Stats shows a "Season awards" table per player and "Not yet given an award".
+  Archived games and games with awards switched off aren't counted.
+- No share card or players' player voting (decided with the owner).
+- Stored as `awards/settings { enabled, types[] }` and `awards/{gameId} { winners, enabled? }`.
+
+---
+
 ## 7. Draft data model (Firestore)
 
 ```

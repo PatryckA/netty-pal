@@ -294,6 +294,15 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .owner-team{display:flex; flex-direction:column; gap:0.4rem;}
 .owner-team-tools{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.4rem;}
 .team-card.static{cursor:default;}
+.award-panel h4{text-transform:none; letter-spacing:0; font-size:0.95rem; color:var(--ink);}
+.award-chip{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:var(--r-pill); padding:0.4rem 0.7rem; font-size:0.88rem; font-weight:700; cursor:pointer; font-family:var(--font-body);}
+.award-chip.on{background:var(--pop); border-color:var(--pop); color:var(--pop-ink);}
+.award-count{font-size:0.72rem; opacity:0.75;}
+.award-new{font-size:0.66rem; font-weight:800; text-transform:uppercase; color:var(--warm);}
+.award-chip.on .award-new{color:inherit;}
+.award-field{display:flex; gap:0.4rem; margin-bottom:0.4rem;}
+.award-names{margin:0.4rem 0 0.6rem;}
+form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .archived-team{display:flex; flex-direction:column; gap:0.35rem; align-items:flex-start;}
 .archived-teams .team-card{opacity:0.7;}
 .danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
@@ -839,6 +848,10 @@ function practiceWrite(ops){
                                                   available[] (player ids; missing = all active),
                                                   plan { "1": { GS: playerId, ... }, "2": ... },
                                                   stats (optional: overrides the season's)
+         awards/settings                          enabled (awards on for the season; off by default),
+                                                  types [{ id, name }] (up to 5; Coach/Managers only)
+         awards/{gameId}                          winners { awardId: [playerIds] }, enabled (optional:
+                                                  overrides the season for this game) (Coach/Managers only)
      joinCodes/{code}                             teamId, seasonId
      users/{uid}/memberships/{seasonId}           teamId, seasonId (so "my teams" can be listed)
 --------------------------------------------------------------------- */
@@ -1692,8 +1705,8 @@ async function loadOwnerTeams(){
 async function deleteTeam(teamId){
   const seasonSnaps = await getDocs(collection(db, 'teams', teamId, 'seasons'));
   for (const se of seasonSnaps.docs){
-    const [members, players, games, invites] = await Promise.all(['members', 'players', 'games', 'invites'].map(c => getDocs(collection(se.ref, c))));
-    const refs = [];
+    const [members, players, games, invites, awards] = await Promise.all(['members', 'players', 'games', 'invites', 'awards'].map(c => getDocs(collection(se.ref, c))));
+    const refs = awards.docs.map(d => d.ref);
     for (const g of games.docs){
       const events = await getDocs(collection(g.ref, 'events'));
       events.docs.forEach(e => refs.push(e.ref));
@@ -1894,9 +1907,9 @@ async function deleteDocs(refs){
 // the security rules don't allow deleting those.)
 async function deleteSeasonData(s){
   const sRef = doc(db, 'teams', s.teamId, 'seasons', s.seasonId);
-  const [players, games, invites] = await Promise.all([
-    getDocs(collection(sRef, 'players')), getDocs(collection(sRef, 'games')), getDocs(collection(sRef, 'invites'))]);
-  const refs = [...players.docs.map(d => d.ref), ...games.docs.map(d => d.ref)];
+  const [players, games, invites, awards] = await Promise.all([
+    getDocs(collection(sRef, 'players')), getDocs(collection(sRef, 'games')), getDocs(collection(sRef, 'invites')), getDocs(collection(sRef, 'awards'))]);
+  const refs = [...players.docs.map(d => d.ref), ...games.docs.map(d => d.ref), ...awards.docs.map(d => d.ref)];
   invites.docs.forEach(d => { refs.push(d.ref); refs.push(doc(db, 'roleInvites', d.id)); });
   if (s.joinCode) refs.push(doc(db, 'joinCodes', s.joinCode));
   await deleteDocs(refs);
@@ -1971,7 +1984,7 @@ function seasonFieldsHtml(prefix, s){
 // Goal and Miss are always on. cfg is { extra, teams } (see statConfig).
 function statsFieldsHtml(prefix, cfg, forGame){
   const on = new Set(cfg.extra);
-  const team = (value, label) => `<label><input type="radio" name="statsTeams" value="${value}" ${cfg.teams === value ? 'checked' : ''}><span>${label}</span></label>`;
+  const team = (value, label) => `<label><input type="radio" id="${prefix}-st-t-${value}" name="statsTeams" value="${value}" ${cfg.teams === value ? 'checked' : ''}><span>${label}</span></label>`;
   const changed = on.size || !cfg.miss;
   return `<details class="more-stats" ${changed ? 'open' : ''}>
       <summary>Track more stats${on.size ? ` <span class="hint">(${on.size} extra)</span>` : ''}${cfg.miss ? '' : ' <span class="hint">(no misses)</span>'}</summary>
@@ -2287,7 +2300,7 @@ function gameFormHtml(prefix, g, formName, submitLabel){
             value="${escapeHtml(g.periodMinutes || DEFAULT_PERIOD_MINUTES)}" style="max-width:7rem">
         </div>
       </div>
-      ${formName === 'edit-game' ? `<div class="not-bye">${statsFieldsHtml(prefix, statConfig(g), true)}</div>` : ''}
+      ${formName === 'edit-game' ? `<div class="not-bye">${statsFieldsHtml(prefix, statConfig(g), true)}${gameAwardsFieldHtml(g)}</div>` : ''}
       <div class="form-actions">
         ${formName === 'add-game' ? '<button type="button" class="btn ghost" data-action="close-form">Cancel</button>' : ''}
         <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>${submitLabel}</button>
@@ -2765,6 +2778,12 @@ function renderLiveTab(g){
     prepareShare(g, st);
     body += `<p class="big-note">${final ? 'Final' : 'Full time'}</p>
       <div class="lineup-tools" style="justify-content:center"><button class="btn small" data-action="share-summary">Share score</button></div>`;
+    if (isManager() && !isPractice(g)){
+      watchAwards();
+      const given = CUR.awards && Object.values(CUR.awards[g.id] || {}).some(ids => ids && ids.length);
+      if (CUR.awards && awardsOn(g) && !given) body += `<div class="panel gameday-nudge"><p style="margin:0 0 0.5rem"><b>Give awards for this game?</b> Only Coach/Managers see them.</p>
+        <button class="btn small" data-action="game-tab" data-tab="summary">Give awards</button></div>`;
+    }
     if (canFix) body += `<div class="panel">
         <p style="margin:0 0 0.6rem">Check the timeline below and fix any mistakes, then finalise to lock the game.</p>
         <button class="btn go" data-action="finalise-game" ${UI.busy ? 'disabled' : ''}>Finalise game</button>
@@ -3417,7 +3436,7 @@ function renderSummaryTab(g){
   const share = `<div class="lineup-tools" style="justify-content:center">
       <button class="btn" data-action="share-summary">${over ? 'Share result' : 'Share score'}</button>
     </div>`;
-  return head + share + view + byPeriod + shooting + extra + court;
+  return head + share + view + gameAwardsHtml(g) + byPeriod + shooting + extra + court;
 }
 
 /* ---- Sharing a game result ----
@@ -3697,7 +3716,7 @@ function renderSeasonStatsTab(){
     ${extraStatsTableHtml(list, [...usKeys], [...themKeys], oppCounts, CUR.team ? CUR.team.name : 'Our team', 'Other teams')}
     ${partly ? '<p class="hint">Some stats weren\'t tracked in every game. Each one counts only the games that tracked it.</p>' : ''}` : '';
 
-  return `${anyExtra ? statsViewHtml() : ''}${recordCard}${resultsList}${playerTable}${extra}${court}
+  return `${anyExtra ? statsViewHtml() : ''}${recordCard}${seasonAwardsHtml()}${resultsList}${playerTable}${extra}${court}
     <div class="lineup-tools"><button class="btn ghost small" data-action="reload-stats">Refresh</button></div>`;
 }
 
@@ -3888,6 +3907,7 @@ function renderSettingsTab(){
       ${statsFieldsHtml('ss', statConfig(null), false)}
       <div class="form-actions"><button type="submit" class="btn">Save season</button></div>
     </form>
+    ${awardSettingsHtml()}
     ${newSeason}`;
 }
 
@@ -4348,6 +4368,170 @@ function watchInvites(){
   }, (err) => { console.warn('Netty Pal: invites', err); CUR.invites = []; render(); });
   CUR.unsubs.push(() => { if (CUR.invitesUnsub) CUR.invitesUnsub(); });
 }
+/* ---- Player awards ----
+   Coach/Managers give awards after each game (joint winners are fine) and
+   see the season's tally. Nobody else can see them: they're kept in the
+   season's awards collection, which only Coach/Managers can read
+   (firestore.rules). Up to 5 award names, "Coaches Award" to start with.
+   Off by default: switched on for the season (Team Settings) or for one
+   game (Game settings, which otherwise follows the season). */
+const MAX_AWARDS = 5;
+const DEFAULT_AWARDS = [{ id:'coaches', name:'Coaches Award' }];
+function awardTypes(){ return (CUR.awardSettings && CUR.awardSettings.types && CUR.awardSettings.types.length) ? CUR.awardSettings.types : DEFAULT_AWARDS; }
+// Are awards on for the season, or for this game (its own choice, else the season's)?
+function seasonAwardsOn(){ return !!(CUR.awardSettings && CUR.awardSettings.enabled); }
+function awardsOn(g){
+  const own = CUR.awardFlags && g ? CUR.awardFlags[g.id] : undefined;
+  return typeof own === 'boolean' ? own : seasonAwardsOn();
+}
+function watchAwards(){
+  if (CUR.awardsFor === UI.seasonId || !isManager()) return;
+  if (CUR.awardsUnsub) CUR.awardsUnsub();
+  CUR.awardsFor = UI.seasonId;
+  CUR.awards = null; CUR.awardSettings = null;
+  CUR.awardsUnsub = onSnapshot(collection(seasonRef(), 'awards'), (snap) => {
+    CUR.awards = {}; CUR.awardFlags = {}; CUR.awardSettings = null;
+    snap.docs.forEach(d => {
+      if (d.id === 'settings'){ CUR.awardSettings = d.data(); return; }
+      CUR.awards[d.id] = d.data().winners || {};
+      if (typeof d.data().enabled === 'boolean') CUR.awardFlags[d.id] = d.data().enabled;
+    });
+    render();
+  }, (err) => { console.warn('Netty Pal: awards', err); CUR.awards = {}; render(); });
+  CUR.unsubs.push(() => { if (CUR.awardsUnsub) CUR.awardsUnsub(); });
+}
+// How many of each award every player has had this season, leaving out one
+// game (so the game being decided shows who hasn't had one yet).
+function awardTally(exceptGameId){
+  const tally = {};
+  // Only games that aren't archived and have awards switched on.
+  const live = new Set(CUR.games.filter(g => !g.archived && awardsOn(g)).map(g => g.id));
+  Object.entries(CUR.awards || {}).forEach(([gameId, winners]) => {
+    if (gameId === exceptGameId || !live.has(gameId)) return;
+    Object.entries(winners).forEach(([awardId, ids]) => (ids || []).forEach(id => {
+      const t = tally[id] || (tally[id] = { total:0 });
+      t[awardId] = (t[awardId] || 0) + 1; t.total++;
+    }));
+  });
+  return tally;
+}
+async function toggleAward(gameId, awardId, playerId){
+  const winners = { ...((CUR.awards || {})[gameId] || {}) };
+  const ids = new Set(winners[awardId] || []);
+  if (ids.has(playerId)) ids.delete(playerId); else ids.add(playerId);
+  winners[awardId] = Array.from(ids);
+  await setDoc(doc(seasonRef(), 'awards', gameId), { winners }, { merge:true });
+}
+async function saveAwardSettings(fd){
+  const old = awardTypes();
+  const enabled = !!fd.get('awardsOn');
+  const types = [];
+  for (let i = 0; i < MAX_AWARDS; i++){
+    const name = String(fd.get('award_' + i) || '').trim().slice(0, 40);
+    if (!name) continue;
+    types.push({ id:String(fd.get('awardId_' + i) || '') || newId(), name });
+  }
+  if (!types.length){ toast('Keep at least one award (you can rename it).', true); return; }
+  await setDoc(doc(seasonRef(), 'awards', 'settings'), { enabled, types });
+  const removed = old.filter(o => !types.some(t => t.id === o.id)).length;
+  toast(!enabled ? 'Player awards are off for this season.'
+    : removed ? 'Awards saved. Removed awards no longer show (past winners are kept, just hidden).' : 'Awards saved.');
+}
+// Team Settings: the award names (Coach/Managers only; the tab is theirs).
+function awardSettingsHtml(){
+  watchAwards();
+  if (!CUR.awards) return '';
+  const types = awardTypes();
+  const rows = UI.awardRows || types.length;
+  const field = i => {
+    const t = types[i] || {};
+    return `<div class="award-field">
+        <input type="hidden" name="awardId_${i}" value="${escapeHtml(t.id || '')}">
+        <input class="text-input" id="aw-name-${i}" name="award_${i}" maxlength="40" placeholder="e.g. Encouragement Award" aria-label="Award ${i + 1} name" value="${escapeHtml(t.name || '')}">
+      </div>`;
+  };
+  const on = seasonAwardsOn();
+  return `<form class="form-card" data-form="award-settings">
+      <details class="more-stats" ${on || UI.awardRows ? 'open' : ''}>
+        <summary>Player awards${on ? ' <span class="hint">(on)</span>' : ''}</summary>
+        <label class="check-row"><input type="checkbox" id="aw-on" name="awardsOn" ${on ? 'checked' : ''}> <b>Give player awards this season</b></label>
+        <p class="hint">Off to keep things simple. When on, give awards after each game from its Game stats tab. Only Coach/Managers can see them. Each game can also switch awards on or off in its Game settings.</p>
+        <div class="award-names">
+          <span class="label">Awards <span class="hint">(up to ${MAX_AWARDS}; clear a name to remove it)</span></span>
+          ${Array.from({ length:rows }, (_, i) => field(i)).join('')}
+          ${rows < MAX_AWARDS ? '<button type="button" class="btn ghost small" data-action="award-add-row">Add an award</button>' : ''}
+        </div>
+        <div class="form-actions"><button type="submit" class="btn">Save awards</button></div>
+      </details>
+    </form>`;
+}
+// Game stats (Coach/Managers only): pick winners for each award. Anyone who
+// hasn't had that award yet this season is listed first and marked.
+function gameAwardsHtml(g){
+  if (!isManager() || isPractice(g) || g.bye) return '';
+  watchAwards();
+  if (!CUR.awards || !awardsOn(g)) return '';
+  const winners = CUR.awards[g.id] || {};
+  const tally = awardTally(g.id);
+  const st = g.id === CUR.eventsFor ? computeGame(g, CUR.events) : { players:{} };
+  const played = Array.from(new Set([...availableIds(g), ...Object.keys(st.players).filter(id => st.players[id].ms)]))
+    .filter(id => CUR.players.some(p => p.id === id));
+  const types = awardTypes();
+  return `<h3 class="subhead">Awards <span class="hint" style="font-family:var(--font-body); text-transform:none">(only Coach/Managers see these)</span></h3>
+    ${types.map(t => {
+      const chosen = new Set(winners[t.id] || []);
+      const order = played.slice().sort((a, b) => ((tally[a] || {})[t.id] || 0) - ((tally[b] || {})[t.id] || 0) || playerName(a).localeCompare(playerName(b)));
+      return `<div class="panel award-panel">
+          <h4>${escapeHtml(t.name)}${chosen.size ? ': ' + escapeHtml(Array.from(chosen).map(playerName).join(', ')) : ''}</h4>
+          <div class="chip-wrap">${order.map(id => {
+            const had = (tally[id] || {})[t.id] || 0;
+            return `<button class="award-chip ${chosen.has(id) ? 'on' : ''}" data-action="award-toggle" data-game="${escapeHtml(g.id)}" data-award="${escapeHtml(t.id)}" data-player="${escapeHtml(id)}" aria-pressed="${chosen.has(id)}">
+              ${escapeHtml(playerName(id))}${had ? ` <span class="award-count">${had}</span>` : ' <span class="award-new">not yet</span>'}</button>`;
+          }).join('') || '<span class="hint">No players marked as playing.</span>'}</div>
+        </div>`;
+    }).join('')}
+    <p class="hint">Tap a name to give the award, again to take it back. Joint winners are fine. The number is how many times they've had it this season; "not yet" means never.</p>`;
+}
+// Game settings: awards on or off for this game. Ticked to match the
+// season to start with; saving the same as the season removes the game's
+// own choice, so it follows the season again.
+function gameAwardsFieldHtml(g){
+  if (!isManager()) return '';
+  watchAwards();
+  if (!CUR.awards) return '';
+  return `<div class="more-stats"><label class="check-row"><input type="checkbox" id="eg-awards" name="awardsOn" ${awardsOn(g) ? 'checked' : ''}>
+      <b>Player awards for this game</b></label>
+    <p class="hint" style="margin:0.3rem 0 0">Only Coach/Managers see awards. The season's setting (${seasonAwardsOn() ? 'on' : 'off'}) is ticked to start with.</p>
+    <input type="hidden" name="awardsField" value="1"></div>`;
+}
+async function saveGameAwardsChoice(gameId, fd){
+  if (!fd.get('awardsField')) return;
+  const on = !!fd.get('awardsOn');
+  const same = on === seasonAwardsOn();
+  const had = CUR.awardFlags && typeof CUR.awardFlags[gameId] === 'boolean';
+  if (same && !had) return;
+  await setDoc(doc(seasonRef(), 'awards', gameId), { enabled:same ? DELETE_FIELD : on }, { merge:true });
+}
+
+// Season Stats (Coach/Managers only): awards per player, and who's yet to get one.
+function seasonAwardsHtml(){
+  if (!isManager()) return '';
+  watchAwards();
+  // Shown when awards are on for the season, or any game has its own awards.
+  if (!CUR.awards || !(seasonAwardsOn() || CUR.games.some(g => !g.archived && awardsOn(g)))) return '';
+  const tally = awardTally(null);
+  const types = awardTypes();
+  const players = CUR.players.filter(p => p.active !== false || tally[p.id]).map(p => p.id).sort((a, b) => playerName(a).localeCompare(playerName(b)));
+  const none = players.filter(id => !(tally[id] || {}).total);
+  return `<h3 class="subhead">Season awards <span class="hint" style="font-family:var(--font-body); text-transform:none">(only Coach/Managers see these)</span></h3>
+    <div class="fair-wrap"><table class="fair stats-table">
+      <thead><tr><th scope="col">Player</th>${types.map(t => `<th scope="col">${escapeHtml(t.name)}</th>`).join('')}${types.length > 1 ? '<th scope="col">Total</th>' : ''}</tr></thead>
+      <tbody>${players.map(id => `<tr class="${(tally[id] || {}).total ? '' : 'no-time'}"><td>${escapeHtml(playerName(id))}</td>
+        ${types.map(t => `<td>${(tally[id] || {})[t.id] || '·'}</td>`).join('')}${types.length > 1 ? `<td class="total">${(tally[id] || {}).total || 0}</td>` : ''}</tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hint">${none.length ? `Not yet given an award: ${none.map(id => escapeHtml(playerName(id))).join(', ')}.` : 'Every player has had at least one award.'}</p>`;
+}
+
 // Accepting a role invite: join (or, if already in the season, add the
 // role) and use up the link, all in one save.
 async function acceptRoleInvite(inv){
@@ -4444,6 +4628,7 @@ async function saveGame(fd){
   const stats = readStatsFields(fd);
   fields.stats = sameStats(stats, statConfig(null)) ? DELETE_FIELD : stats;
   await updateDoc(gameRef(UI.gameId), fields);
+  await saveGameAwardsChoice(UI.gameId, fd);
   toast('Game saved.');
 }
 
@@ -4455,7 +4640,10 @@ async function setArchived(g, archived){
 async function deleteGame(){
   const id = UI.gameId;
   backToGames();
-  await deleteDoc(gameRef(id));
+  const batch = writeBatch(db);
+  batch.delete(gameRef(id));
+  if (CUR.awards && CUR.awards[id]) batch.delete(doc(seasonRef(), 'awards', id));
+  await batch.commit();
   toast('Game deleted.');
 }
 
@@ -5448,6 +5636,11 @@ document.addEventListener('click', async (e) => {
       disarm('delete-account'); await runBusy(deleteAccount);
     } else if (a === 'owner-teams'){
       await loadOwnerTeams();
+    } else if (a === 'award-toggle'){
+      await toggleAward(btn.dataset.game, btn.dataset.award, btn.dataset.player);
+    } else if (a === 'award-add-row'){
+      UI.awardRows = Math.min(MAX_AWARDS, (UI.awardRows || awardTypes().length) + 1); render();
+      const f = document.querySelector(`input[name="award_${UI.awardRows - 1}"]`); if (f) f.focus();
     } else if (a === 'toggle-archived-teams'){
       UI.showArchivedTeams = !UI.showArchivedTeams; render();
     } else if (a === 'archive-team'){
@@ -5672,6 +5865,7 @@ document.addEventListener('submit', (e) => {
   else if (name === 'add-player') addPlayer(fd).catch(fail);
   else if (name === 'team-settings') saveTeamSettings(fd).catch(fail);
   else if (name === 'season-settings') saveSeasonSettings(fd).catch(fail);
+  else if (name === 'award-settings') saveAwardSettings(fd).then(() => { UI.awardRows = null; render(); }).catch(fail);
   else if (name === 'new-season') runBusy(async () => { await createNewSeason(fd); done(); });
   else if (name === 'add-game') runBusy(async () => { await addGame(fd); done(); });
   else if (name === 'edit-game') runBusy(() => saveGame(fd));
