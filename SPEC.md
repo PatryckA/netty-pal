@@ -76,6 +76,10 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   seasons, teams and game events (enforced in `firestore.rules`).
 - The install card also shows on the sign-in screen (not when arriving from an invite
   link, so the invite isn't lost, and not inside Facebook/Instagram's own browser).
+- (Added 2026-10-10) **Archive this team** (Support Crew tab, anyone in the team): hides that
+  team season from the person's own home screen only. They stay a member; it's listed under
+  "Show archived teams" on the home screen, with Unarchive (also a banner inside the team).
+  Stored as `archived` on their own `users/{uid}/memberships/{seasonId}`; no rule changes.
 - "Delete my account" is a small text link at the bottom of the home screen, next to Privacy.
 - Confirmation buttons read "Confirm [action]" on the second tap (e.g. "Confirm delete game").
 
@@ -228,7 +232,9 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Off by default. **Team Settings > This season > Track more stats** (folded away at the
   bottom) picks extra stats for the season; **Game settings** can choose differently for one
   game (it only keeps its own choice if it differs from the season's).
-- Goal and Miss are always tracked. Extras, by category:
+- Goal is always tracked (it makes the score). **Miss can be unticked**: then there are no
+  Miss buttons, no shooting accuracy, and misses already recorded don't count. Season accuracy
+  only uses games that tracked misses. Extras, by category:
   Shooting: Feed. Gains: Rebound, Intercept, Deflection. Losses: Bad pass, Footwork,
   Held ball, Out of court, Error. Penalties: Contact, Obstruction, Offside.
 - **Track for**: Our team, Other team, or Both. The other team's stats are for the team

@@ -294,6 +294,8 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .owner-team{display:flex; flex-direction:column; gap:0.4rem;}
 .owner-team-tools{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.4rem;}
 .team-card.static{cursor:default;}
+.archived-team{display:flex; flex-direction:column; gap:0.35rem; align-items:flex-start;}
+.archived-teams .team-card{opacity:0.7;}
 .danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
 .account-zone{display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:2rem; padding-top:1rem; border-top:1px dashed var(--line);}
 .account-links{flex-basis:100%; margin:0.6rem 0 0; font-size:0.78rem; color:var(--ink-soft);}
@@ -597,6 +599,7 @@ button.ptile:not(:disabled):active{transform:scale(0.97);}
 .ev-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;}
 .evbtn{padding:1rem; font-size:1.2rem; font-weight:800; border-radius:var(--r); border:2px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:var(--font-body);}
 .evbtn.goal.on{background:var(--pop); border-color:var(--pop); color:var(--pop-ink);}
+.ev-grid.one,.stat-grid.one{grid-template-columns:1fr;}
 .evbtn.miss.on{background:var(--ink); border-color:var(--ink); color:var(--paper);}
 /* Extra stats ("Track more stats"): smaller buttons under Goal and Miss. */
 .ev-more{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.35rem; margin-top:0.45rem;}
@@ -1106,8 +1109,13 @@ const SHOOTERS = ['GS','GA'];
 // the season's. { extra:[keys], teams:'us' | 'them' | 'both' }
 function statConfig(g){
   const c = (g && g.stats) || (CUR.season && CUR.season.stats) || {};
-  return { extra:(c.extra || []).filter(k => EXTRA_STATS.includes(k)), teams:c.teams === 'them' || c.teams === 'both' ? c.teams : 'us' };
+  return { extra:(c.extra || []).filter(k => EXTRA_STATS.includes(k)), teams:c.teams === 'them' || c.teams === 'both' ? c.teams : 'us',
+    miss:c.miss !== false };
 }
+// Misses can be turned off (Goal can't: it's the score).
+function tracksMiss(g){ return statConfig(g).miss; }
+// The shot buttons offered: Goal, plus Miss when it's tracked.
+function shotStats(g){ return tracksMiss(g) ? STATS : STATS.filter(x => x.key === 'goal'); }
 // Extra stats recorded for our players, and for the other team (feeds are
 // only for our players: the other team has no names to credit).
 function usExtras(g){ const c = statConfig(g); return c.teams === 'them' ? [] : c.extra; }
@@ -1172,6 +1180,7 @@ function computeGame(g, events){
   // Extra stats only count if this game tracks them (older games may hold
   // stats from before they were optional). A feed counts while its goal stands.
   const usOn = new Set(usExtras(g)), themOn = new Set(themExtras(g));
+  const missOn = res.missOn = tracksMiss(g);
   const goals = new Set(evs.filter(e => e.type === 'goal').map(e => e.id));
   res.oppStats = {};
   for (let p = 1; p <= n; p++){
@@ -1193,11 +1202,11 @@ function computeGame(g, events){
     pe.forEach(e => {
       if (e.type === 'goal'){ us++; centre = otherTeam(centre); }
       else if (e.type === 'oppGoal'){ them++; centre = otherTeam(centre); }
-      else if (e.type === 'oppMiss') res.oppMiss++;
+      else if (e.type === 'oppMiss' && missOn) res.oppMiss++;
       else if (e.type === 'centre') centre = e.team;
-      if (e.type === 'oppGoal' || e.type === 'oppMiss')
+      if (e.type === 'oppGoal' || (e.type === 'oppMiss' && missOn))
         res.opp[e.pos === 'GS' || e.pos === 'GA' ? e.pos : 'Team'][e.type === 'oppGoal' ? 'goal' : 'miss']++;
-      if (e.playerId && (e.type === 'goal' || e.type === 'miss' || (usOn.has(e.type) && (e.type !== 'feed' || goals.has(e.goal)))))
+      if (e.playerId && (e.type === 'goal' || (e.type === 'miss' && missOn) || (usOn.has(e.type) && (e.type !== 'feed' || goals.has(e.goal)))))
         P(e.playerId)[e.type] = (P(e.playerId)[e.type] || 0) + 1;
       if (e.type === 'oppStat' && themOn.has(e.stat)) res.oppStats[e.stat] = (res.oppStats[e.stat] || 0) + 1;
     });
@@ -1503,14 +1512,24 @@ function renderHome(){
   else if (!HOME.items.length && HOME.failed) list = retry;
   else if (!HOME.items.length && HOME.invite) list = '';
   else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a team code from your coach/manager, or create your own team.</div>';
-  else list = `<div class="team-list">${HOME.items.map(it => `
+  else {
+    const card = it => `
       <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
         <div>
           <div class="tname">${escapeHtml(it.teamName)}</div>
           <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
         </div>
         <div class="badges">${roleBadges(it.roles)}</div>
-      </button>`).join('')}</div>${retry}`;
+      </button>`;
+    const active = HOME.items.filter(it => !it.archived), archived = HOME.items.filter(it => it.archived);
+    list = `${active.length ? `<div class="team-list">${active.map(card).join('')}</div>`
+        : '<div class="empty-state">All your teams are archived. Open "Archived teams" below to bring one back.</div>'}
+      ${archived.length ? `<div class="lineup-tools"><button class="btn ghost small" data-action="toggle-archived-teams" aria-expanded="${!!UI.showArchivedTeams}">
+          ${UI.showArchivedTeams ? 'Hide' : 'Show'} archived teams (${archived.length})</button></div>
+        ${UI.showArchivedTeams ? `<div class="team-list archived-teams">${archived.map(it => `<div class="archived-team">${card(it)}
+            <button class="btn ghost small" data-action="unarchive-team" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">Unarchive</button></div>`).join('')}</div>` : ''}` : ''}
+      ${retry}`;
+  }
 
   let form = '';
   if (UI.form === 'join') form = `
@@ -1952,13 +1971,16 @@ function seasonFieldsHtml(prefix, s){
 function statsFieldsHtml(prefix, cfg, forGame){
   const on = new Set(cfg.extra);
   const team = (value, label) => `<label><input type="radio" name="statsTeams" value="${value}" ${cfg.teams === value ? 'checked' : ''}><span>${label}</span></label>`;
-  return `<details class="more-stats" ${on.size ? 'open' : ''}>
-      <summary>Track more stats${on.size ? ` <span class="hint">(${on.size} extra)</span>` : ''}</summary>
-      <p class="hint">Goals and misses are always tracked. Tick any extra stats to record during games${forGame ? ' (this game only; the season\'s choice is ticked to start with)' : ''}. Each one adds a button to the scoring screen, so only pick what your scorer can keep up with.</p>
+  const changed = on.size || !cfg.miss;
+  return `<details class="more-stats" ${changed ? 'open' : ''}>
+      <summary>Track more stats${on.size ? ` <span class="hint">(${on.size} extra)</span>` : ''}${cfg.miss ? '' : ' <span class="hint">(no misses)</span>'}</summary>
+      <p class="hint">Goals are always tracked (they make the score). Untick Miss if you don't want misses or shooting accuracy. Tick any extra stats to record during games${forGame ? ' (this game only; the season\'s choice is ticked to start with)' : ''}. Each one adds a button to the scoring screen, so only pick what your scorer can keep up with.</p>
       <div class="stat-picks">${STAT_GROUPS.map(gr => `<fieldset>
           <legend>${escapeHtml(gr.label)}</legend>
-          ${gr.stats.map(st => st.key === 'goal' || st.key === 'miss'
+          ${gr.stats.map(st => st.key === 'goal'
             ? `<label class="check-row"><input type="checkbox" checked disabled> ${escapeHtml(st.label)} <span class="hint">(always)</span></label>`
+            : st.key === 'miss'
+            ? `<label class="check-row"><input type="checkbox" id="${prefix}-st-miss" name="stat_miss" ${cfg.miss ? 'checked' : ''}> Miss <span class="hint">(and shooting accuracy)</span></label>`
             : `<label class="check-row"><input type="checkbox" id="${prefix}-st-${st.key}" name="stat_${st.key}" ${on.has(st.key) ? 'checked' : ''}> ${escapeHtml(st.label)}${st.key === 'feed' ? ' <span class="hint">(asks who fed each goal)</span>' : ''}</label>`).join('')}
         </fieldset>`).join('')}</div>
       <div class="field">
@@ -1971,10 +1993,10 @@ function statsFieldsHtml(prefix, cfg, forGame){
 function readStatsFields(fd){
   const extra = EXTRA_STATS.filter(k => fd.get('stat_' + k));
   const t = fd.get('statsTeams');
-  return { extra, teams:extra.length && (t === 'them' || t === 'both') ? t : 'us' };
+  return { extra, teams:extra.length && (t === 'them' || t === 'both') ? t : 'us', miss:!!fd.get('stat_miss') };
 }
 function sameStats(a, b){
-  return a.teams === b.teams && a.extra.length === b.extra.length && a.extra.every(k => b.extra.includes(k));
+  return a.teams === b.teams && a.miss === b.miss && a.extra.length === b.extra.length && a.extra.every(k => b.extra.includes(k));
 }
 
 /* ---- Season ---- */
@@ -2006,6 +2028,7 @@ function renderSeason(){
     <nav class="tabs" aria-label="Season sections">
       ${tabs.map(([k, label]) => `<button class="tab ${UI.tab === k ? 'active' : ''}" data-action="tab" data-tab="${k}" ${UI.tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
     </nav>
+    ${archivedBannerHtml()}
     ${content}
     ${UI.showMgGuide && isManager() ? managerGuideHtml() : ''}
     ${UI.handover && findGame(UI.handover) ? handoverSheetHtml(findGame(UI.handover)) : ''}`;
@@ -2811,14 +2834,14 @@ function livePlayHtml(g, st, scoring){
     // frames are always there (just invisible), so nothing on the screen moves.
     pane = `<div class="step-frame ${ev ? '' : 'active'}">
         <div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
-        <div class="ev-grid">
+        <div class="ev-grid ${tracksMiss(g) ? '' : 'one'}">
           <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
-          <button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>
+          ${tracksMiss(g) ? `<button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>` : ''}
         </div>
         ${extras.length ? `<div class="ev-more">${extras.map(k => `<button class="evbtn small ${ev === k ? 'on' : ''}" data-action="ef-event" data-stat="${k}" aria-pressed="${ev === k}">${escapeHtml(STAT_LABEL[k])}</button>`).join('')}</div>` : ''}
       </div>
       <div class="step-frame ${ev ? 'active' : ''}">
-        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap ${extras.length ? 'a stat' : 'Goal or Miss'} first)</span></div>
+        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap ${extras.length ? 'a stat' : tracksMiss(g) ? 'Goal or Miss' : 'Goal'} first)</span></div>
         ${usTap.length ? `<div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!usOk('GS') })}${tile('GA', 'us', 'ef-who', { disabled:!usOk('GA') })}</div>
           <div class="pos-row three">${['WA','C','WD'].map(p => tile(p, 'us', 'ef-who', { disabled:!usOk(p) })).join('')}</div>
           <div class="pos-row two">${tile('GD', 'us', 'ef-who', { disabled:!usOk('GD') })}${tile('GK', 'us', 'ef-who', { disabled:!usOk('GK') })}</div>`
@@ -2838,7 +2861,7 @@ function livePlayHtml(g, st, scoring){
       : `<div class="sec-label">Who shot</div>
         <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
         <div class="pos-row one">${tile('', 'them', 'tile')}</div>
-        ${subBtnHtml()}<p class="hint">Tap a shooter (or the other team) to record a goal or miss.</p>`;
+        ${subBtnHtml()}<p class="hint">Tap a shooter (or the other team) to record a goal${tracksMiss(g) ? ' or miss' : ''}.</p>`;
   } else {
     // Everyone else sees who's on court on the court diagram, with the bench.
     // Coach/Managers and Scorers can tap a position to make a substitution.
@@ -3079,8 +3102,8 @@ function guideSheetHtml(g){
   const pauseIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
   const more = tapExtras(usExtras(g)).length + themExtras(g).length > 0;
   const rows = [
-    [`<span class="g-num">1</span><span class="g-btn goal">Goal</span><span class="g-btn">Miss</span>`,
-      '<b>What happened?</b> Tap Goal or Miss.'],
+    [`<span class="g-num">1</span><span class="g-btn goal">Goal</span>${tracksMiss(g) ? '<span class="g-btn">Miss</span>' : ''}`,
+      tracksMiss(g) ? '<b>What happened?</b> Tap Goal or Miss.' : '<b>What happened?</b> Tap Goal.'],
     [`<span class="g-num">2</span><span class="g-tile shooter">GS</span><span class="g-tile shooter">GA</span><span class="g-tile opp">Opp</span>`,
       `<b>Who did it?</b> Tap our shooter, or ${escapeHtml(teamLabel(g, 'them'))}. Done.`],
     ...(more ? [[`<span class="g-btn">Intercept</span>`,
@@ -3141,7 +3164,7 @@ function statSheetHtml(g, st){
         <button class="btn ghost small" data-action="close-picker">Close</button>
       </div>
       <div class="sheet-body">
-        ${canShoot ? `<div class="stat-grid">${STATS.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>` : ''}
+        ${canShoot ? `<div class="stat-grid ${tracksMiss(g) ? '' : 'one'}">${shotStats(g).map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>` : ''}
         ${groups.map(gr => `<div class="list-label">${escapeHtml(gr.label)}</div>
           <div class="stat-grid small">${gr.keys.map(k => `<button class="stat-btn" data-action="record-extra" data-stat="${k}">${escapeHtml(STAT_LABEL[k])}</button>`).join('')}</div>`).join('')}
         ${!opp && !pid ? `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>` : ''}
@@ -3194,7 +3217,7 @@ function correctionFormHtml(g, playerOpts){
           </select></div>
         <div class="field"><label for="cf-stat">Stat</label>
           <select class="select-input" id="cf-stat" name="stat">
-            ${['goal', 'miss', ...EXTRA_STATS.filter(k => k !== 'feed' && (usExtras(g).includes(k) || themExtras(g).includes(k)))]
+            ${['goal', ...(tracksMiss(g) ? ['miss'] : []), ...EXTRA_STATS.filter(k => k !== 'feed' && (usExtras(g).includes(k) || themExtras(g).includes(k)))]
               .map(k => `<option value="${k}">${escapeHtml(STAT_LABEL[k])}</option>`).join('')}
           </select></div>
       </div>
@@ -3362,14 +3385,14 @@ function renderSummaryTab(g){
   const oppRows = ['GS', 'GA', 'Team'].filter(k => st.opp[k].goal + st.opp[k].miss);
   const shooting = `<h3 class="subhead">Shooting</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Shooter</th><th scope="col">Pos</th><th scope="col">Goals</th><th scope="col">Accuracy</th></tr></thead>
+      <thead><tr><th scope="col">Shooter</th><th scope="col">Pos</th><th scope="col">Goals</th>${st.missOn ? '<th scope="col">Accuracy</th>' : ''}</tr></thead>
       <tbody>
         ${shooters.map(([id, r]) => `<tr><td>${escapeHtml(playerName(id))}</td><td>${escapeHtml(Array.from(shooterPos[id] || []).join(', '))}</td>
-          <td>${r.goal}/${r.goal + r.miss}</td><td>${pctText(r.goal, r.goal + r.miss)}</td></tr>`).join('')}
-        <tr class="team-total"><td>${escapeHtml(teamLabel(g, 'us'))}</td><td></td><td>${st.us}/${ourShots}</td><td>${pctText(st.us, ourShots)}</td></tr>
+          <td>${st.missOn ? r.goal + '/' + (r.goal + r.miss) : r.goal}</td>${st.missOn ? `<td>${pctText(r.goal, r.goal + r.miss)}</td>` : ''}</tr>`).join('')}
+        <tr class="team-total"><td>${escapeHtml(teamLabel(g, 'us'))}</td><td></td><td>${st.missOn ? st.us + '/' + ourShots : st.us}</td>${st.missOn ? `<td>${pctText(st.us, ourShots)}</td>` : ''}</tr>
         ${oppRows.some(k => k !== 'Team') ? oppRows.map(k => `<tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${k}</td>
-          <td>${st.oppMiss ? st.opp[k].goal + '/' + (st.opp[k].goal + st.opp[k].miss) : st.opp[k].goal}</td><td>${st.oppMiss ? pctText(st.opp[k].goal, st.opp[k].goal + st.opp[k].miss) : '·'}</td></tr>`).join('') : ''}
-        <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + (st.them + st.oppMiss) : st.them}</td><td>${st.oppMiss ? pctText(st.them, st.them + st.oppMiss) : '·'}</td></tr>
+          <td>${st.oppMiss ? st.opp[k].goal + '/' + (st.opp[k].goal + st.opp[k].miss) : st.opp[k].goal}</td>${st.missOn ? `<td>${st.oppMiss ? pctText(st.opp[k].goal, st.opp[k].goal + st.opp[k].miss) : '·'}</td>` : ''}</tr>`).join('') : ''}
+        <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + (st.them + st.oppMiss) : st.them}</td>${st.missOn ? `<td>${st.oppMiss ? pctText(st.them, st.them + st.oppMiss) : '·'}</td>` : ''}</tr>
       </tbody>
     </table></div>
     `;
@@ -3409,7 +3432,8 @@ function summaryShareText(g, st){
   const shooters = shareShooters(st);
   if (shooters.length){
     const shots = shooters.reduce((s, x) => s + x.shots, 0);
-    lines.push(`Shooting: ${shooters.map(x => `${x.name} ${x.goals}/${x.shots}`).join(', ')} (${st.us}/${shots}, ${pctText(st.us, shots)})`);
+    lines.push(st.missOn ? `Shooting: ${shooters.map(x => `${x.name} ${x.goals}/${x.shots}`).join(', ')} (${st.us}/${shots}, ${pctText(st.us, shots)})`
+      : `Goals: ${shooters.map(x => `${x.name} ${x.goals}`).join(', ')}`);
   }
   return lines.join('\n');
 }
@@ -3513,9 +3537,11 @@ async function summaryImage(g, st){
     x.fillStyle = '#5F5F66'; x.font = body(32, 800); x.fillText('SHOOTING', W / 2, 880);
     x.fillStyle = '#0B0B0D'; x.font = body(40);
     const shots = shooters.reduce((s, y) => s + y.shots, 0);
-    x.fillText(fit(shooters.map(s => `${s.name} ${s.goals}/${s.shots}`).join('   ·   '), W - 120), W / 2, 940);
-    x.fillStyle = '#5F5F66'; x.font = body(32);
-    x.fillText(`Team ${st.us}/${shots} (${pctText(st.us, shots)})`, W / 2, 1000);
+    x.fillText(fit(shooters.map(s => st.missOn ? `${s.name} ${s.goals}/${s.shots}` : `${s.name} ${s.goals}`).join('   ·   '), W - 120), W / 2, 940);
+    if (st.missOn){
+      x.fillStyle = '#5F5F66'; x.font = body(32);
+      x.fillText(`Team ${st.us}/${shots} (${pctText(st.us, shots)})`, W / 2, 1000);
+    }
   }
   return await new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('No image')), 'image/png'));
 }
@@ -3595,7 +3621,9 @@ function renderSeasonStatsTab(){
   const players = {};
   // games: games they got on court. avail: games they were available for
   // (marked as playing, or got on court anyway), which the average divides by.
-  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, miss:0, games:0, avail:0, counts:{} });
+  // goalM counts goals only in games that tracked misses, so accuracy is fair.
+  const P = id => players[id] || (players[id] = { id, ms:0, pos:{}, goal:0, goalM:0, miss:0, games:0, avail:0, counts:{} });
+  let missGames = 0, teamGoalM = 0;
   // Extra stats: which ones were tracked in any finished game, for each side.
   const usKeys = new Set(), themKeys = new Set(), oppCounts = {};
   const results = finished.map(g => {
@@ -3606,11 +3634,13 @@ function renderSeasonStatsTab(){
     const r = resultWord(st.us, st.them);
     rec[r === 'Won' ? 'w' : r === 'Lost' ? 'l' : 'd']++;
     rec.gf += st.us; rec.ga += st.them; rec.oppShots += st.them + st.oppMiss;
+    if (st.missOn){ missGames++; teamGoalM += st.us; }
     Object.entries(st.players).forEach(([id, s]) => {
       const p = P(id);
       p.ms += s.ms; p.goal += s.goal; p.miss += s.miss;
+      if (st.missOn) p.goalM += s.goal;
       EXTRA_STATS.forEach(k => { if (s[k]) p.counts[k] = (p.counts[k] || 0) + s[k]; });
-      rec.ourShots += s.goal + s.miss;
+      if (st.missOn) rec.ourShots += s.goal + s.miss;
       if (s.ms) p.games++;
       Object.entries(s.pos).forEach(([pos, v]) => { p.pos[pos] = (p.pos[pos] || 0) + v; });
     });
@@ -3625,7 +3655,7 @@ function renderSeasonStatsTab(){
       <div class="rec lost"><b>${rec.l}</b><span>Lost</span></div>
       <div class="rec"><b>${rec.d}</b><span>Drawn</span></div>
       <div class="rec wide"><b>${rec.gf} : ${rec.ga}</b><span>Goals for : against</span></div>
-      <div class="rec wide"><b>${pctText(rec.gf, rec.ourShots)}</b><span>Our shooting</span></div>
+      ${missGames ? `<div class="rec wide"><b>${pctText(teamGoalM, rec.ourShots)}</b><span>Our shooting</span></div>` : ''}
     </div>
     ${inProgress ? `<p class="hint">${inProgress} game${inProgress === 1 ? ' is' : 's are'} in progress and not included yet.</p>` : ''}`;
 
@@ -3643,11 +3673,11 @@ function renderSeasonStatsTab(){
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
   const playerTable = `<h3 class="subhead">Players</h3>
     <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th><th scope="col">Accuracy</th></tr></thead>
+      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th>${missGames ? '<th scope="col">Accuracy</th>' : ''}</tr></thead>
       <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? wholeMins(p.ms / p.avail) : '·'}</td>
-        <td>${p.goal + p.miss ? p.goal + '/' + (p.goal + p.miss) : '·'}</td><td>${pctText(p.goal, p.goal + p.miss)}</td></tr>`).join('')}</tbody>
+        <td>${p.goal || '·'}</td>${missGames ? `<td>${pctText(p.goalM, p.goalM + p.miss)}</td>` : ''}</tr>`).join('')}</tbody>
     </table></div>
-    <p class="hint">Games counts games where they got on court. Mins is total court time. The average divides their court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do.</p>`;
+    <p class="hint">Games counts games where they got on court. Mins is total court time. The average divides their court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do.${missGames && missGames < finished.length ? ' Accuracy only counts games where misses were tracked.' : ''}</p>`;
 
   const court = `<h3 class="subhead">Court time by position</h3>
     ${courtTimeTable(list, minsText)}
@@ -3763,6 +3793,10 @@ function renderPeopleTab(){
 
   const leaveKey = 'leave';
   const me = myMember();
+  const archive = !me || (CUR.myMembership && CUR.myMembership.archived) ? '' : `<div class="danger-zone">
+      <button class="btn ghost small" data-action="archive-team">Archive this team</button>
+      <p class="hint" style="margin:0.4rem 0 0">Hides it from your home screen only. You stay in the team, nobody else is affected, and you can unarchive it any time.</p>
+    </div>`;
   const leave = !me ? '' : (lastCoach && (me.roles || []).includes('coach'))
     ? `<p class="hint danger-zone">You're the only Coach/Manager. To leave this season, make someone else Coach/Manager first.</p>`
     : `<div class="danger-zone">
@@ -3816,6 +3850,7 @@ function renderPeopleTab(){
     ${manager ? `<p class="hint role-help"><b>Coach/Manager:</b> runs the team: players, games, lineups, court time and who does what. A team can have more than one.<br>
       <b>Scorer:</b> scores games. Only one person scores a game at a time; during a game, scoring can be handed to another Scorer here. One person can be both Coach/Manager and Scorer.<br>
       <b>Everyone else:</b> can follow games and see the stats.</p>` : ''}
+    ${archive}
     ${leave}`;
 }
 
@@ -3896,7 +3931,23 @@ async function loadHomeItem(ms){
   if (!teamSnap.exists() || !seasonSnap.exists()) return null;
   const team = teamSnap.data(), season = seasonSnap.data();
   return { teamId, seasonId, teamName:team.name, seasonName:season.name, competition:season.competition,
-    joinCode:season.joinCode || '', roles:memberSnap.data().roles || [] };
+    joinCode:season.joinCode || '', roles:memberSnap.data().roles || [], archived:!!ms.archived };
+}
+
+// Archiving a team only hides it from this person's home screen: they stay
+// a member and can bring it back. It's kept on their own list of teams
+// (users/{uid}/memberships), which only they can change.
+async function setTeamArchived(teamId, seasonId, archived){
+  await setDoc(doc(db, 'users', USER.uid, 'memberships', seasonId), { teamId, seasonId, archived }, { merge:true });
+  HOME.items = HOME.items.map(it => it.seasonId === seasonId ? { ...it, archived } : it);
+  const it = HOME.items.find(x => x.seasonId === seasonId);
+  const name = it ? it.teamName : (CUR.team && UI.seasonId === seasonId ? CUR.team.name : 'Team');
+  toast(archived ? `${name} archived. Find it under "Archived teams" on your home screen.` : `${name} is back on your home screen.`);
+}
+function archivedBannerHtml(){
+  if (!CUR.myMembership || !CUR.myMembership.archived) return '';
+  return `<div class="panel" role="note"><p style="margin:0 0 0.5rem">You've archived this team, so it's hidden on your home screen.</p>
+    <button class="btn small" data-action="unarchive-team" data-team="${escapeHtml(UI.teamId)}" data-season="${escapeHtml(UI.seasonId)}">Unarchive</button></div>`;
 }
 
 // Only forgets a season once we've confirmed our member record is really
@@ -3947,6 +3998,9 @@ function openSeason(teamId, seasonId){
   CUR.unsubs.push(onSnapshot(doc(db, 'teams', teamId), (snap) => {
     CUR.team = snap.exists() ? { id:snap.id, ...snap.data() } : null; render();
   }, lostAccess));
+  CUR.unsubs.push(onSnapshot(doc(db, 'users', USER.uid, 'memberships', seasonId), (snap) => {
+    CUR.myMembership = snap.exists() ? snap.data() : null; render();
+  }, (err) => console.warn('Netty Pal: membership', err)));
   CUR.unsubs.push(onSnapshot(seasonRef, (snap) => {
     CUR.season = snap.exists() ? { id:snap.id, ...snap.data() } : null; render();
   }, lostAccess));
@@ -5091,7 +5145,10 @@ function parseVoice(g, heard, lineup){
     }
   }
   if (!stat){
-    if (/\b(miss|missed|misses|missing|no goal|off target)\b/.test(t)) stat = 'miss';
+    if (/\b(miss|missed|misses|missing|no goal|off target)\b/.test(t)){
+      if (!tracksMiss(g)) return { error:"Misses aren't tracked in this game." };
+      stat = 'miss';
+    }
     else if (/\b(goal|goals|scored|scores|score|in)\b/.test(t)) stat = 'goal';
   }
   if (!stat) return { error:usTap.length || themTap.length ? 'Say who and what, like "GS goal" or "WD intercept".' : 'Say "goal" or "miss".' };
@@ -5245,6 +5302,7 @@ async function addCorrection(g, fd){
   const who = String(fd.get('who') || '');
   const stat = String(fd.get('stat') || '');
   const shot = stat === 'goal' || stat === 'miss';
+  if (stat === 'miss' && !tracksMiss(g)){ toast("Misses aren't tracked in this game.", true); return; }
   // Only stats this game tracks, for the side that tracks them.
   if (!shot && !(who === 'opp' ? themExtras(g) : usExtras(g)).includes(stat)){
     toast(`${STAT_LABEL[stat] || 'That stat'} isn't tracked for ${who === 'opp' ? teamLabel(g, 'them') : 'your players'} in this game.`, true);
@@ -5384,6 +5442,15 @@ document.addEventListener('click', async (e) => {
       disarm('delete-account'); await runBusy(deleteAccount);
     } else if (a === 'owner-teams'){
       await loadOwnerTeams();
+    } else if (a === 'toggle-archived-teams'){
+      UI.showArchivedTeams = !UI.showArchivedTeams; render();
+    } else if (a === 'archive-team'){
+      const teamId = UI.teamId, seasonId = UI.seasonId;
+      await setTeamArchived(teamId, seasonId, true);
+      goHome();
+    } else if (a === 'unarchive-team'){
+      await setTeamArchived(btn.dataset.team, btn.dataset.season, false);
+      render();
     } else if (a === 'owner-delete-team'){
       const key = 'del-team-' + btn.dataset.team;
       if (!isArmed(key)) return arm(key);
