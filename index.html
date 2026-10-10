@@ -495,6 +495,7 @@ button.cp-mark{cursor:pointer;}
 /* Pause/Resume sits under the clock, so the clock and its control read together. */
 .sb2-clock .play-btn{flex-direction:row; gap:0.3rem; width:auto; height:2.1rem; padding:0 0.6rem; margin-top:0.35rem;}
 .sb2-clock .play-btn svg{width:16px; height:16px;}
+.sub-row{display:grid; grid-template-columns:1fr 1fr; gap:0.4rem;}
 .sub-btn{width:100%; margin:0 0 0.4rem; padding-top:0.7rem; padding-bottom:0.7rem;}
 .head-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem;}
 .more-row .btn{padding-top:0.3rem; padding-bottom:0.3rem;}
@@ -2848,7 +2849,7 @@ function livePlayHtml(g, st, scoring){
         : `<div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!usOk('GS') })}${tile('GA', 'us', 'ef-who', { disabled:!usOk('GA') })}</div>`}
         <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!themOk })}</div>
       </div>
-      ${subBtnHtml()}`;
+      ${subBtnHtml(g)}`;
   } else if (scoring){
     // The scorer only needs the shooters (subs are under Sub Player(s)).
     pane = tapExtras(usExtras(g)).length
@@ -2857,17 +2858,17 @@ function livePlayHtml(g, st, scoring){
         <div class="pos-row three">${['WA','C','WD'].map(p => tile(p, 'us', 'tile')).join('')}</div>
         <div class="pos-row two">${tile('GD', 'us', 'tile')}${tile('GK', 'us', 'tile')}</div>
         <div class="pos-row one">${tile('', 'them', 'tile')}</div>
-        ${subBtnHtml()}<p class="hint">Tap a player (or the other team) to record a stat.</p>`
+        ${subBtnHtml(g)}<p class="hint">Tap a player (or the other team) to record a stat.</p>`
       : `<div class="sec-label">Who shot</div>
         <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
         <div class="pos-row one">${tile('', 'them', 'tile')}</div>
-        ${subBtnHtml()}<p class="hint">Tap a shooter (or the other team) to record a goal${tracksMiss(g) ? ' or miss' : ''}.</p>`;
+        ${subBtnHtml(g)}<p class="hint">Tap a shooter (or the other team) to record a goal${tracksMiss(g) ? ' or miss' : ''}.</p>`;
   } else {
     // Everyone else sees who's on court on the court diagram, with the bench.
     // Coach/Managers and Scorers can tap a position to make a substitution.
     pane = `<div class="sec-label">Your team's lineup</div>
       ${courtHtml(lineup, false, g, L.period, byName(availableIds(g)), canScore() ? 'tile' : null)}
-      ${canScore() ? subBtnHtml() + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
+      ${canScore() ? subBtnHtml(g) + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
@@ -2875,9 +2876,12 @@ function livePlayHtml(g, st, scoring){
     ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? `<div class="mic-hint" role="status">Listening... say "GS goal"${tapExtras(usExtras(g)).length ? ' or "WD intercept"' : ''}</div>` : ''}` : ''}`;
 }
 
-// Substitutions from either scoring mode.
-function subBtnHtml(){
-  return '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Sub Player(s)</button>';
+// Substitutions from either scoring mode, and (for the scorer or a
+// Coach/Manager) handing scoring to someone else at any time, not just at breaks.
+function subBtnHtml(g){
+  const canHand = g && !isPractice(g) && (amScorer(g) || isManager()) && scorerChoices(g).length;
+  const sub = '<button class="btn ghost sub-btn" data-action="sub-open">⇄ Sub Player(s)</button>';
+  return canHand ? `<div class="sub-row">${sub}<button class="btn ghost sub-btn" data-action="handover-open" data-game="${escapeHtml(g.id)}">Hand over scoring</button></div>` : sub;
 }
 // The court as it is right now, with the bench. Names can be dragged between
 // positions or to and from the bench (each drop is saved straight away as a
@@ -3566,26 +3570,28 @@ async function shareSummary(g){
   if (!CUR.share.file && CUR.share.ready)
     await Promise.race([CUR.share.ready, new Promise(r => setTimeout(r, 1000))]);
   const { text, file } = CUR.share;
-  const title = `${teamLabel(g, 'us')} v ${teamLabel(g, 'them')}`;
-  // Phones: the share menu, with the picture if the phone allows it.
+  // Phones: the share menu with just the picture (no text, so group chats
+  // only get the score card).
   if (file && navigator.canShare && navigator.canShare({ files:[file] })){
-    try { await navigator.share({ files:[file], text, title }); } catch(e){ if (e.name !== 'AbortError') throw e; }
+    try { await navigator.share({ files:[file] }); } catch(e){ if (e.name !== 'AbortError') throw e; }
     return;
   }
-  if (navigator.share){
-    try { await navigator.share({ title, text }); } catch(e){ if (e.name !== 'AbortError') throw e; }
-    return;
-  }
-  // Computers: copy the text and save the picture.
-  let copied = false;
-  try { await navigator.clipboard.writeText(text); copied = true; } catch(e){}
+  // Can't share pictures here (most computers): save the picture instead.
   if (file){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(file); a.download = file.name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Score card saved as a picture. Add it to a message.');
+    return;
   }
-  toast(copied ? `Result copied${file ? ' and picture saved' : ''}. Paste it into a message.` : (file ? 'Picture saved.' : text));
+  // Only if the picture couldn't be made at all: share the score as text.
+  if (navigator.share){
+    try { await navigator.share({ text }); } catch(e){ if (e.name !== 'AbortError') throw e; }
+    return;
+  }
+  try { await navigator.clipboard.writeText(text); toast('Score copied. Paste it into a message.'); }
+  catch(e){ toast(text); }
 }
 
 // Loads the events of every game played so far this season (only while
