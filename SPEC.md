@@ -224,8 +224,6 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
----
-
 ### Track more stats (added 2026-10-10)
 - Off by default. **Team Settings > This season > Track more stats** (folded away at the
   bottom) picks extra stats for the season; **Game settings** can choose differently for one
