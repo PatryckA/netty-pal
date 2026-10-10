@@ -312,6 +312,12 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .link-btn{background:none; border:0; padding:0; font:inherit; cursor:pointer;}
 .hero .install-card{text-align:left; width:100%; max-width:26rem; margin:0;}
 .hero .install-card p{max-width:none; color:var(--ink);}
+.help-section{border-top:1px solid var(--line); padding:0.6rem 0;}
+.help-section summary{cursor:pointer; font-weight:800; font-size:1rem; color:var(--ink);}
+.help-section[open] summary{color:var(--pop-text); margin-bottom:0.3rem;}
+.help-qa{padding:0.45rem 0;}
+.help-qa p{margin:0.15rem 0 0; font-size:0.92rem; color:var(--ink-soft);}
+.hero .link-btn{font-size:inherit;}
 .install-steps{margin:0.4rem 0 0.8rem; padding-left:1.3rem;}
 .install-steps li{margin-bottom:0.45rem; font-size:0.92rem;}
 .inline-icon{vertical-align:-3px;}
@@ -1293,6 +1299,7 @@ function render(){
       </div>`;
   }
   if (UI.showInstall) body += installSheetHtml();
+  else if (UI.showHelp) body += helpSheetHtml();
   app.innerHTML = body;
   restoreInputs(keep);
   // A half-filled fixture form keeps its bye tick (and hidden fields) through a redraw.
@@ -1406,7 +1413,7 @@ function renderSignedOut(){
         <button class="btn big signin-btn facebook" data-action="sign-in-facebook">${facebookSvg()}<span>Continue with Facebook</span></button>
         <button class="btn big signin-btn email" data-action="sign-in-email">${mailSvg()}<span>Continue with email</span></button>
       </div>
-      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a></p>
+      <p class="fine">We only use your name, email and photo (if you have one) so your team knows who's who. <a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="help-open">Help</button></p>
       ${pendingInvite() || inAppBrowser() ? '' : installCardHtml()}`;
   }
   return `<div class="app-shell"><main>
@@ -1591,6 +1598,7 @@ function renderHome(){
     </div>`}
     ${ownerTeamsHtml()}
     ${UI.form ? '' : `<div class="account-zone">
+      <button class="btn ghost small" data-action="help-open">Help</button>
       ${isInstalled() ? '' : '<button class="btn ghost small" data-action="install-open">Install on your phone</button>'}
       <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
     </div>`}
@@ -1752,6 +1760,71 @@ async function deleteTeam(teamId){
   HOME.items = HOME.items.filter(it => it.teamId !== teamId);
   toast('Team deleted.');
   if (HOME.all) await loadOwnerTeams(); else render();
+}
+
+/* ---- Help ----
+   A short FAQ, from the sign-in screen and the home screen. Sections fold
+   away (tap a heading to open it), and only the ones that suit the person
+   are shown: signed out sees Getting started; everyone signed in also sees
+   Following a game and Tidying up; Scorers add Helping out; Coach/Managers
+   (in any team) add their own section. */
+const HELP_EMAIL = 'hello@nettypal.au';
+// The person's highest role across all their teams: 'coach', 'scorer' or 'viewer'.
+function helpLevel(){
+  if (!USER) return 'none';
+  if (isOwner()) return 'coach';
+  const roles = HOME.items.flatMap(it => it.roles || []);
+  return roles.includes('coach') ? 'coach' : roles.includes('scorer') ? 'scorer' : 'viewer';
+}
+function helpSheetHtml(){
+  const level = helpLevel();
+  const qa = (q, a) => `<div class="help-qa"><b>${q}</b><p>${a}</p></div>`;
+  const section = (title, items, open) => `<details class="help-section" ${open ? 'open' : ''}><summary>${title}</summary>${items.join('')}</details>`;
+  const sections = [
+    section('Getting started', [
+      qa('How do I join my team?', 'Tap the invite link your coach/manager sent you and sign in. Or tap <b>Join with Team Code</b> and type in the code they sent. No link or code yet? Ask your coach/manager for one.'),
+      qa('Which sign-in should I use?', 'Google or Facebook is quickest. Email works too: we email you a sign-in link (check your junk folder if it doesn\'t arrive).'),
+      qa('Can I start my own team?', 'Yes. Tap <b>Create New Team</b> on the home screen. You\'ll be its Coach/Manager.'),
+      qa('How do I put Netty Pal on my phone?', 'Tap <b>Install on your phone</b> and follow the steps. It then opens like an app, without the address bar.')
+    ], level === 'none'),
+    level === 'none' ? '' : section('Following a game', [
+      qa('How do I watch a game live?', 'Open your team, then tap the game. The score, clock and who\'s on court update by themselves.'),
+      qa('Where are the stats?', 'For one game: open the game and tap <b>Game stats</b> at the top (during play it\'s under <b>More</b>). For the whole season: open your team and tap <b>Season Stats</b> at the top.'),
+      qa('How do I share the score?', 'Tap <b>Share score</b> at a break or at full time. It sends a picture of the score card.'),
+      qa('Can I invite other people?', 'Yes, anyone in a team can. Tap <b>Invite someone to a team</b> on the home screen, or open the team and go to <b>Support Crew</b>.'),
+      qa('How do I become a Scorer or Coach/Manager?', 'Those roles are given by your team\'s current Coach/Manager. Ask them to tap <b>Scorer</b> or <b>Coach/Manager</b> next to your name in <b>Support Crew</b>, or to send you a role invite link.')
+    ], false),
+    level === 'scorer' || level === 'coach' ? section('Helping out (Scorers)', [
+      qa('How do I score a game?', 'Open the game and tap <b>Start</b> when the umpire starts play. Tap <b>? Help</b> on the scoreboard any time for how to score.'),
+      qa('Can I practise first?', 'Yes. Tap <b>Try a practice game</b> on a game before it starts. Nothing is saved.'),
+      qa('Someone else needs to take over scoring.', 'Tap <b>Hand over scoring</b> (next to Sub Player(s)) and pick who\'s next. Only one person scores at a time.'),
+      qa('I made a mistake while scoring.', 'Tap the undo arrow, or tap the entry in the list and choose <b>Undo</b>.')
+    ], false) : '',
+    level === 'coach' ? section('Coach/Managers', [
+      qa('How do I set up the team?', 'Open the team and tap <b>Open the Coach/Manager guide</b>. It walks you through adding players and games and inviting parents.'),
+      qa('How do I give someone a role?', 'In <b>Support Crew</b>, tap <b>Scorer</b> or <b>Coach/Manager</b> next to their name, or send them a one-time role invite link from there. Only Coach/Managers can give roles.'),
+      qa('Can I track more than goals?', 'Only if you want to: it\'s off unless you turn it on. <b>Team Settings &gt; Track more stats</b> adds optional stats like rebounds, intercepts and penalties. Tick only what your scorer can keep up with.'),
+      qa('Can I give player awards?', 'Optional, and off unless you turn it on in <b>Team Settings &gt; Player awards</b>. Only Coach/Managers see them.')
+    ], false) : '',
+    level === 'none' ? '' : section('Tidying up', [
+      qa('How do I hide an old team or game?', 'Press and hold it, then tap <b>Archive</b>. Bring it back from <b>Show archived teams</b> (or <b>Show archived games</b>).'),
+      qa('How do I leave a team?', 'Open the team, go to <b>Support Crew</b>, and tap <b>Leave this season</b>.'),
+      qa('How do I delete my account?', 'At the bottom of the home screen, tap <b>Delete my account</b>.')
+    ], false),
+    section('Something not working?', [
+      qa('Try this first', 'Close Netty Pal and open it again: it updates itself. Still stuck? Email <a href="mailto:' + HELP_EMAIL + '">' + HELP_EMAIL + '</a>.')
+    ], false)
+  ].filter(Boolean).join('');
+  return `<div class="sheet-backdrop" data-action="help-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="sheet-head"><div class="grow"><h3 id="help-title">Help</h3></div>
+        <button class="btn ghost small" data-action="help-close">Close</button></div>
+      <div class="sheet-body">
+        <p style="margin:0.8rem 0 0.4rem"><b>Netty Pal in one line:</b> someone scores the game on their phone, and everyone in the team can follow it live and see the stats.</p>
+        ${sections}
+        <p class="hint"><a href="privacy.html">Privacy</a></p>
+      </div>
+    </div>`;
 }
 
 /* ---- Install on a phone ----
@@ -5653,8 +5726,12 @@ document.addEventListener('click', async (e) => {
       else await createRoleInvite(btn.dataset.role, it);
     } else if (a === 'invite-close'){
       UI.invitePick = false; render();
+    } else if (a === 'help-open'){
+      UI.showHelp = true; render(); focusSheet();
+    } else if (a === 'help-close'){
+      UI.showHelp = false; render();
     } else if (a === 'install-open'){
-      UI.showInstall = true; render(); focusSheet();
+      UI.showHelp = false; UI.showInstall = true; render(); focusSheet();
     } else if (a === 'install-close'){
       UI.showInstall = false; render();
     } else if (a === 'install-now'){

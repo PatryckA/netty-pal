@@ -83,6 +83,11 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - (Added 2026-10-11) **Press and hold** a team on the home screen: Archive / Unarchive (anyone);
   the app owner also gets Delete team (two taps; deletes it for everyone). Press and hold a game
   (Coach/Managers): Archive / Restore, or Delete game (two taps).
+- (Added 2026-10-11) **Help**: a short FAQ in a slide-up panel, from the sign-in screen (link
+  next to Privacy) and the home screen (Help button). Sections fold away; only relevant ones
+  show: signed out sees Getting started; signed in adds Following a game and Tidying up;
+  Scorers add Helping out; Coach/Managers (in any team) add Coach/Managers. Contact email
+  hello@nettypal.au (Porkbun email forwarding).
 - "Delete my account" is a small text link at the bottom of the home screen, next to Privacy.
 - Confirmation buttons read "Confirm [action]" on the second tap (e.g. "Confirm delete game").
 
