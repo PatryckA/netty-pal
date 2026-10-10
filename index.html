@@ -328,6 +328,8 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
   text-align:left; color:var(--ink); cursor:pointer; width:100%; display:flex; gap:0.85rem; align-items:center;
 }
 .game-card:hover{border-color:var(--accent);}
+.team-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
+.team-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
 .game-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
 .game-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
 .game-card.past{opacity:0.8;}
@@ -1528,7 +1530,7 @@ function renderHome(){
   else if (!HOME.items.length) list = '<div class="empty-state">You\'re not in any teams yet. Join one with a team code from your coach/manager, or create your own team.</div>';
   else {
     const card = it => `
-      <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">
+      <button class="team-card" data-action="open-season" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}" data-longpress>
         <div>
           <div class="tname">${escapeHtml(it.teamName)}</div>
           <div class="tseason">${escapeHtml(it.seasonName)}${it.competition ? ' · ' + escapeHtml(it.competition) : ''}</div>
@@ -1542,6 +1544,7 @@ function renderHome(){
           ${UI.showArchivedTeams ? 'Hide' : 'Show'} archived teams (${archived.length})</button></div>
         ${UI.showArchivedTeams ? `<div class="team-list archived-teams">${archived.map(it => `<div class="archived-team">${card(it)}
             <button class="btn ghost small" data-action="unarchive-team" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">Unarchive</button></div>`).join('')}</div>` : ''}` : ''}
+      ${active.length ? '<p class="hint">Tip: press and hold a team to archive (hide) it.</p>' : ''}
       ${retry}`;
   }
 
@@ -1592,7 +1595,34 @@ function renderHome(){
       <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
     </div>`}
     ${UI.invitePick ? invitePickHtml() : ''}
-    ${UI.deleteAcct ? deleteAccountHtml() : ''}`;
+    ${UI.deleteAcct ? deleteAccountHtml() : ''}
+    ${UI.teamMenu ? teamMenuHtml() : ''}`;
+}
+
+// Press and hold a team on the home screen: archive (hide it from your own
+// home screen) or unarchive it. The app owner can also delete the team for
+// everyone (only the owner is allowed to, in firestore.rules).
+function teamMenuHtml(){
+  const m = UI.teamMenu;
+  const it = HOME.items.find(x => x.seasonId === m.seasonId);
+  if (!it) return '';
+  const delKey = 'del-team-home-' + it.teamId;
+  return `<div class="sheet-backdrop" data-action="team-menu-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="team-menu-title">
+      <div class="sheet-head"><div class="grow"><h3 id="team-menu-title">${escapeHtml(it.teamName)}</h3><div class="psub">${escapeHtml(it.seasonName)}</div></div>
+        <button class="btn ghost small" data-action="team-menu-close">Close</button></div>
+      <div class="sheet-body">
+        <p class="hint" style="margin:0.9rem 0 0.6rem">${it.archived
+          ? 'This team is archived: it\'s hidden from your home screen. Unarchive to bring it back.'
+          : 'Archiving hides this team from your home screen only. You stay in the team, nobody else is affected, and you can unarchive it any time from "Show archived teams".'}</p>
+        <button class="btn" style="width:100%" data-action="${it.archived ? 'unarchive-team' : 'archive-team-home'}" data-team="${escapeHtml(it.teamId)}" data-season="${escapeHtml(it.seasonId)}">${it.archived ? 'Unarchive team' : 'Archive team'}</button>
+        ${isOwner() ? `<div class="danger-zone">
+            <button class="btn danger small ${isArmed(delKey) ? 'armed' : ''}" data-action="delete-team-home" data-team="${escapeHtml(it.teamId)}">
+              ${isArmed(delKey) ? `Confirm delete ${escapeHtml(it.teamName)} and all its seasons` : 'Delete team'}</button>
+            <p class="hint" style="margin:0.4rem 0 0">Owner only. Deletes the team, every season, game, score and player, for everyone. It can't be undone.</p>
+          </div>` : ''}
+      </div>
+    </div>`;
 }
 
 // Coach/Managers of a team (and the app owner) can invite with a role.
@@ -1721,7 +1751,7 @@ async function deleteTeam(teamId){
   await deleteDoc(doc(db, 'teams', teamId));
   HOME.items = HOME.items.filter(it => it.teamId !== teamId);
   toast('Team deleted.');
-  await loadOwnerTeams();
+  if (HOME.all) await loadOwnerTeams(); else render();
 }
 
 /* ---- Install on a phone ----
@@ -2089,7 +2119,7 @@ function renderGamesTab(){
     body = `${upcoming.length ? `<div class="list-label">Upcoming</div><div class="game-list">${upcoming.map(g => gameCardHtml(g, false)).join('')}</div>` : ''}
       ${earlier.length ? `<div class="list-label">Earlier</div><div class="game-list">${earlier.map(g => gameCardHtml(g, true)).join('')}</div>` : ''}`;
   }
-  if (games.length && editable) body += '<p class="hint">Tip: press and hold a game to archive it.</p>';
+  if (games.length && editable) body += '<p class="hint">Tip: press and hold a game to archive or delete it.</p>';
   if (archived.length){
     body += UI.showArchived
       ? `<div class="list-label">Archived</div><div class="game-list">${archived.map(g => gameCardHtml(g, true)).join('')}</div>
@@ -2200,7 +2230,7 @@ function archiveSheetHtml(g){
   const what = `${escapeHtml(gameTitle(g))}${g.round ? ', Round ' + escapeHtml(g.round) : ''}${g.date ? ', ' + escapeHtml(fmtGameWhen(g)) : ''}`;
   return `<div class="sheet-backdrop" data-action="archive-cancel"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="archive-title">
-      <div class="sheet-head"><div class="grow"><h3 id="archive-title">${restoring ? 'Restore this game?' : 'Archive this game?'}</h3></div></div>
+      <div class="sheet-head"><div class="grow"><h3 id="archive-title">${restoring ? 'Restore or delete this game?' : 'Archive or delete this game?'}</h3></div></div>
       <div class="sheet-body">
         <p style="margin:0.9rem 0 0.4rem"><b>${what}</b></p>
         <p class="hint" style="margin:0 0 1rem">${restoring
@@ -2208,7 +2238,12 @@ function archiveSheetHtml(g){
           : "It will be hidden from the games list and left out of season stats and Time on court. Nothing is deleted: you can restore it from \"Show archived games\"."}</p>
         <div class="form-actions">
           <button class="btn ghost" data-action="archive-cancel">Cancel</button>
-          <button class="btn ${restoring ? '' : 'danger armed'}" data-action="archive-confirm" data-game="${escapeHtml(g.id)}">${restoring ? 'Restore game' : 'Archive game'}</button>
+          <button class="btn" data-action="archive-confirm" data-game="${escapeHtml(g.id)}">${restoring ? 'Restore game' : 'Archive game'}</button>
+        </div>
+        <div class="danger-zone">
+          <button class="btn danger small ${isArmed('del-game-' + g.id) ? 'armed' : ''}" data-action="delete-game-now" data-game="${escapeHtml(g.id)}">
+            ${isArmed('del-game-' + g.id) ? 'Confirm delete game' : 'Delete game'}</button>
+          <p class="hint" style="margin:0.4rem 0 0">Deleting removes the game, its score and stats for everyone. It can't be undone. Archive keeps it, hidden.</p>
         </div>
       </div>
     </div>`;
@@ -4455,7 +4490,7 @@ function awardSettingsHtml(){
       <details class="more-stats" ${on || UI.awardRows ? 'open' : ''}>
         <summary>Player awards${on ? ' <span class="hint">(on)</span>' : ''}</summary>
         <label class="check-row"><input type="checkbox" id="aw-on" name="awardsOn" ${on ? 'checked' : ''}> <b>Give player awards this season</b></label>
-        <p class="hint">Off to keep things simple. When on, give awards after each game from its Game stats tab. Only Coach/Managers can see them. Each game can also switch awards on or off in its Game settings.</p>
+        <p class="hint">Give awards after each game from its Game stats tab. Only Coach/Managers can see them. Each game can also switch awards on or off in its Game settings.</p>
         <div class="award-names">
           <span class="label">Awards <span class="hint">(up to ${MAX_AWARDS}; clear a name to remove it)</span></span>
           ${Array.from({ length:rows }, (_, i) => field(i)).join('')}
@@ -4640,6 +4675,10 @@ async function setArchived(g, archived){
 async function deleteGame(){
   const id = UI.gameId;
   backToGames();
+  await deleteGameById(id);
+}
+// Deletes a game (and its awards, if any). Coach/Managers only (firestore.rules).
+async function deleteGameById(id){
   const batch = writeBatch(db);
   batch.delete(gameRef(id));
   if (CUR.awards && CUR.awards[id]) batch.delete(doc(seasonRef(), 'awards', id));
@@ -5648,8 +5687,20 @@ document.addEventListener('click', async (e) => {
       await setTeamArchived(teamId, seasonId, true);
       goHome();
     } else if (a === 'unarchive-team'){
+      UI.teamMenu = null;
       await setTeamArchived(btn.dataset.team, btn.dataset.season, false);
       render();
+    } else if (a === 'archive-team-home'){
+      UI.teamMenu = null;
+      await setTeamArchived(btn.dataset.team, btn.dataset.season, true);
+      render();
+    } else if (a === 'team-menu-close'){
+      UI.teamMenu = null; render();
+    } else if (a === 'delete-team-home'){
+      const key = 'del-team-home-' + btn.dataset.team;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); UI.teamMenu = null;
+      await runBusy(() => deleteTeam(btn.dataset.team));
     } else if (a === 'owner-delete-team'){
       const key = 'del-team-' + btn.dataset.team;
       if (!isArmed(key)) return arm(key);
@@ -5749,6 +5800,11 @@ document.addEventListener('click', async (e) => {
       UI.archiveAsk = btn.dataset.game; render();
     } else if (a === 'archive-cancel'){
       UI.archiveAsk = null; render();
+    } else if (a === 'delete-game-now'){
+      const key = 'del-game-' + btn.dataset.game;
+      if (!isArmed(key)) return arm(key);
+      disarm(key); UI.archiveAsk = null; render();
+      await deleteGameById(btn.dataset.game);
     } else if (a === 'archive-confirm'){
       const g = findGame(btn.dataset.game);
       UI.archiveAsk = null; render();
@@ -5973,18 +6029,22 @@ document.addEventListener('pointerup', (e) => {
 });
 document.addEventListener('pointercancel', () => { if (drag) endDrag(); });
 
-// Long press (about half a second) on a game in the list asks to archive
-// or restore it. Moving the finger (e.g. scrolling) cancels it.
+// Long press (about half a second) on a game in the list asks to archive,
+// restore or delete it; on a team on the home screen, to archive or
+// unarchive it (or, for the owner, delete it). Moving the finger (e.g.
+// scrolling) cancels it.
 let press = null;
 document.addEventListener('pointerdown', (e) => {
-  const card = e.target.closest('.game-card[data-longpress]');
+  const card = e.target.closest('.game-card[data-longpress], .team-card[data-longpress]');
   if (!card) return;
-  const id = card.dataset.game, x = e.clientX, y = e.clientY;
+  const x = e.clientX, y = e.clientY;
   press = { x, y, card, timer:setTimeout(() => {
     press = null;
     holdFired = true;
     if (navigator.vibrate) try { navigator.vibrate(30); } catch(err){}
-    UI.archiveAsk = id; render();
+    if (card.dataset.game) UI.archiveAsk = card.dataset.game;
+    else UI.teamMenu = { teamId:card.dataset.team, seasonId:card.dataset.season };
+    render(); focusSheet();
   }, 550) };
   card.classList.add('pressing');
 });
@@ -5993,7 +6053,7 @@ document.addEventListener('pointermove', (e) => { if (press && Math.hypot(e.clie
 // Lifting the finger after a long press: ignore the tap that comes with it.
 document.addEventListener('pointerup', () => { cancelPress(); if (holdFired){ holdFired = false; swallowNextClick(); } });
 document.addEventListener('pointercancel', () => { cancelPress(); holdFired = false; });
-document.addEventListener('contextmenu', (e) => { if (e.target.closest('.game-card[data-longpress]')) e.preventDefault(); });
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('.game-card[data-longpress], .team-card[data-longpress]')) e.preventDefault(); });
 
 function focusSheet(){
   const first = document.querySelector('.sheet .stat-btn, .sheet .pick-row, .sheet button');

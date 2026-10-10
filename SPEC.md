@@ -80,6 +80,9 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   team season from the person's own home screen only. They stay a member; it's listed under
   "Show archived teams" on the home screen, with Unarchive (also a banner inside the team).
   Stored as `archived` on their own `users/{uid}/memberships/{seasonId}`; no rule changes.
+- (Added 2026-10-11) **Press and hold** a team on the home screen: Archive / Unarchive (anyone);
+  the app owner also gets Delete team (two taps; deletes it for everyone). Press and hold a game
+  (Coach/Managers): Archive / Restore, or Delete game (two taps).
 - "Delete my account" is a small text link at the bottom of the home screen, next to Privacy.
 - Confirmation buttons read "Confirm [action]" on the second tap (e.g. "Confirm delete game").
 
