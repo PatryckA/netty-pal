@@ -2461,24 +2461,22 @@ function renderAvailTab(g){
       </div>` : ''}`;
 }
 
-// Periods played in each position, across this game and every game
-// before it this season. Games that have been played count real court
-// time (in periods, so half a quarter shows as 0.5); games not yet
-// played count the planned lineup.
-// Season court time up to this game, for the Game stats tab (which adds the
-// heading and switches). Simple is minutes; Detailed is periods in each position.
+// Minutes on court across this game and every game before it this season.
+// Games that have been played count real court time; games not yet played
+// count the planned lineup (a full period per planned position).
+// For the Game stats tab (which adds the heading and switches). Simple is
+// minutes per player; Detailed is minutes in each position.
 function seasonTimeHtml(g, detailed){
   // Byes aren't games, so they don't count as games anyone was available for.
   const games = sortGames(CUR.games).filter(x => (!x.archived && !x.bye) || x.id === g.id);
   const upto = games.slice(0, games.findIndex(x => x.id === g.id) + 1);
   const rows = {};
-  // v is in periods (the Detailed view); ms is the same time in milliseconds
-  // (the Simple view, shown in minutes).
-  const ensure = id => rows[id] || (rows[id] = { id, pos:{}, total:0, thisGame:0, ms:0, thisMs:0, games:new Set(), avail:new Set() });
+  // Times are kept in milliseconds and shown in minutes. v is the same time
+  // in periods, used only to decide whether someone really got on court.
+  const ensure = id => rows[id] || (rows[id] = { id, posMs:{}, thisGame:0, ms:0, thisMs:0, games:new Set(), avail:new Set() });
   const add = (id, pos, v, game, ms) => {
     const r = ensure(id);
-    r.pos[pos] = (r.pos[pos] || 0) + v;
-    r.total += v;
+    r.posMs[pos] = (r.posMs[pos] || 0) + ms;
     r.ms += ms;
     if (v >= 0.05){ r.games.add(game.id); r.avail.add(game.id); } // counts as a game played
     if (game.id === g.id){ r.thisGame += v; r.thisMs += ms; }
@@ -2506,14 +2504,14 @@ function seasonTimeHtml(g, detailed){
       POSITIONS.forEach(pos => { if (plan[pos]) add(plan[pos], pos, 1, game, periodMs(game)); });
     }
   });
-  const fmt = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+  // Whole minutes; under half a minute on court shows as "<1" rather than 0.
+  const mins = ms => ms >= 30000 ? wholeMins(ms) : ms > 0 ? '<1' : '0';
   const list = Object.values(rows).sort((a,b) => playerName(a.id).localeCompare(playerName(b.id)));
-  const max = Math.max(1, ...list.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
+  const max = Math.max(1, ...list.flatMap(r => POSITIONS.map(pos => r.posMs[pos] || 0)));
   const playing = new Set(availableIds(g));
-  const noun = escapeHtml(periodNoun(g, true));
   const note = playedGames
-    ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time (0.5 means half a ${escapeHtml(periodNoun(g))}). The rest count the planned lineup.`
-    : 'These count the planned lineups. Games scored live will count real court time instead.';
+    ? `${playedGames} of these games ${playedGames === 1 ? 'was' : 'were'} scored live, so ${playedGames === 1 ? 'it counts' : 'they count'} real court time. The rest count the planned lineup (a full ${escapeHtml(periodNoun(g))} each).`
+    : `These count the planned lineups (a full ${escapeHtml(periodNoun(g))} each). Games scored live will count real court time instead.`;
 
   if (!detailed){
     // Simple: whole minutes, lowest average first so whoever is owed time is at the top.
@@ -2540,21 +2538,20 @@ function seasonTimeHtml(g, detailed){
   const body = list.map(r => `<tr>
       <td>${escapeHtml(playerName(r.id))}</td>
       ${POSITIONS.map(pos => {
-        const v = r.pos[pos] || 0;
-        const shade = v ? `style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + 30 * v / max)}%, transparent)"` : '';
-        return `<td ${shade}>${v >= 0.05 ? fmt(v) : '·'}</td>`;
+        const ms = r.posMs[pos] || 0;
+        const shade = ms ? `style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + 30 * ms / max)}%, transparent)"` : '';
+        return `<td ${shade}>${ms ? mins(ms) : '·'}</td>`;
       }).join('')}
-      <td class="total">${fmt(r.total)}</td>
-      <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? fmt(r.thisGame) : 'out'}</td>
+      <td class="total">${mins(r.ms)}</td>
+      <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? mins(r.thisMs) : 'out'}</td>
     </tr>`).join('');
-  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
   return `<div class="fair-wrap"><table class="fair">
-      <caption>Times in ${noun} (0.5 = half a ${escapeHtml(periodNoun(g))})</caption>
+      <caption>Times in minutes</caption>
       <thead><tr><th scope="col">Player</th>${POSITIONS.map(pos => `<th scope="col">${pos}</th>`).join('')}
-        <th scope="col">Total ${noun}</th><th scope="col">${Noun} this game</th></tr></thead>
+        <th scope="col">Total mins</th><th scope="col">Mins this game</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${POSITIONS.length + 3}">No players yet.</td></tr>`}</tbody>
     </table></div>
-    <p class="hint">Number of ${noun} each player has had in each position, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Darker means more often. ${note}</p>`;
+    <p class="hint">Minutes each player has had in each position, from the first game of the season up to and including this one (${upto.length} game${upto.length === 1 ? '' : 's'}). Darker means more time. ${note}</p>`;
 }
 
 /* ---- Live tab ---- */
@@ -3141,8 +3138,7 @@ function timeOnCourtHtml(g, st){
     staff ? `<div class="segmented" role="radiogroup" aria-label="Simple or detailed">
         ${radio('fairView', 'fair-view', 'simple', 'Simple', !detailed)}${radio('fairView', 'fair-view', 'detailed', 'Detailed', detailed)}</div>` : ''
   ].filter(Boolean).join('');
-  // Each table says its own unit at the top: Season Detailed counts periods
-  // (fairer to compare across games); the rest are minutes.
+  // Every table is in minutes and says so in its caption.
   const head = `<h3 class="subhead">Time on court</h3>
     ${switches ? `<div class="toc-switches">${switches}</div>` : ''}`;
   if (season) return head + seasonTimeHtml(g, detailed);

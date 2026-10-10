@@ -214,8 +214,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   - **Game / Season** (everyone; default Game). Before the game starts only Season
     is shown; practice games have only Game.
   - **Simple / Detailed** (Coach/Managers and Scorers only; default Simple). Simple is
-    minutes per player. Detailed splits the time by position: minutes this game, or
-    periods (quarters or halves) so far this season. Viewers never see Detailed.
+    minutes per player. Detailed splits the time by position: in minutes, for this game
+    or the season so far (changed 2026-10-10: the season view used to count periods). Viewers never see Detailed.
   - The choices are remembered while moving between games (until the app reloads).
 - Team **Stats** tab: record (played, won, lost, drawn, goals for : against, both
   teams' shooting %), results list (tap to open a game), players (games on court,
