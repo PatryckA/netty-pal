@@ -11,8 +11,15 @@ risks in plain English, with a one-line explanation of any jargon.
 
 ## Architecture
 
-- Static site on GitHub Pages: `index.html` (all UI and logic), `sw.js`, `manifest.json`,
-  icons. No build step, no framework, no bundler.
+- Static site at **https://nettypal.au**, hosted on Vercel (free Hobby plan), which publishes
+  `main` automatically: `index.html` (all UI and logic), `sw.js`, `manifest.json`, icons.
+  No build step, no framework, no bundler. Pull requests get Vercel preview links, but
+  sign-in only works on addresses listed in Firebase > Authentication > Authorised domains.
+- Moved from GitHub Pages (`patrycka.github.io/netty-pal`) in October 2026. A script at the
+  top of `index.html` forwards that old address to nettypal.au; keep it.
+- Domain `nettypal.au` is registered at Porkbun (DNS there). Firebase sign-in emails are
+  sent from `noreply@nettypal.au`; the DNS records for that (two `firebase` CNAMEs, the
+  SPF and `firebase=` TXT records, `_dmarc`) must not be removed.
 - Firebase (project `netty-pal`): Google sign-in and Cloud Firestore, loaded from Google's CDN.
 - `firestore.rules` is the source of truth for permissions. It is **not** deployed
   automatically: after changing it, the owner must paste it into Firebase console >
