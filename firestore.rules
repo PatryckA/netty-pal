@@ -16,6 +16,7 @@ rules_version = '2';
 //     team without being a member, and is the only one who can delete a
 //     whole team (its seasons, games and game events).
 //   - A code can only ever be created once, never overwritten.
+//   - Player awards can only be seen or given by Coach/Managers.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -163,6 +164,13 @@ service cloud.firestore {
           allow create: if isManager(teamId, seasonId) && existsAfter(rolePath(code));
           allow update: if false;
           allow delete: if isManager(teamId, seasonId) || justUsed(teamId, seasonId, code);
+        }
+
+        // Player awards: only Coach/Managers can see or give them (parents
+        // and Scorers can't). awards/settings holds the award names; one
+        // doc per game (awards/{gameId}) holds that game's winners.
+        match /awards/{docId} {
+          allow read, write: if isManager(teamId, seasonId);
         }
 
         match /players/{playerId} {

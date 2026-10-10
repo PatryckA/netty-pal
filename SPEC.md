@@ -76,6 +76,10 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   seasons, teams and game events (enforced in `firestore.rules`).
 - The install card also shows on the sign-in screen (not when arriving from an invite
   link, so the invite isn't lost, and not inside Facebook/Instagram's own browser).
+- (Added 2026-10-10) **Archive this team** (Support Crew tab, anyone in the team): hides that
+  team season from the person's own home screen only. They stay a member; it's listed under
+  "Show archived teams" on the home screen, with Unarchive (also a banner inside the team).
+  Stored as `archived` on their own `users/{uid}/memberships/{seasonId}`; no rule changes.
 - "Delete my account" is a small text link at the bottom of the home screen, next to Privacy.
 - Confirmation buttons read "Confirm [action]" on the second tap (e.g. "Confirm delete game").
 
@@ -137,10 +141,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - (Added 2026-10-03.) Only one person scores at a time. At each break the scorer (or a
   Coach/Manager) can tap **Hand over scoring** and pick the next scorer; Coach/Managers
   can also do this from the Support Crew tab while a game is live.
+- (Added 2026-10-10.) **Hand over scoring** is also on the live screen during play, next to
+  Sub Player(s), for the scorer and Coach/Managers. The clock keeps running.
 - Only the person scoring can start, pause, resume or end a period (enforced in the
   security rules). Coach/Managers and Scorers can all make substitutions.
 - Breaks are named Quarter time, Half time, Three quarter time and Full time, and each
   break offers **Share score**. The shared picture says how far through the game it is.
+  (Changed 2026-10-10.) Sharing sends only the picture, no text. Where a phone or computer
+  can't share pictures, the picture is saved instead.
 
 ### Clock
 - **Counts down** from the period length (e.g. 7:00). At 0:00 it stops, the phone
@@ -223,6 +231,48 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Season totals include games that have reached full time, finalised or not; games
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
+
+### Track more stats (added 2026-10-10)
+- Off by default. **Team Settings > This season > Track more stats** (folded away at the
+  bottom) picks extra stats for the season; **Game settings** can choose differently for one
+  game (it only keeps its own choice if it differs from the season's).
+- Goal is always tracked (it makes the score). **Miss can be unticked**: then there are no
+  Miss buttons, no shooting accuracy, and misses already recorded don't count. Season accuracy
+  only uses games that tracked misses. Extras, by category:
+  Shooting: Feed. Gains: Rebound, Intercept, Deflection. Losses: Bad pass, Footwork,
+  Held ball, Out of court, Error. Penalties: Contact, Obstruction, Offside.
+- **Track for**: Our team, Other team, or Both. The other team's stats are for the team
+  as a whole (no names). Feeds are for our team only.
+- **Live scoring**: with extras for our team, every position gets a tile. Goal/Miss first
+  shows the extras as smaller buttons under Goal and Miss; Player first opens a panel with
+  that player's stats, grouped. After each of our goals, if Feed is tracked, the scorer is
+  asked "Who fed it?" (or Skip). A feed stops counting if its goal is undone.
+- **Voice scoring** understands tracked extras for any position ("WD intercept",
+  "their contact") and "GS goal fed by WA".
+- **Stats**: Game stats and Season Stats get a "More stats" table (one column per stat,
+  grouped, with our team total and the other team's row). A **Simple stats / All stats**
+  switch (remembered on each phone, All to start with) shows or hides it. Season totals
+  count each stat only from games that tracked it.
+- Stored as `stats { extra:[keys], teams:'us'|'them'|'both' }` on the season (and optionally
+  the game). Events: extras for our players use the stat key as `type` (with `pos`,
+  `playerId`); `feed` also has `goal` (the goal's event id); the other team's are
+  `{ type:'oppStat', stat }`. No security rule changes were needed.
+
+---
+
+### Player awards (added 2026-10-10)
+- **Off by default.** Switched on for the season in Team Settings (folded "Player awards"
+  section), or for one game in Game settings (which otherwise follows the season).
+- Up to **5 awards**, named by the Coach/Manager ("Coaches Award" to start with).
+- **Only Coach/Managers see awards** (enforced in `firestore.rules`: the season's `awards`
+  collection is readable and writable by Coach/Managers only). Parents and Scorers never see them.
+- Per game: on Game stats, tap players to give each award (joint winners allowed). Players
+  are sorted so anyone who hasn't had that award yet this season comes first ("not yet").
+  At full time a nudge offers "Give awards".
+- Season: Season Stats shows a "Season awards" table per player and "Not yet given an award".
+  Archived games and games with awards switched off aren't counted.
+- No share card or players' player voting (decided with the owner).
+- Stored as `awards/settings { enabled, types[] }` and `awards/{gameId} { winners, enabled? }`.
 
 ---
 
