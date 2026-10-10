@@ -4455,7 +4455,7 @@ function awardSettingsHtml(){
       <details class="more-stats" ${on || UI.awardRows ? 'open' : ''}>
         <summary>Player awards${on ? ' <span class="hint">(on)</span>' : ''}</summary>
         <label class="check-row"><input type="checkbox" id="aw-on" name="awardsOn" ${on ? 'checked' : ''}> <b>Give player awards this season</b></label>
-        <p class="hint">Off to keep things simple. When on, give awards after each game from its Game stats tab. Only Coach/Managers can see them. Each game can also switch awards on or off in its Game settings.</p>
+        <p class="hint">Give awards after each game from its Game stats tab. Only Coach/Managers can see them. Each game can also switch awards on or off in its Game settings.</p>
         <div class="award-names">
           <span class="label">Awards <span class="hint">(up to ${MAX_AWARDS}; clear a name to remove it)</span></span>
           ${Array.from({ length:rows }, (_, i) => field(i)).join('')}
