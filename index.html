@@ -90,7 +90,17 @@ a{color:inherit;}
   background:none; border:none; padding:0; color:var(--bar-ink); cursor:pointer; display:flex; align-items:center; gap:0.45rem;}
 .brand-ball{width:1.6rem; height:1.6rem; flex:none;}
 @media (max-width:520px){ .user-chip .uname{display:none;} }
+/* Small phones: room for Help and Sign out next to the logo. */
+@media (max-width:420px){
+  .topbar-inner{gap:0.5rem;}
+  .brand{font-size:1.2rem; gap:0.35rem;}
+  .brand-ball{width:1.35rem; height:1.35rem;}
+  .user-chip{gap:0.35rem;}
+  .user-chip .avatar{display:none;}
+  .topbar .btn.small{padding:0.35rem 0.5rem;}
+}
 .topbar :focus-visible{outline-color:var(--bar-ink);}
+.topbar .btn{white-space:nowrap;}
 .topbar .btn.ghost{color:var(--bar-ink); border-color:rgba(255,255,255,0.28);}
 .topbar .btn.ghost:hover{color:var(--bar-ink); border-color:var(--bar-ink);}
 .user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--bar-soft); min-width:0;}
@@ -122,6 +132,9 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .btn.big{padding:0.8rem 1.4rem; font-size:1rem;}
 .btn.danger{background:none; color:var(--critical); border-color:var(--critical);}
 .btn.time-up{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
+/* Help buttons are pink everywhere so they're easy to spot. */
+.btn.help-pop,.btn.help-pop:hover{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
+.btn.help-pop:hover{filter:brightness(1.08);}
 .btn.danger.armed,.btn.armed{background:var(--critical); color:#fff; border-color:var(--critical);}
 .btn:disabled{opacity:0.55; cursor:default;}
 .text-input,.select-input{
@@ -1335,6 +1348,7 @@ function renderTopbar(){
     <div class="user-chip">
       ${avatarHtml(USER.displayName, USER.photoURL, 'small')}
       <span class="uname">${escapeHtml(USER.displayName || USER.email)}</span>
+      <button class="btn small help-pop" data-action="help-open">Help</button>
       <button class="btn ghost small" data-action="sign-out">Sign out</button>
     </div>
   </div></header>`;
@@ -1598,7 +1612,7 @@ function renderHome(){
     </div>`}
     ${ownerTeamsHtml()}
     ${UI.form ? '' : `<div class="account-zone">
-      <button class="btn ghost small" data-action="help-open">Help</button>
+      <button class="btn small help-pop" data-action="help-open">Help</button>
       ${isInstalled() ? '' : '<button class="btn ghost small" data-action="install-open">Install on your phone</button>'}
       <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
     </div>`}
