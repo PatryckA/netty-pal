@@ -3362,12 +3362,14 @@ function scoreboardHtml(g, st){
         : `Next centre pass: ${escapeHtml(teamLabel(g, t))}. Double tap to switch.`}">${armedCp ? '<span class="cp-switch">Switch?</span>' : cpBallSvg()}</button>`;
   };
   let play = '', help = '';
+  // How to score: for the scorer while a period is played and during breaks.
+  if (scoring && g.status === 'live' && !isGameOver(g))
+    help = '<button class="help-btn" data-action="show-guide" aria-label="How to score"><b aria-hidden="true">?</b><span class="play-label">Help</span></button>';
   if (scoring && isInPlay(g)){
     // No Pause/Resume at 0:00: there's no time left to play.
     play = isTimeUp(g) ? '' : L.phase === 'running'
       ? `<button class="play-btn" data-action="pause-clock" aria-label="Pause clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg><span class="play-label">Pause</span></button>`
       : `<button class="play-btn go" data-action="resume-clock" aria-label="Start clock"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg><span class="play-label">Resume</span></button>`;
-    help = '<button class="help-btn" data-action="show-guide" aria-label="How to score"><b aria-hidden="true">?</b><span class="play-label">Help</span></button>';
   }
   // One block: period and clock on the left (with Pause/Resume under the
   // clock), the score (with the centre pass marker) in the middle, Help on
