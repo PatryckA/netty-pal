@@ -1361,6 +1361,7 @@ function renderTopbar(){
           ${USER.displayName ? `<div class="um-name">${escapeHtml(USER.displayName)}</div>` : ''}
           ${USER.email ? `<div class="um-email">${escapeHtml(USER.email)}</div>` : ''}
         </div>
+        ${isInstalled() ? '' : '<button class="btn ghost small" role="menuitem" data-action="install-open">Install on your phone</button>'}
         <button class="btn ghost small" role="menuitem" data-action="sign-out">Sign out</button>
       </div>` : ''}
     </div>
@@ -1626,7 +1627,6 @@ function renderHome(){
     ${ownerTeamsHtml()}
     ${UI.form ? '' : `<div class="account-zone">
       <button class="btn small help-pop" data-action="help-open">Help</button>
-      ${isInstalled() ? '' : '<button class="btn ghost small" data-action="install-open">Install on your phone</button>'}
       <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
     </div>`}
     ${UI.invitePick ? invitePickHtml() : ''}
@@ -5765,7 +5765,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'help-close'){
       UI.showHelp = false; render();
     } else if (a === 'install-open'){
-      UI.showHelp = false; UI.showInstall = true; render(); focusSheet();
+      UI.userMenu = false; UI.showHelp = false; UI.showInstall = true; render(); focusSheet();
     } else if (a === 'install-close'){
       UI.showInstall = false; render();
     } else if (a === 'install-now'){
