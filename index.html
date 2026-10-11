@@ -89,12 +89,30 @@ a{color:inherit;}
 .brand{font-family:var(--font-display); font-size:1.5rem; font-weight:900; letter-spacing:0.02em; text-transform:uppercase; white-space:nowrap;
   background:none; border:none; padding:0; color:var(--bar-ink); cursor:pointer; display:flex; align-items:center; gap:0.45rem;}
 .brand-ball{width:1.6rem; height:1.6rem; flex:none;}
-@media (max-width:520px){ .user-chip .uname{display:none;} }
+/* Small phones: room for Help and Sign out next to the logo. */
+@media (max-width:420px){
+  .topbar-inner{gap:0.5rem;}
+  .brand{font-size:1.2rem; gap:0.35rem;}
+  .brand-ball{width:1.35rem; height:1.35rem;}
+  .topbar .btn.small{padding:0.35rem 0.5rem;}
+}
 .topbar :focus-visible{outline-color:var(--bar-ink);}
+.topbar .btn{white-space:nowrap;}
 .topbar .btn.ghost{color:var(--bar-ink); border-color:rgba(255,255,255,0.28);}
 .topbar .btn.ghost:hover{color:var(--bar-ink); border-color:var(--bar-ink);}
-.user-chip{display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--bar-soft); min-width:0;}
-.user-chip .uname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:9rem;}
+.user-chip{position:relative; display:flex; align-items:center; gap:0.6rem; min-width:0;}
+/* Your photo or initials: tap for the account menu (Sign out). */
+.avatar-btn{background:none; border:2px solid transparent; border-radius:50%; padding:0; cursor:pointer; display:flex;}
+.avatar-btn:hover,.avatar-btn[aria-expanded="true"]{border-color:var(--bar-ink);}
+.avatar-btn .avatar{width:32px; height:32px; font-size:0.78rem;}
+.user-menu{
+  position:absolute; top:calc(100% + 0.6rem); right:0; z-index:20; min-width:13rem; max-width:calc(100vw - 2rem);
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:var(--r-sm);
+  box-shadow:0 6px 20px var(--shadow); padding:0.75rem; display:flex; flex-direction:column; gap:0.6rem;
+}
+.user-menu .um-name{font-weight:800; overflow-wrap:anywhere;}
+.user-menu .um-email{font-size:0.8rem; color:var(--ink-soft); overflow-wrap:anywhere; margin-top:0.1rem;}
+.topbar .user-menu .btn.ghost{color:var(--ink); border-color:var(--ink);}
 main{flex:1; padding:1rem 1rem 4rem;}
 .loading-state{color:var(--ink-soft); font-size:0.9rem; padding:3rem 1rem; text-align:center;}
 /* Loading screen: the logo ball bouncing, with a soft shadow that shrinks as
@@ -122,6 +140,9 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .btn.big{padding:0.8rem 1.4rem; font-size:1rem;}
 .btn.danger{background:none; color:var(--critical); border-color:var(--critical);}
 .btn.time-up{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
+/* Help buttons are pink everywhere so they're easy to spot. */
+.btn.help-pop,.btn.help-pop:hover{background:var(--pop); color:var(--pop-ink); border-color:var(--pop);}
+.btn.help-pop:hover{filter:brightness(1.08);}
 .btn.danger.armed,.btn.armed{background:var(--critical); color:#fff; border-color:var(--critical);}
 .btn:disabled{opacity:0.55; cursor:default;}
 .text-input,.select-input{
@@ -1333,9 +1354,16 @@ function renderTopbar(){
   return `<header class="topbar"><div class="topbar-inner">
     <button class="brand" data-action="go-home" aria-label="Netty Pal: back to all teams">${ballSvg('brand-ball')}<span>Netty Pal</span></button>
     <div class="user-chip">
-      ${avatarHtml(USER.displayName, USER.photoURL, 'small')}
-      <span class="uname">${escapeHtml(USER.displayName || USER.email)}</span>
-      <button class="btn ghost small" data-action="sign-out">Sign out</button>
+      <button class="btn small help-pop" data-action="help-open">Help</button>
+      <button class="avatar-btn" data-action="user-menu" aria-label="Your account" aria-haspopup="true" aria-expanded="${UI.userMenu ? 'true' : 'false'}">${avatarHtml(USER.displayName, USER.photoURL)}</button>
+      ${UI.userMenu ? `<div class="user-menu" role="menu" aria-label="Your account">
+        <div>
+          ${USER.displayName ? `<div class="um-name">${escapeHtml(USER.displayName)}</div>` : ''}
+          ${USER.email ? `<div class="um-email">${escapeHtml(USER.email)}</div>` : ''}
+        </div>
+        ${isInstalled() ? '' : '<button class="btn ghost small" role="menuitem" data-action="install-open">Install on your phone</button>'}
+        <button class="btn ghost small" role="menuitem" data-action="sign-out">Sign out</button>
+      </div>` : ''}
     </div>
   </div></header>`;
 }
@@ -1383,7 +1411,7 @@ function renderSignedOut(){
           <li>Everyone can see a live scoreboard, plus simple game and season stats.</li>
           <li>You can share the scoreboard with friends and family.</li>
         </ul>
-        <p class="fine">Netty Pal doesn't replace NetballHQ, the official app for fixtures and court numbers.</p>
+        <p class="fine">Netty Pal doesn't replace any official app for fixtures and court numbers, such as NetballHQ.</p>
       </div>`;
   let panel;
   if (UI.signin === 'sent'){
@@ -1598,8 +1626,7 @@ function renderHome(){
     </div>`}
     ${ownerTeamsHtml()}
     ${UI.form ? '' : `<div class="account-zone">
-      <button class="btn ghost small" data-action="help-open">Help</button>
-      ${isInstalled() ? '' : '<button class="btn ghost small" data-action="install-open">Install on your phone</button>'}
+      <button class="btn small help-pop" data-action="help-open">Help</button>
       <p class="account-links"><a href="privacy.html">Privacy</a> · <button class="link-btn" data-action="delete-account-open">Delete my account</button></p>
     </div>`}
     ${UI.invitePick ? invitePickHtml() : ''}
@@ -5639,11 +5666,17 @@ async function runBusy(fn){
 document.addEventListener('click', async (e) => {
   // Ignore the click that follows a drag or a long press.
   if (Date.now() < swallowClickUntil){ swallowClickUntil = 0; e.preventDefault(); return; }
+  // The account menu closes on any tap outside it (that tap still does its job).
+  if (UI.userMenu && !e.target.closest('.user-menu, [data-action="user-menu"]')) closeUserMenu();
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const a = btn.dataset.action;
   try {
-    if (a === 'sign-in'){
+    if (a === 'user-menu'){
+      UI.userMenu = !UI.userMenu; render();
+      const first = document.querySelector('.user-menu [role="menuitem"]');
+      if (first) first.focus();
+    } else if (a === 'sign-in'){
       await signInPopup(new GoogleAuthProvider());
     } else if (a === 'sign-in-facebook'){
       await signInPopup(new FacebookAuthProvider());
@@ -5656,6 +5689,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'signin-back'){
       UI.signin = null; render();
     } else if (a === 'sign-out'){
+      UI.userMenu = false;
       closeSeason();
       UI.deleteAcct = null; UI.showInstall = false;
       await signOut(auth);
@@ -5731,7 +5765,7 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'help-close'){
       UI.showHelp = false; render();
     } else if (a === 'install-open'){
-      UI.showHelp = false; UI.showInstall = true; render(); focusSheet();
+      UI.userMenu = false; UI.showHelp = false; UI.showInstall = true; render(); focusSheet();
     } else if (a === 'install-close'){
       UI.showInstall = false; render();
     } else if (a === 'install-now'){
@@ -6132,6 +6166,13 @@ document.addEventListener('pointerup', () => { cancelPress(); if (holdFired){ ho
 document.addEventListener('pointercancel', () => { cancelPress(); holdFired = false; });
 document.addEventListener('contextmenu', (e) => { if (e.target.closest('.game-card[data-longpress], .team-card[data-longpress]')) e.preventDefault(); });
 
+// Close the account menu without redrawing the page, so the tap that closed
+// it still lands on whatever was tapped.
+function closeUserMenu(){
+  UI.userMenu = false;
+  const m = document.querySelector('.user-menu'); if (m) m.remove();
+  const av = document.querySelector('[data-action="user-menu"]'); if (av) av.setAttribute('aria-expanded', 'false');
+}
 function focusSheet(){
   const first = document.querySelector('.sheet .stat-btn, .sheet .pick-row, .sheet button');
   if (first) first.focus();
@@ -6145,6 +6186,11 @@ function closePicker(){
   if (token) token.focus();
 }
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && UI.userMenu){
+    closeUserMenu();
+    const av = document.querySelector('[data-action="user-menu"]'); if (av) av.focus();
+    return;
+  }
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
   if (e.key === 'Escape' && (UI.showMgGuide || UI.invitePick || UI.handover)){ UI.showMgGuide = false; UI.invitePick = false; UI.handover = null; render(); return; }
   if (e.key === 'Escape' && UI.subSheet){ UI.subSheet = false; render(); return; }
