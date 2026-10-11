@@ -310,6 +310,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - **Games tab**: one **+ Add games** button (add one game, or import the season's draw). The
   Coach/Manager guide and Try a practice game are also in Help while a team is open.
 - Buttons, tabs and links are at least 44px tall, small text is bigger and grey text darker.
+- **Team tabs**: Games · Stats · Team. Team has a switch for Players (Coach/Managers and
+  Scorers), Support Crew (everyone) and Settings (Coach/Managers), and reopens the part used
+  last. Parents only see Support Crew there, so no switch.
+- Tab rows that are wider than the screen (a game's tabs for Coach/Managers) show a thin scroll
+  bar and fade at the edge that has more tabs.
+- The install card is no longer on the home screen (Install is in the account menu); it still
+  shows on the sign-in screen. On the Games tab, "Want to help score?" and the practice-game
+  card sit below the games, not above them. The scorer's "? Help" on the scoreboard shows
+  during breaks too.
 
 ## 7. Draft data model (Firestore)
 
