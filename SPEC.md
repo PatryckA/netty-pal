@@ -66,8 +66,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   the only Coach/Manager of a season other people are in. Google and Facebook users confirm
   with a sign-in popup first; email-link users are asked to sign in again. No rule changes
   were needed: it only uses permissions members and Coach/Managers already have.
-- **Install on your phone**: a home screen card (until installed or put away) and a link at
-  the bottom of the home screen open step-by-step instructions for iPhone/iPad and Android.
+- **Install on your phone**: a home screen card (until installed or put away) and an item in
+  the account menu (tap your photo/initials; hidden once installed) open step-by-step instructions for iPhone/iPad and Android.
   Android browsers that support it get a one-tap Install button.
 - **Owner: delete a team.** In "Owner: show every team", each team has a Delete button
   (two taps). It deletes every season and everything in it (members, players, games, game
@@ -84,7 +84,7 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   the app owner also gets Delete team (two taps; deletes it for everyone). Press and hold a game
   (Coach/Managers): Archive / Restore, or Delete game (two taps).
 - (Added 2026-10-11) **Help**: a short FAQ in a slide-up panel, from the sign-in screen (link
-  next to Privacy) and the home screen (Help button). Sections fold away; only relevant ones
+  next to Privacy) and the pink Help button in the top bar on every signed-in screen. Sections fold away; only relevant ones
   show: signed out sees Getting started; signed in adds Following a game and Tidying up;
   Scorers add Helping out; Coach/Managers (in any team) add Coach/Managers. Contact email
   hello@nettypal.au (Porkbun email forwarding).
@@ -283,6 +283,42 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Stored as `awards/settings { enabled, types[] }` and `awards/{gameId} { winners, enabled? }`.
 
 ---
+
+### UX review changes (added 2026-10-11)
+- **Top bar**: a pink **Help** on every signed-in screen, and your photo/initials, which opens a
+  menu with your name, email, **Install on your phone** (hidden once installed) and **Sign out**.
+  The top bar is hidden for the scorer while a period is being played.
+- **Live score cards**: a game being played shows at the top of the home screen and the Games
+  tab, with the score, period and clock; one tap opens its Live tab. The score is counted from
+  the game's events, so these listen only to live games (a `status == 'live'` query per season
+  on the home screen) and only while the card is on screen. No rule changes.
+- **Next up** card at the top of the Games tab: the next game that hasn't started, with
+  Today / Tomorrow / the day, time, venue (a Google Maps link for directions) and court. Coach/
+  Managers also see whether the lineup is ready, with Finalise lineup. The venue on a game's
+  page is a directions link too.
+- **Follow a player**: tap any player's name in a stats table to open their page (games,
+  minutes, average, goals, accuracy, positions played, game by game). **Follow** saves them on
+  that phone for that season (`localStorage` `nettyPalFollow`); they're starred and highlighted
+  in lineups and stats, with a card at the top of Season Stats. Awards are never shown there.
+- **Season Stats players table**: Player, Mins and Goals to start with, **All columns** for
+  Games, Avg mins and Accuracy; tap a heading to sort. The court-time-by-position grid is for
+  Coach/Managers and Scorers (everyone can see one player's positions on their page).
+- **Scoring screen**: End period is at the top right (two taps), away from Goal/Miss; Pause is
+  bigger. Game stats shows the other team's shooting by position only when there's more than one.
+- **Results** in the games list have a W / L / D badge and colour (a loss was green before).
+- **Support Crew**: Remove is behind a "⋯" button next to each person.
+- **Games tab**: one **+ Add games** button (add one game, or import the season's draw). The
+  Coach/Manager guide and Try a practice game are also in Help while a team is open.
+- Buttons, tabs and links are at least 44px tall, small text is bigger and grey text darker.
+- **Team tabs**: Games · Stats · Team. Team has a switch for Players (Coach/Managers and
+  Scorers), Support Crew (everyone) and Settings (Coach/Managers), and reopens the part used
+  last. Parents only see Support Crew there, so no switch.
+- Tab rows that are wider than the screen (a game's tabs for Coach/Managers) show a thin scroll
+  bar and fade at the edge that has more tabs.
+- The install card is no longer on the home screen (Install is in the account menu); it still
+  shows on the sign-in screen. On the Games tab, "Want to help score?" and the practice-game
+  card sit below the games, not above them. The scorer's "? Help" on the scoreboard shows
+  during breaks too.
 
 ## 7. Draft data model (Firestore)
 
