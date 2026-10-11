@@ -28,7 +28,7 @@ if (location.hostname === 'patrycka.github.io'){
 :root{
   /* Backstage: black and white with one hot pink. Light mode. */
   --paper:#F5F5F6; --surface:#FFFFFF; --surface-2:#F0F0F2; --line:#E1E1E5;
-  --ink:#0B0B0D; --ink-soft:#5F5F66; --accent:#0B0B0D; --accent-strong:#2A2A30;
+  --ink:#0B0B0D; --ink-soft:#4A4A51; --accent:#0B0B0D; --accent-strong:#2A2A30;
   --accent-contrast:#FFFFFF; --accent-bg:#FFE3F0; --warm:#C8641C; --warm-bg:#F7E6D6;
   --ok:#2E7550; --ok-bg:#DDEEE3; --critical:#B3261E; --critical-bg:#F6DEDC;
   --shadow:rgba(11,11,13,0.10);
@@ -44,7 +44,7 @@ if (location.hostname === 'patrycka.github.io'){
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --paper:#0B0B0D; --surface:#17171A; --surface-2:#1F1F23; --line:#2E2E34;
-    --ink:#F5F5F7; --ink-soft:#A6A6AE; --accent:#F5F5F7; --accent-strong:#FFFFFF;
+    --ink:#F5F5F7; --ink-soft:#B9B9C1; --accent:#F5F5F7; --accent-strong:#FFFFFF;
     --accent-contrast:#0B0B0D; --accent-bg:#3A1027; --warm:#F0A060; --warm-bg:#3A2819;
     --ok:#74C497; --ok-bg:#1A3325; --critical:#F08A82; --critical-bg:#3D1F1D;
     --shadow:rgba(0,0,0,0.5);
@@ -55,7 +55,7 @@ if (location.hostname === 'patrycka.github.io'){
 }
 :root[data-theme="dark"]{
   --paper:#0B0B0D; --surface:#17171A; --surface-2:#1F1F23; --line:#2E2E34;
-  --ink:#F5F5F7; --ink-soft:#A6A6AE; --accent:#F5F5F7; --accent-strong:#FFFFFF;
+  --ink:#F5F5F7; --ink-soft:#B9B9C1; --accent:#F5F5F7; --accent-strong:#FFFFFF;
   --accent-contrast:#0B0B0D; --accent-bg:#3A1027; --warm:#F0A060; --warm-bg:#3A2819;
   --ok:#74C497; --ok-bg:#1A3325; --critical:#F08A82; --critical-bg:#3D1F1D;
   --shadow:rgba(0,0,0,0.5);
@@ -151,10 +151,10 @@ main{flex:1; padding:1rem 1rem 4rem;}
 }
 .text-input:focus,.select-input:focus{border-color:var(--accent); outline:none;}
 .field{display:flex; flex-direction:column; gap:0.3rem;}
-.field label,.field .label{font-size:0.78rem; font-weight:700; color:var(--ink-soft);}
+.field label,.field .label{font-size:0.85rem; font-weight:700; color:var(--ink-soft);}
 .field-row{display:flex; gap:0.6rem; flex-wrap:wrap;}
 .field-row > .field{flex:1; min-width:130px;}
-.hint{font-size:0.75rem; color:var(--ink-soft);}
+.hint{font-size:0.875rem; color:var(--ink-soft);}
 .segmented{display:flex; border:1px solid var(--line); border-radius:var(--r-sm); overflow:hidden; width:fit-content;}
 .segmented label{position:relative; cursor:pointer;}
 .segmented input{position:absolute; opacity:0; pointer-events:none;}
@@ -182,7 +182,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .hero{text-align:center; padding:3rem 1rem 2rem; display:flex; flex-direction:column; align-items:center; gap:1rem;}
 .hero h1{font-size:3.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.03em; line-height:1;}
 .hero p{margin:0; color:var(--ink-soft); max-width:26rem;}
-.hero .fine{font-size:0.78rem;}
+.hero .fine{font-size:0.85rem;}
 /* Sign-in welcome: what Netty Pal is for, as a short list. */
 .welcome{max-width:22rem; text-align:left; display:flex; flex-direction:column; gap:0.5rem;}
 .hero .welcome p{max-width:none;}
@@ -246,7 +246,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .back-link:hover{color:var(--accent);}
 .season-head{margin-bottom:0.9rem;}
 .season-head h2{font-size:2rem; text-transform:uppercase; line-height:1.05;}
-.season-meta{font-size:0.82rem; color:var(--ink-soft); margin-top:0.2rem;}
+.season-meta{font-size:0.875rem; color:var(--ink-soft); margin-top:0.2rem;}
 .tabs{display:flex; gap:0.35rem; margin-bottom:1rem; overflow-x:auto; padding-bottom:0.2rem;}
 .tab{
   flex:none; background:var(--surface); border:1px solid var(--line); color:var(--ink);
@@ -259,7 +259,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .list-row .grow{flex:1; min-width:0;}
 .list-row.inactive .pname{color:var(--ink-soft); text-decoration:line-through;}
 .pname{font-weight:600;}
-.psub{font-size:0.75rem; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis;}
+.psub{font-size:0.85rem; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis;}
 .row-input{
   flex:1; min-width:0; background:transparent; border:1px solid transparent; border-radius:var(--r-sm);
   padding:0.35rem 0.5rem; color:var(--ink); font-weight:600;
@@ -328,7 +328,7 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .archived-teams .team-card{opacity:0.7;}
 .danger-zone{margin-top:1.5rem; padding-top:1rem; border-top:1px dashed var(--line);}
 .account-zone{display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:2rem; padding-top:1rem; border-top:1px dashed var(--line);}
-.account-links{flex-basis:100%; margin:0; font-size:0.78rem; color:var(--ink-soft);}
+.account-links{flex-basis:100%; margin:0; font-size:0.875rem; color:var(--ink-soft);}
 .account-links a,.link-btn{color:var(--ink-soft); text-decoration:underline;}
 .link-btn{background:none; border:0; padding:0; font:inherit; cursor:pointer;}
 .hero .install-card{text-align:left; width:100%; max-width:26rem; margin:0;}
@@ -370,10 +370,41 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .game-date .dm{font-size:0.7rem; text-transform:uppercase; color:var(--ink-soft); font-weight:700;}
 .game-date.tbc .dd{font-size:1.1rem; color:var(--ink-soft);}
 .gopp{font-weight:800; font-size:1rem;}
-.gmeta{font-size:0.78rem; color:var(--ink-soft);}
-.gstatus{font-size:0.75rem; font-weight:700; margin-top:0.15rem;}
+.gmeta{font-size:0.85rem; color:var(--ink-soft);}
+.gstatus{font-size:0.85rem; font-weight:700; margin-top:0.15rem;}
 .gstatus.todo{color:var(--warm);}
-.gstatus.ok{color:var(--ok);}
+.gstatus.ok,.gstatus.won{color:var(--ok);}
+.gstatus.lost{color:var(--critical);}
+.gstatus.drew{color:var(--ink-soft);}
+/* W / L / D: a letter as well as a colour, for colour-blind readers. */
+.wld{display:inline-flex; align-items:center; justify-content:center; width:1.15rem; height:1.15rem; border-radius:4px; margin-right:0.35rem; font-size:0.7rem; color:var(--surface); vertical-align:-0.15rem;}
+.wld.won{background:var(--ok);} .wld.lost{background:var(--critical);} .wld.drew{background:var(--ink-soft);}
+/* Live score card (home screen and Games tab): a game being played now. */
+.live-card{
+  display:block; width:100%; text-align:left; cursor:pointer; margin-bottom:0.8rem; padding:0.75rem 0.9rem;
+  background:#0B0B0D; color:#FFFFFF; border:2px solid var(--pop); border-radius:var(--r); font-family:var(--font-body);
+}
+.lc-top{display:flex; align-items:center; gap:0.45rem; font-size:0.78rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase;}
+.lc-top .lc-when{margin-left:auto; color:#D6D6DC; letter-spacing:0.02em;}
+.live-dot{width:0.6rem; height:0.6rem; border-radius:50%; background:#FF4D9A; flex:none; animation:live-pulse 1.4s ease-in-out infinite;}
+@keyframes live-pulse{50%{opacity:0.3;}}
+@media (prefers-reduced-motion:reduce){ .live-dot{animation:none;} }
+.lc-score{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:0.6rem; margin:0.35rem 0 0.2rem;}
+.lc-score .lc-name{font-weight:700; font-size:0.9rem; overflow-wrap:anywhere;}
+.lc-score .lc-name.them{text-align:right;}
+.lc-score b{font-family:var(--font-display); font-size:2.2rem; font-weight:900; line-height:1; white-space:nowrap;}
+.lc-meta{display:flex; justify-content:flex-end; font-size:0.85rem;}
+.lc-meta .lc-go{color:#FF6FAE; font-weight:800;}
+/* Next up: the next game, at the top of the Games tab. */
+.next-card{background:var(--surface); border:2px solid var(--ink); border-radius:var(--r); padding:0.85rem 0.95rem; margin-bottom:1rem;}
+.nc-when{font-size:0.8rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--pop-text);}
+.nc-title{font-family:var(--font-display); font-size:1.5rem; font-weight:900; text-transform:uppercase; line-height:1.1; margin:0.15rem 0 0.35rem;}
+.nc-where{display:inline-flex; align-items:center; gap:0.35rem; min-height:44px; color:var(--ink); font-weight:700; font-size:1rem; text-decoration:underline; text-underline-offset:3px;}
+.nc-where svg{flex:none;}
+.nc-lineup{font-size:0.9rem; font-weight:700; margin:0.2rem 0 0.6rem;}
+.nc-lineup.ok{color:var(--ok);}
+.nc-lineup.todo{color:var(--warm);}
+.nc-actions{display:flex; gap:0.5rem; flex-wrap:wrap;}
 .list-label{font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); margin:1.1rem 0 0.5rem;}
 .game-head h2{font-size:1.9rem; text-transform:uppercase; line-height:1.05;}
 .period-picker{display:flex; gap:0.35rem; margin-bottom:0.8rem; flex-wrap:wrap;}
@@ -458,7 +489,7 @@ body.dragging{cursor:grabbing;}
 .pick-row.current{border-color:var(--accent); background:var(--accent-bg);}
 .pick-row .pname{display:block;}
 .pick-row .psub{display:block;}
-.pick-count{font-size:0.78rem; font-weight:800; color:var(--ink-soft); white-space:nowrap; font-variant-numeric:tabular-nums;}
+.pick-count{font-size:0.82rem; font-weight:800; color:var(--ink-soft); white-space:nowrap; font-variant-numeric:tabular-nums;}
 .pick-count.zero{color:var(--warm);}
 
 /* ---- Live game ---- */
@@ -486,7 +517,7 @@ body.dragging{cursor:grabbing;}
   font-size:0.88rem; flex-wrap:wrap;
 }
 .event-row:first-child{border-top:none;}
-.event-when{font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:0.78rem; min-width:4.6rem;}
+.event-when{font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:0.82rem; min-width:4.6rem;}
 .event-row.opp .event-what{color:var(--ink-soft);}
 .event-row .select-input{width:auto; flex:1; min-width:8rem; padding:0.35rem 0.5rem; font-size:0.85rem;}
 .stats-table td:first-child{white-space:normal; overflow-wrap:anywhere; min-width:5rem; max-width:9rem;}
@@ -531,10 +562,40 @@ button.cp-mark{cursor:pointer;}
 .play-btn{flex-direction:column; gap:0.05rem; width:3.4rem; height:3.4rem;}
 .play-label{font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; line-height:1;}
 /* Pause/Resume sits under the clock, so the clock and its control read together. */
-.sb2-clock .play-btn{flex-direction:row; gap:0.3rem; width:auto; height:2.1rem; padding:0 0.6rem; margin-top:0.35rem;}
+.sb2-clock .play-btn{flex-direction:row; gap:0.3rem; width:auto; min-width:6rem; height:3rem; padding:0 0.8rem; margin-top:0.35rem;}
 .sb2-clock .play-btn svg{width:16px; height:16px;}
 .sub-row{display:grid; grid-template-columns:1fr 1fr; gap:0.4rem;}
 .sub-btn{width:100%; margin:0 0 0.4rem; padding-top:0.7rem; padding-bottom:0.7rem;}
+.head-actions{display:flex; gap:0.5rem; align-items:center;}
+.more-info{margin:0.5rem 0;}
+/* Follow a player */
+.fair .followed-row td,.fair .followed-row td:first-child{background:var(--accent-bg);}
+.fair .followed-row td:first-child{box-shadow:inset 3px 0 0 var(--pop);}
+.star{color:var(--pop-text);}
+.token-name.followed{outline:2px solid var(--pop); font-weight:800;}
+.chip.followed{border-color:var(--pop); font-weight:800;}
+.pname-btn{background:none; border:none; padding:0.1rem 0; min-height:36px; font:inherit; font-weight:700; color:var(--ink); text-align:left; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px;}
+.sort-btn{background:none; border:none; padding:0.4rem 0; font:inherit; font-weight:inherit; color:inherit; cursor:pointer; white-space:nowrap;}
+.table-foot{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin:-0.4rem 0 0.6rem;}
+.table-foot .hint{margin:0;}
+.follow-card{display:flex; flex-wrap:wrap; align-items:center; gap:0.2rem 0.6rem; width:100%; text-align:left; cursor:pointer; margin-bottom:1rem; padding:0.75rem 0.9rem;
+  background:var(--accent-bg); border:2px solid var(--pop); border-radius:var(--r); color:var(--ink); font-family:var(--font-body);}
+.follow-card .lc-go{margin-left:auto; color:var(--pop-text); font-weight:800;}
+.follow-tip{margin:0 0 0.8rem;}
+.follow-row{display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin:0.8rem 0;}
+.follow-row .hint{margin:0; flex:1; min-width:10rem;}
+.pos-bars{display:flex; flex-direction:column; gap:0.4rem; margin-bottom:0.8rem;}
+.pos-bar{display:grid; grid-template-columns:2.4rem 1fr 4rem; align-items:center; gap:0.5rem;}
+.pos-bar .pos-chip{position:static; transform:none;}
+.pos-bar .bar{height:0.7rem; background:var(--surface-2); border-radius:var(--r-pill); overflow:hidden;}
+.pos-bar .bar span{display:block; height:100%; background:var(--pop);}
+.pos-bar .bar-v{font-size:0.85rem; font-weight:700; text-align:right;}
+.help-shortcuts{display:flex; flex-wrap:wrap; gap:0.5rem; margin:0.4rem 0 0.8rem;}
+.more-info summary{cursor:pointer; font-weight:700; color:var(--pop-text); padding:0.7rem 0;}
+.more-btn{min-width:44px; font-size:1.2rem; line-height:1; padding:0 0.6rem; border-color:var(--line);}
+.more-row{display:contents;}
+/* Room under the event log so the floating Undo, Redo and mic don't cover it. */
+.float-spacer{height:5rem;}
 .head-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem;}
 .more-row .btn{padding-top:0.3rem; padding-bottom:0.3rem;}
 .practice-banner{display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; background:var(--accent-bg); border:1.5px dashed var(--accent); border-radius:var(--r); padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.88rem;}
@@ -560,7 +621,7 @@ button.cp-mark{cursor:pointer;}
 .mg-step p{margin:0.15rem 0 0; font-size:0.9rem; color:var(--ink-soft);}
 .mg-step .btn{margin-top:0.45rem;}
 .mg-head{font-size:1.05rem; text-transform:uppercase; margin:1rem 0 0.2rem;}
-.mg-status{font-size:0.78rem; font-weight:700; color:var(--ok);}
+.mg-status{font-size:0.82rem; font-weight:700; color:var(--ok);}
 .mg-status.todo{color:var(--warm);}
 .unavail-drop{border-style:solid; opacity:0.85;}
 .unavail-drop .chip{color:var(--ink-soft); text-decoration:line-through;}
@@ -610,7 +671,7 @@ button.cp-mark{cursor:pointer;}
   background:var(--ink); color:var(--paper); font-family:var(--font-display); font-weight:800; font-size:0.9rem; margin-right:0.15rem;
 }
 .g-btn.wide{max-width:9rem; height:auto; min-height:1.8rem; padding-top:0.2rem; padding-bottom:0.2rem; white-space:normal; line-height:1.2; background:var(--surface-2);}
-.sec-label{font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
+.sec-label{font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-soft); margin:0.6rem 0 0.4rem;}
 .sec-label.done{opacity:0.45;}
 /* Step 2 frame: invisible until Goal or Miss is chosen, then pink. The
    negative margin keeps the tiles the same width as everything else. */
@@ -665,7 +726,7 @@ button.log-row:hover{background:var(--surface-2);}
 .log-badge{min-width:2.7rem; text-align:center; font-family:var(--font-display); font-weight:800; font-size:0.88rem; padding:0.15rem 0.45rem; border-radius:var(--r-sm); background:var(--accent); color:var(--accent-contrast); white-space:nowrap;}
 .log-badge.opp{background:var(--surface); color:var(--ink); border:1.5px solid var(--line);}
 .log-what{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.log-when{font-size:0.75rem; color:var(--ink-soft); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.log-when{font-size:0.8rem; color:var(--ink-soft); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .undo-bar{position:fixed; right:max(1rem, calc(50% - 320px + 1rem)); bottom:calc(1rem + env(safe-area-inset-bottom)); display:flex; gap:0.5rem; z-index:20;}
 .undo-btn{width:3.1rem; height:3.1rem; border-radius:var(--r); border:1px solid var(--line); background:var(--surface); color:var(--ink); box-shadow:0 4px 14px var(--shadow); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .undo-btn:disabled{opacity:0.4; cursor:default;}
@@ -760,6 +821,19 @@ table.fair{border-collapse:collapse; width:100%; font-size:0.84rem; font-variant
 .toc-switches{display:flex; flex-wrap:wrap; gap:0.5rem; margin:0 0 0.6rem;}
 .fair.simple th{white-space:normal; line-height:1.15; font-size:0.85rem;}
 .extra-stats th.grp{font-family:var(--font-body); font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); border-left:1px solid var(--line);}
+/* Tap targets: at least 44px tall (Apple and Google's guideline), so
+   buttons are easy to hit one-handed at the court. */
+.btn, .tab, .role-toggle, .period-btn{min-height:44px;}
+.tab, .role-toggle, a.btn{display:inline-flex; align-items:center; justify-content:center;}
+.segmented span{display:flex; align-items:center; min-height:44px;}
+.back-link{display:inline-flex; align-items:center; min-height:44px; font-size:0.9rem; margin-bottom:0;}
+.mode-tab{min-height:40px;}
+.card-x{width:44px; height:44px; top:0.15rem; right:0.15rem;}
+.brand{min-height:44px;}
+.topbar-inner{padding-top:0.5rem; padding-bottom:0.5rem;}
+.avatar-btn{width:44px; height:44px; align-items:center; justify-content:center; border:none;}
+.avatar-btn .avatar{border:2px solid transparent;}
+.avatar-btn:hover .avatar,.avatar-btn[aria-expanded="true"] .avatar{border-color:var(--bar-ink);}
 </style>
 </head>
 <body>
@@ -774,7 +848,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc as fsUpdateDoc, deleteDoc,
-  collection, onSnapshot, writeBatch as fsWriteBatch, serverTimestamp, deleteField
+  collection, onSnapshot, writeBatch as fsWriteBatch, serverTimestamp, deleteField, query, where
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // On the old address the page is already moving to nettypal.au (see the
@@ -1301,6 +1375,7 @@ function render(){
   const app = document.getElementById('app');
   const keep = captureInputs();
   let body;
+  LIVE.used = new Set();
   // While the app starts, or a sign-in is finishing, show the bouncing ball
   // rather than the sign-in buttons (which would look like "sign in again").
   if (!authReady) body = splashHtml('Loading Netty Pal…');
@@ -1313,14 +1388,20 @@ function render(){
     else main = renderHome();
     // The top bar sits outside the 640px column so its colour runs edge to
     // edge on wide screens; its contents line up with the column.
+    // While a period is being played, the scorer's screen drops the top bar
+    // so the score and buttons fit (Help is on the scoreboard).
+    const lg = UI.view === 'game' && UI.gameTab === 'live' ? findGame(UI.gameId) : null;
+    const scoringNow = !!(lg && isInPlay(lg) && amScorer(lg));
     body = `${offlineMode ? '<div class="offline-banner">You\'re offline. Changes will sync when you reconnect.</div>' : ''}
-      ${renderTopbar()}
+      ${scoringNow ? '' : renderTopbar()}
       <div class="app-shell">
         <main>${main}</main>
       </div>`;
   }
   if (UI.showInstall) body += installSheetHtml();
   else if (UI.showHelp) body += helpSheetHtml();
+  else if (UI.playerSheet && USER && CUR.season) body += playerSheetHtml(UI.playerSheet);
+  pruneLive();
   app.innerHTML = body;
   restoreInputs(keep);
   // A half-filled fixture form keeps its bye tick (and hidden fields) through a redraw.
@@ -1615,6 +1696,7 @@ function renderHome(){
 
   return `<h2 class="section-title">Your teams</h2>
     <p class="hint" style="margin:-0.4rem 0 0.9rem">Signed in as ${escapeHtml(USER.email || USER.displayName || '')}</p>
+    ${homeLiveHtml()}
     ${inviteHtml()}
     ${UI.form ? '' : installCardHtml()}
     ${form}
@@ -1827,7 +1909,7 @@ function helpSheetHtml(){
       qa('I made a mistake while scoring.', 'Tap the undo arrow, or tap the entry in the list and choose <b>Undo</b>.')
     ], false) : '',
     level === 'coach' ? section('Coach/Managers', [
-      qa('How do I set up the team?', 'Open the team and tap <b>Open the Coach/Manager guide</b>. It walks you through adding players and games and inviting parents.'),
+      qa('How do I set up the team?', 'Open the team, tap <b>Help</b> and then <b>Coach/Manager guide</b>. It walks you through adding players and games and inviting parents.'),
       qa('How do I give someone a role?', 'In <b>Support Crew</b>, tap <b>Scorer</b> or <b>Coach/Manager</b> next to their name, or send them a one-time role invite link from there. Only Coach/Managers can give roles.'),
       qa('Can I track more than goals?', 'Only if you want to: it\'s off unless you turn it on. <b>Team Settings &gt; Track more stats</b> adds optional stats like rebounds, intercepts and penalties. Tick only what your scorer can keep up with.'),
       qa('Can I give player awards?', 'Optional, and off unless you turn it on in <b>Team Settings &gt; Player awards</b>. Only Coach/Managers see them.')
@@ -1847,10 +1929,19 @@ function helpSheetHtml(){
         <button class="btn ghost small" data-action="help-close">Close</button></div>
       <div class="sheet-body">
         <p style="margin:0.8rem 0 0.4rem"><b>Netty Pal in one line:</b> someone scores the game on their phone, and everyone in the team can follow it live and see the stats.</p>
+        ${helpShortcutsHtml()}
         ${sections}
         <p class="hint"><a href="privacy.html">Privacy</a></p>
       </div>
     </div>`;
+}
+
+// Inside a team: the Coach/Manager guide and a practice game, one tap away.
+function helpShortcutsHtml(){
+  if (UI.view === 'home' || !CUR.season || inPractice()) return '';
+  const guide = isManager() ? '<button class="btn ghost small" data-action="mg-open">Coach/Manager guide</button>' : '';
+  const practice = canScore() && canPractise() ? '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>' : '';
+  return guide || practice ? `<div class="help-shortcuts">${guide}${practice}</div>` : '';
 }
 
 /* ---- Install on a phone ----
@@ -2201,15 +2292,21 @@ function renderGamesTab(){
   const earlier = games.filter(g => g.date && g.date < today).reverse();
 
   let form = '';
-  if (UI.form === 'add-game') form = gameFormHtml('ag', { round:nextRound(), format:CUR.season.format, periodMinutes:CUR.season.periodMinutes }, 'add-game', 'Add fixture');
+  if (UI.form === 'add-game') form = gameFormHtml('ag', { round:nextRound(), format:CUR.season.format, periodMinutes:CUR.season.periodMinutes }, 'add-game', 'Add game');
   else if (UI.form === 'import' && editable) form = importHtml();
 
+  // Adding games: one button, then a choice of one game or the whole draw.
   const addBtn = editable && !UI.form
-    ? `<div class="home-actions">
-        <button class="btn" data-action="show-form" data-form-name="add-game">Add fixture</button>
-        <button class="btn ghost" data-action="import-open">Import season fixtures</button>
-      </div>
-      ${setupDone() === SETUP_STEPS ? '<div class="lineup-tools"><button class="btn ghost small" data-action="mg-open">Coach/Manager guide</button></div>' : ''}` : '';
+    ? (UI.addChoice
+      ? `<div class="panel add-choice">
+          <p style="margin:0 0 0.6rem"><b>Add games</b></p>
+          <div class="home-actions" style="margin:0">
+            <button class="btn" data-action="show-form" data-form-name="add-game">Add one game</button>
+            <button class="btn ghost" data-action="import-open">Import the season's draw</button>
+            <button class="btn ghost small" data-action="add-choice-close">Cancel</button>
+          </div>
+        </div>`
+      : `<div class="home-actions"><button class="btn" data-action="add-choice">+ Add games</button></div>`) : '';
 
   let body;
   if (!games.length){
@@ -2234,9 +2331,9 @@ function renderGamesTab(){
       <p style="margin:0 0 0.5rem; padding-right:1.8rem"><b>New to scoring?</b> Try a practice game first. Nothing is saved.</p>
       <button class="btn ghost small" data-action="start-practice">Try a practice game</button>
     </div>` : '';
-  const practiceLink = canTry && !UI.form ? '<div class="lineup-tools"><button class="btn ghost small" data-action="start-practice">Try a practice game</button></div>' : '';
   // Adding fixtures is occasional, so it lives below the list (the form opens in the same spot).
-  return `${setupCardHtml()}${gameDayNudgeHtml(games)}${askToScoreHtml()}${practice}${body}${form}${addBtn}${practiceLink}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
+  const next = nextGame(games);
+  return `${seasonLiveHtml(games)}${next ? nextGameHtml(next) : ''}${setupCardHtml()}${gameDayNudgeHtml(games.filter(g => g !== next))}${askToScoreHtml()}${practice}${body}${form}${addBtn}${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
 
 /* ---- Coach/Manager guide ----
@@ -2348,6 +2445,115 @@ function archiveSheetHtml(g){
     </div>`;
 }
 
+/* ---- Live score cards ----
+   The home screen and the Games tab show any game being played right now,
+   with the score, period and clock, one tap from the Live tab. The score is
+   counted from the game's events (as on the Live tab), so these listen to
+   live games only, and only while a card is on screen: each render notes the
+   listeners it used and pruneLive() stops the rest. */
+const LIVE = { seasons:new Map(), events:new Map(), clocks:new Map(), used:new Set() };
+// Live games in one season (for the home screen, where no season is open).
+function liveGamesIn(teamId, seasonId){
+  const key = teamId + '/' + seasonId;
+  LIVE.used.add('s:' + key);
+  let w = LIVE.seasons.get(key);
+  if (!w){
+    w = { games:[], unsub:null };
+    LIVE.seasons.set(key, w);
+    w.unsub = onSnapshot(query(collection(db, 'teams', teamId, 'seasons', seasonId, 'games'), where('status', '==', 'live')),
+      (snap) => { w.games = snap.docs.map(d => ({ id:d.id, ...d.data() })); render(); },
+      (err) => console.warn('Netty Pal: live games', err));
+  }
+  return w.games;
+}
+// The events of one live game (the open game's are already loaded).
+function liveEventsFor(teamId, seasonId, gameId){
+  if (UI.seasonId === seasonId && CUR.eventsFor === gameId && CUR.loaded.events) return CUR.events;
+  const key = teamId + '/' + seasonId + '/' + gameId;
+  LIVE.used.add('e:' + key);
+  let w = LIVE.events.get(key);
+  if (!w){
+    w = { events:null, unsub:null };
+    LIVE.events.set(key, w);
+    w.unsub = onSnapshot(collection(db, 'teams', teamId, 'seasons', seasonId, 'games', gameId, 'events'),
+      (snap) => { w.events = snap.docs.map(d => ({ id:d.id, ...d.data() })); render(); },
+      (err) => console.warn('Netty Pal: live events', err));
+  }
+  return w.events;
+}
+function pruneLive(){
+  [['s:', LIVE.seasons], ['e:', LIVE.events]].forEach(([pre, map]) => {
+    map.forEach((w, key) => { if (!LIVE.used.has(pre + key)){ if (w.unsub) w.unsub(); map.delete(key); } });
+  });
+}
+function liveCardHtml(teamId, seasonId, teamName, g){
+  const evs = liveEventsFor(teamId, seasonId, g.id);
+  const on = (evs || []).filter(e => !e.undone);
+  const us = on.filter(e => e.type === 'goal').length, them = on.filter(e => e.type === 'oppGoal').length;
+  const L = g.live || {};
+  let when;
+  if (isGameOver(g)) when = 'Full time';
+  else if (!isInPlay(g)) when = breakName(g, L.period);
+  else {
+    const key = seasonId + '/' + g.id;
+    LIVE.clocks.set(key, g);
+    when = `${escapeHtml(periodName(g, L.period))} · <span data-lclock="${escapeHtml(key)}">${fmtClock(periodMs(g) - elapsedMs(g))}</span>${L.phase === 'paused' ? ' · Paused' : ''}`;
+  }
+  const score = evs ? `<b>${us} : ${them}</b>` : '<b>&nbsp;</b>';
+  return `<button class="live-card" data-action="open-live" data-team="${escapeHtml(teamId)}" data-season="${escapeHtml(seasonId)}" data-game="${escapeHtml(g.id)}">
+      <div class="lc-top"><span class="live-dot" aria-hidden="true"></span><span>Live</span><span class="lc-when">${when}</span></div>
+      <div class="lc-score"><span class="lc-name">${escapeHtml(teamName)}</span>${score}<span class="lc-name them">${escapeHtml(g.opponent || 'Opposition')}</span></div>
+      <div class="lc-meta"><span class="lc-go">Follow live ›</span></div>
+    </button>`;
+}
+function homeLiveHtml(){
+  if (!HOME.loaded) return '';
+  return HOME.items.filter(it => !it.archived).map(it =>
+    liveGamesIn(it.teamId, it.seasonId).filter(g => !g.archived && !g.practice)
+      .map(g => liveCardHtml(it.teamId, it.seasonId, it.teamName, g)).join('')).join('');
+}
+function seasonLiveHtml(games){
+  return games.filter(g => g.status === 'live').map(g => liveCardHtml(UI.teamId, UI.seasonId, CUR.team.name, g)).join('');
+}
+
+/* ---- Next up ----
+   The next game that hasn't started, at the top of the Games tab: when, and
+   where (tap for directions). Coach/Managers also see if the lineup is ready. */
+function nextGame(games){
+  const today = todayIso();
+  return sortGames(games).find(g => !g.archived && !g.bye && g.date && g.date >= today && (g.status || 'scheduled') === 'scheduled') || null;
+}
+function courtLabel(c){ return /^\w{1,4}$/.test(String(c)) ? 'Court ' + c : String(c); }
+function mapsLinkHtml(place, label, cls){
+  return `<a class="${cls || ''}" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}" target="_blank" rel="noopener">${label === place ? escapeHtml(label) : label}</a>`;
+}
+function whenLabel(g){
+  const d = parseIsoDate(g.date), today = parseIsoDate(todayIso());
+  const days = Math.round((d - today) / 86400000);
+  const day = days === 0 ? 'Today' : days === 1 ? 'Tomorrow'
+    : d.toLocaleDateString('en-AU', days < 7 ? { weekday:'long' } : { weekday:'short', day:'numeric', month:'short' });
+  return day + (g.time ? ' · ' + fmtTime(g.time) : '');
+}
+function nextGameHtml(g){
+  const pin = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>';
+  const place = [g.venue, g.court ? courtLabel(g.court) : ''].filter(Boolean).join(' · ');
+  const where = g.venue ? mapsLinkHtml(g.venue, `${pin}<span>${escapeHtml(place)}</span>`, 'nc-where')
+    : place ? `<div class="nc-lineup">${escapeHtml(place)}</div>` : '';
+  let lineup = '', action = '';
+  if (canEditGames()){
+    const ready = lineupReady(g);
+    lineup = `<div class="nc-lineup ${ready ? 'ok' : 'todo'}">${ready ? '✓ Lineup ready' : 'Lineup not finished yet'}</div>`;
+    if (!ready) action = `<button class="btn" data-action="finalise-lineup" data-game="${escapeHtml(g.id)}">${g.date === todayIso() ? 'Finalise lineup' : 'Set the lineup'}</button>`;
+  }
+  return `<section class="next-card" aria-label="Next game">
+      <div class="nc-when">Next up: ${escapeHtml(whenLabel(g))}</div>
+      <div class="nc-title">${escapeHtml(gameTitle(g))}</div>
+      ${where}
+      ${lineup}
+      <div class="nc-actions">${action}<button class="btn ${action ? 'ghost' : ''}" data-action="open-game" data-game="${escapeHtml(g.id)}">Open game</button></div>
+    </section>`;
+}
+
 function gameCardHtml(g, past){
   const d = parseIsoDate(g.date);
   const dateBlock = d
@@ -2359,8 +2565,8 @@ function gameCardHtml(g, past){
   if (g.bye){
     status = '<div class="gstatus">No game this round</div>';
   } else if (g.status === 'final' && s){
-    const res = s.us > s.them ? 'Won' : s.us < s.them ? 'Lost' : 'Drew';
-    status = `<div class="gstatus ok">${res} ${s.us} : ${s.them}</div>`;
+    const res = resultWord(s.us, s.them), cls = res.toLowerCase();
+    status = `<div class="gstatus ${cls}"><span class="wld ${cls}" aria-hidden="true">${res[0]}</span>${res} ${s.us} : ${s.them}</div>`;
   } else if (g.status === 'live'){
     status = `<div class="gstatus todo">Live now. Tap to follow.</div>`;
   } else {
@@ -2386,7 +2592,7 @@ function gameFormHtml(prefix, g, formName, submitLabel){
   // fields a bye doesn't need (see the bye-toggle change handler).
   const canBye = (g.status || 'scheduled') === 'scheduled';
   return `<form class="form-card ${g.bye ? 'is-bye' : ''}" data-form="${formName}">
-      ${formName === 'add-game' ? '<h3>Add fixture</h3>' : ''}
+      ${formName === 'add-game' ? '<h3>Add a game</h3>' : ''}
       ${canBye ? `<label class="check-row"><input type="checkbox" id="${prefix}-bye" name="bye" data-field="bye-toggle" ${g.bye ? 'checked' : ''}>
         <span><b>This round is a bye</b> <span class="hint">(we don't play this round)</span></span></label>` : ''}
       <div class="field-row">
@@ -2492,7 +2698,7 @@ function renderGame(){
   else if (UI.gameTab === 'details') content = renderDetailsTab(g);
   if (UI.showGuide) content += guideSheetHtml(g);
 
-  const where = [g.venue, g.court].filter(Boolean).join(', ');
+  const where = [g.venue ? mapsLinkHtml(g.venue, g.venue) : '', g.court ? escapeHtml(courtLabel(g.court)) : ''].filter(Boolean).join(', ');
   // While a period is being played, keep the header short so the scorer's
   // controls and the court fit on one phone screen.
   const banner = practice ? practiceBannerHtml() : '';
@@ -2504,7 +2710,10 @@ function renderGame(){
       : `<nav class="tabs" aria-label="Game sections">
         ${tabs.map(([k, label]) => `<button class="tab ${UI.gameTab === k ? 'active' : ''}" data-action="game-tab" data-tab="${k}" ${UI.gameTab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
       </nav>`;
-    return `<div class="season-head game-head compact"><div class="head-row">${back}${amScorer(g) && !UI.showTabs ? nav : ''}</div><h2>${escapeHtml(gameTitle(g))}</h2></div>
+    // End period sits up here, away from the scoring buttons, and takes two taps.
+    const endBtn = amScorer(g) ? `<button class="btn small ${isTimeUp(g) ? 'time-up' : 'ghost'} ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
+        ${isArmed('end-period') ? 'Confirm end ' : 'End '}${escapeHtml(periodName(g, g.live.period))}</button>` : '';
+    return `<div class="season-head game-head compact"><div class="head-row">${back}<div class="head-actions">${endBtn}${amScorer(g) && !UI.showTabs ? nav : ''}</div></div><h2>${escapeHtml(gameTitle(g))}</h2></div>
       ${amScorer(g) && !UI.showTabs ? '' : nav}
       ${banner}
       <div class="live-play">${content}</div>`;
@@ -2513,7 +2722,7 @@ function renderGame(){
       ${back}
       <h2>${escapeHtml(gameTitle(g))}</h2>
       ${practice ? '' : `<div class="season-meta">${g.round ? 'Round ' + escapeHtml(g.round) + ' · ' : ''}${escapeHtml(fmtGameWhen(g))}</div>`}
-      <div class="season-meta">${where ? escapeHtml(where) + ' · ' : ''}${escapeHtml(gameFormatLabel(g))}</div>
+      <div class="season-meta">${where ? where + ' · ' : ''}${escapeHtml(gameFormatLabel(g))}</div>
     </div>
     <nav class="tabs" aria-label="Game sections">
       ${tabs.map(([k, label]) => `<button class="tab ${UI.gameTab === k ? 'active' : ''}" data-action="game-tab" data-tab="${k}" ${UI.gameTab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
@@ -2584,7 +2793,7 @@ function renderLineupTab(g){
     ${courtHtml(plan, editable, g, p, avail)}
     ${tools}
     ${countsHtml}
-    ${editable ? '<p class="hint">You can also tap a position to pick from a list. Dropping someone on another player swaps them. You can still change everything on game day.</p>' : ''}
+    ${editable ? '<p class="hint">Or tap a position to pick from a list.</p>' : ''}
     ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, planCountOf(g, counts),
       `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`) : ''}`;
 }
@@ -2616,7 +2825,7 @@ function courtHtml(plan, editable, g, p, avail, tapAction){
     const [x, y] = COURT_SPOTS[pos];
     const name = pid ? playerName(pid) : 'Empty';
     const inner = `<span class="pos-chip ${pid ? POS_ZONE[pos] : 'unfilled'}" aria-hidden="true">${pos}</span>
-      <span class="token-name ${pid ? '' : 'empty'}">${escapeHtml(name)}</span>`;
+      <span class="token-name ${pid ? '' : 'empty'} ${isFollowed(pid) ? 'followed' : ''}">${isFollowed(pid) ? STAR + ' ' : ''}${escapeHtml(name)}</span>`;
     const style = `style="left:${x}%; top:${y}%"`;
     if (!editable && tapAction) return `<button class="court-token" ${style} data-action="${tapAction}" data-side="us" data-pos="${pos}"
         aria-label="${POS_NAMES[pos]}, ${escapeHtml(name)}. Make a substitution">${inner}</button>`;
@@ -2632,7 +2841,7 @@ function courtHtml(plan, editable, g, p, avail, tapAction){
         <div class="bench-label">Bench${editable ? ' <span>(drag onto a position)</span>' : ''}</div>
         <div class="chip-wrap">${ids.length ? ids.map(id => editable
           ? `<span class="chip bench-chip" data-player="${escapeHtml(id)}" role="button" aria-label="${escapeHtml(playerName(id))}, on the bench. Drag onto a position">${escapeHtml(playerName(id))}</span>`
-          : `<span class="chip">${escapeHtml(playerName(id))}</span>`).join('')
+          : `<span class="chip ${isFollowed(id) ? 'followed' : ''}">${isFollowed(id) ? STAR + ' ' : ''}${escapeHtml(playerName(id))}</span>`).join('')
           : '<span class="hint">Nobody on the bench.</span>'}</div>
       </div>`;
     // Players who aren't playing this game, so nobody wonders where a name went.
@@ -2777,8 +2986,8 @@ function seasonTimeHtml(g, detailed){
     // Simple: whole minutes, lowest average first so whoever is owed time is at the top.
     const avgMs = r => r.avail.size ? r.ms / r.avail.size : 0;
     const simple = list.slice().sort((a, b) => avgMs(a) - avgMs(b) || playerName(a.id).localeCompare(playerName(b.id)));
-    const rowsHtml = simple.map(r => `<tr>
-        <td>${escapeHtml(playerName(r.id))}</td>
+    const rowsHtml = simple.map(r => `<tr class="${followRow(r.id)}">
+        <td>${pnameHtml(r.id)}</td>
         <td>${r.games.size}</td>
         <td class="total">${r.avail.size ? wholeMins(avgMs(r)) : '·'}</td>
         <td class="this ${playing.has(r.id) && r.thisGame < 0.05 ? 'zero-this' : ''}">${playing.has(r.id) ? wholeMins(r.thisMs) : 'out'}</td>
@@ -2966,10 +3175,8 @@ function livePlayHtml(g, st, scoring){
           <button class="mode-tab ${mode === 'event' ? 'on' : ''}" role="tab" aria-selected="${mode === 'event'}" data-action="live-mode" data-mode="event">Goal/Miss first</button>
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
-        <button class="btn ${timeUp ? 'time-up' : 'ghost'} small ${isArmed('end-period') ? 'armed' : ''}" data-action="end-period">
-          ${isArmed('end-period') ? 'Confirm end ' : 'End '}${escapeHtml(periodName(g, L.period))}</button>
       </div>
-      ${timeUp ? `<p class="time-up-note" role="status">Time. Add any last goal or miss, then tap End ${escapeHtml(periodName(g, L.period))}.</p>` : ''}`;
+      ${timeUp ? `<p class="time-up-note" role="status">Time. Add any last goal or miss, then tap End ${escapeHtml(periodName(g, L.period))} at the top.</p>` : ''}`;
   }
 
   let pane;
@@ -3025,6 +3232,7 @@ function livePlayHtml(g, st, scoring){
   }
   return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
+    ${scoring ? '<div class="float-spacer" aria-hidden="true"></div>' : ''}
     ${scoring ? undoBarHtml(g) : ''}
     ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? `<div class="mic-hint" role="status">Listening... say "GS goal"${tapExtras(usExtras(g)).length ? ' or "WD intercept"' : ''}</div>` : ''}` : ''}`;
 }
@@ -3395,8 +3603,8 @@ function wholeMins(ms){ return String(Math.round((ms || 0) / 60000)); }
 // fmt turns milliseconds into what's shown in each cell.
 function courtTimeTable(rows, fmt, playingIds){
   const max = Math.max(1, ...rows.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
-  const body = rows.map(r => `<tr class="${playingIds && playingIds.has(r.id) && !r.ms ? 'no-time' : ''}">
-      <td>${escapeHtml(playerName(r.id))}</td>
+  const body = rows.map(r => `<tr class="${playingIds && playingIds.has(r.id) && !r.ms ? 'no-time' : ''} ${followRow(r.id)}">
+      <td>${pnameHtml(r.id)}</td>
       ${POSITIONS.map(pos => {
         const v = r.pos[pos] || 0;
         const shade = v ? `style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + 30 * v / max)}%, transparent)"` : '';
@@ -3459,7 +3667,7 @@ function timeOnCourtHtml(g, st){
   }
   // Simple: staff see least time first (who's owed a turn); viewers see names in order.
   const order = staff ? ids.slice().sort((a, b) => msOf(a) - msOf(b) || playerName(a).localeCompare(playerName(b))) : byName(ids);
-  const rows = order.map(id => `<tr><td>${escapeHtml(playerName(id))}</td>
+  const rows = order.map(id => `<tr class="${followRow(id)}"><td>${pnameHtml(id)}</td>
       <td class="this ${staff && playing.has(id) && !msOf(id) ? 'zero-this' : ''}">${wholeMins(msOf(id))}</td></tr>`).join('');
   return `${head}<div class="fair-wrap"><table class="fair simple">
       <caption>Times in minutes</caption>
@@ -3539,17 +3747,20 @@ function renderSummaryTab(g){
   const shooters = Object.entries(st.players).filter(([, r]) => r.goal + r.miss)
     .sort((a, b) => b[1].goal - a[1].goal || playerName(a[0]).localeCompare(playerName(b[0])));
   const ourShots = st.us + shooters.reduce((s, [, r]) => s + r.miss, 0);
+  // The other team by position only when there's more than one (otherwise
+  // it would just repeat their total).
   const oppRows = ['GS', 'GA', 'Team'].filter(k => st.opp[k].goal + st.opp[k].miss);
+  const oppSplit = oppRows.length > 1 && oppRows.some(k => k !== 'Team');
   const shooting = `<h3 class="subhead">Shooting</h3>
     <div class="fair-wrap"><table class="fair stats-table">
       <thead><tr><th scope="col">Shooter</th><th scope="col">Pos</th><th scope="col">Goals</th>${st.missOn ? '<th scope="col">Accuracy</th>' : ''}</tr></thead>
       <tbody>
-        ${shooters.map(([id, r]) => `<tr><td>${escapeHtml(playerName(id))}</td><td>${escapeHtml(Array.from(shooterPos[id] || []).join(', '))}</td>
+        ${shooters.map(([id, r]) => `<tr class="${followRow(id)}"><td>${pnameHtml(id)}</td><td>${escapeHtml(Array.from(shooterPos[id] || []).join(', '))}</td>
           <td>${st.missOn ? r.goal + '/' + (r.goal + r.miss) : r.goal}</td>${st.missOn ? `<td>${pctText(r.goal, r.goal + r.miss)}</td>` : ''}</tr>`).join('')}
-        <tr class="team-total"><td>${escapeHtml(teamLabel(g, 'us'))}</td><td></td><td>${st.missOn ? st.us + '/' + ourShots : st.us}</td>${st.missOn ? `<td>${pctText(st.us, ourShots)}</td>` : ''}</tr>
-        ${oppRows.some(k => k !== 'Team') ? oppRows.map(k => `<tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${k}</td>
+        <tr class="team-total"><td>${escapeHtml(teamLabel(g, 'us'))}</td><td>Total</td><td>${st.missOn ? st.us + '/' + ourShots : st.us}</td>${st.missOn ? `<td>${pctText(st.us, ourShots)}</td>` : ''}</tr>
+        ${oppSplit ? oppRows.map(k => `<tr class="opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${k}</td>
           <td>${st.oppMiss ? st.opp[k].goal + '/' + (st.opp[k].goal + st.opp[k].miss) : st.opp[k].goal}</td>${st.missOn ? `<td>${st.oppMiss ? pctText(st.opp[k].goal, st.opp[k].goal + st.opp[k].miss) : '·'}</td>` : ''}</tr>`).join('') : ''}
-        <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td></td><td>${st.oppMiss ? st.them + '/' + (st.them + st.oppMiss) : st.them}</td>${st.missOn ? `<td>${st.oppMiss ? pctText(st.them, st.them + st.oppMiss) : '·'}</td>` : ''}</tr>
+        <tr class="team-total opp"><td>${escapeHtml(teamLabel(g, 'them'))}</td><td>${oppSplit ? 'Total' : ''}</td><td>${st.oppMiss ? st.them + '/' + (st.them + st.oppMiss) : st.them}</td>${st.missOn ? `<td>${st.oppMiss ? pctText(st.them, st.them + st.oppMiss) : '·'}</td>` : ''}</tr>
       </tbody>
     </table></div>
     `;
@@ -3765,17 +3976,88 @@ function loadSeasonEvents(force){
     .finally(() => { CUR.seasonEventsLoading = false; render(); });
 }
 
-function renderSeasonStatsTab(){
-  if (!CUR.loaded.games || !CUR.loaded.players) return '<div class="loading-state">Loading…</div>';
+/* ---- Follow a player ----
+   A parent picks their child once (saved on this phone, for each season).
+   They're starred and highlighted in lineups and stats. Any player's name in
+   a stats table opens their own page: games, minutes, positions and goals. */
+const FOLLOW_KEY = 'nettyPalFollow';
+let FOLLOW = null;
+function followMap(){
+  if (!FOLLOW){ try { FOLLOW = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') || {}; } catch(e){ FOLLOW = {}; } }
+  return FOLLOW;
+}
+function followedId(){ const id = UI.seasonId && followMap()[UI.seasonId]; return id && CUR.players.some(p => p.id === id) ? id : null; }
+function setFollow(id){
+  const m = followMap();
+  if (id) m[UI.seasonId] = id; else delete m[UI.seasonId];
+  try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(m)); } catch(e){}
+}
+function isFollowed(id){ return !!id && id === followedId(); }
+function followRow(id){ return isFollowed(id) ? 'followed-row' : ''; }
+const STAR = '<span class="star" aria-hidden="true">★</span>';
+// A player's name that opens their page.
+function pnameHtml(id){
+  return `<button class="pname-btn" data-action="player-open" data-player="${escapeHtml(id)}">${isFollowed(id) ? STAR + ' ' : ''}${escapeHtml(playerName(id))}</button>`;
+}
+function finishedGames(){ return playedGames().filter(g => isGameOver(g) && CUR.seasonEvents && CUR.seasonEvents[g.id]); }
+
+function playerSheetHtml(id){
+  const pl = CUR.players.find(x => x.id === id);
+  if (!pl) return '';
   loadSeasonEvents(false);
-  if (CUR.seasonEventsError) return `<div class="panel" role="alert"><p style="margin:0 0 0.6rem">Couldn't load the season's games.</p>
-    <button class="btn small" data-action="reload-stats">Try again</button></div>`;
-  if (!CUR.seasonEvents) return '<div class="loading-state">Adding up the season…</div>';
+  const first = escapeHtml(String(pl.name || '').split(' ')[0] || 'this player');
+  const following = isFollowed(id);
+  let body;
+  if (CUR.seasonEventsError) body = '<p>Couldn\'t load the season\'s games. Check your connection and try again.</p>';
+  else if (!CUR.seasonEvents) body = '<div class="loading-state">Adding up the season…</div>';
+  else {
+    const finished = finishedGames();
+    const T = seasonTotals(finished);
+    const r = T.players[id] || { ms:0, pos:{}, goal:0, goalM:0, miss:0, games:0, avail:0 };
+    const tile = (v, label) => `<div class="rec"><b>${v}</b><span>${label}</span></div>`;
+    const posRows = POSITIONS.filter(pos => r.pos[pos]).sort((a, b) => r.pos[b] - r.pos[a]);
+    const maxPos = Math.max(1, ...posRows.map(pos => r.pos[pos]));
+    const games = T.results.filter(x => x.st.players[id] && (x.st.players[id].ms || x.st.players[id].goal + x.st.players[id].miss)).reverse();
+    body = `<div class="record-grid">
+        ${tile(r.games, r.games === 1 ? 'Game' : 'Games')}
+        ${tile(minsText(r.ms), 'Minutes')}
+        ${tile(r.avail ? wholeMins(r.ms / r.avail) : '·', 'Avg mins a game')}
+        ${tile(r.goal, r.goal === 1 ? 'Goal' : 'Goals')}
+        ${T.missGames && r.goalM + r.miss ? `<div class="rec wide"><b>${pctText(r.goalM, r.goalM + r.miss)}</b><span>Shooting accuracy</span></div>` : ''}
+      </div>
+      <h4 class="subhead">Positions played</h4>
+      ${posRows.length ? `<div class="pos-bars">${posRows.map(pos => `<div class="pos-bar">
+          <span class="pos-chip ${POS_ZONE[pos]}">${pos}</span>
+          <span class="bar"><span style="width:${Math.round(100 * r.pos[pos] / maxPos)}%"></span></span>
+          <span class="bar-v">${minsText(r.pos[pos])} min</span></div>`).join('')}</div>` : '<p class="hint">No court time yet this season.</p>'}
+      <h4 class="subhead">Game by game</h4>
+      ${games.length ? `<div class="list-card">${games.map(({ g, st, r: res }) => {
+          const p = st.players[id];
+          const pos = POSITIONS.filter(x => p.pos[x]).join(', ');
+          const shots = p.goal + p.miss;
+          return `<button class="result-row" data-action="open-game" data-game="${escapeHtml(g.id)}">
+            <span class="grow"><span class="pname">${escapeHtml(gameTitle(g))}</span>
+              <span class="psub">${escapeHtml(fmtGameWhen(g))} · ${minsText(p.ms)} min${pos ? ' · ' + pos : ''}${shots ? ` · ${p.goal} goal${p.goal === 1 ? '' : 's'}${st.missOn ? ' from ' + shots : ''}` : ''}</span></span>
+            <span class="result-badge ${res.toLowerCase()}">${res[0]}</span>
+          </button>`; }).join('')}</div>` : '<p class="hint">Games appear here once they reach full time.</p>'}`;
+  }
+  return `<div class="sheet-backdrop" data-action="player-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="player-title">
+      <div class="sheet-head"><div class="grow"><h3 id="player-title">${following ? STAR + ' ' : ''}${escapeHtml(pl.name)}</h3></div>
+        <button class="btn ghost small" data-action="player-close">Close</button></div>
+      <div class="sheet-body">
+        <div class="follow-row">
+          <button class="btn ${following ? 'ghost' : ''} small" data-action="follow-toggle" data-player="${escapeHtml(id)}" aria-pressed="${following}">${following ? '★ Following ' + first : '☆ Follow ' + first}</button>
+          <span class="hint">${following ? 'Starred in lineups and stats on this phone. Tap to stop.' : 'Star them in lineups and stats on this phone.'}</span>
+        </div>
+        ${body}
+      </div>
+    </div>`;
+}
 
-  const finished = playedGames().filter(g => isGameOver(g) && CUR.seasonEvents[g.id]);
-  const inProgress = playedGames().filter(g => !isGameOver(g)).length;
-  if (!finished.length) return `<div class="empty-state">No games have reached full time yet.${inProgress ? ' A game is in progress: its stats will appear here at full time.' : ' Stats appear here once games are scored.'}</div>`;
-
+// Season totals from the games that reached full time: the record, and
+// per player court time, positions, goals and the games they were in.
+function seasonTotals(finished){
   const rec = { w:0, l:0, d:0, gf:0, ga:0, ourShots:0, oppShots:0 };
   const players = {};
   // games: games they got on court. avail: games they were available for
@@ -3807,6 +4089,22 @@ function renderSeasonStatsTab(){
       .forEach(id => { P(id).avail++; });
     return { g, st, r };
   });
+  return { rec, players, missGames, teamGoalM, usKeys, themKeys, oppCounts, results };
+}
+
+function renderSeasonStatsTab(){
+  if (!CUR.loaded.games || !CUR.loaded.players) return '<div class="loading-state">Loading…</div>';
+  loadSeasonEvents(false);
+  if (CUR.seasonEventsError) return `<div class="panel" role="alert"><p style="margin:0 0 0.6rem">Couldn't load the season's games.</p>
+    <button class="btn small" data-action="reload-stats">Try again</button></div>`;
+  if (!CUR.seasonEvents) return '<div class="loading-state">Adding up the season…</div>';
+
+  const finished = playedGames().filter(g => isGameOver(g) && CUR.seasonEvents[g.id]);
+  const inProgress = playedGames().filter(g => !isGameOver(g)).length;
+  if (!finished.length) return `<div class="empty-state">No games have reached full time yet.${inProgress ? ' A game is in progress: its stats will appear here at full time.' : ' Stats appear here once games are scored.'}</div>`;
+
+  const T = seasonTotals(finished);
+  const { rec, players, missGames, teamGoalM, usKeys, themKeys, oppCounts, results } = T;
 
   const recordCard = `<div class="record-grid">
       <div class="rec"><b>${finished.length}</b><span>Played</span></div>
@@ -3830,17 +4128,35 @@ function renderSeasonStatsTab(){
   // so a player left on the bench shows up with an average of 0.
   const list = Object.values(players).filter(p => p.ms || p.goal + p.miss || p.avail)
     .sort((a, b) => playerName(a.id).localeCompare(playerName(b.id)));
+  // Player, Mins and Goals to start with; "All columns" adds the rest.
+  // Tap a heading to sort, or a name for that player's page.
+  const all = !!UI.statsAllCols;
+  const sort = UI.statsSort || { key:'name', dir:1 };
+  const val = {
+    name: p => playerName(p.id).toLowerCase(), mins: p => p.ms, goals: p => p.goal, games: p => p.games,
+    avg: p => p.avail ? p.ms / p.avail : -1, acc: p => p.goalM + p.miss ? p.goalM / (p.goalM + p.miss) : -1
+  };
+  const sorted = list.slice().sort((a, b) => {
+    const x = val[sort.key](a), y = val[sort.key](b);
+    return (x < y ? -1 : x > y ? 1 : 0) * sort.dir || playerName(a.id).localeCompare(playerName(b.id));
+  });
+  const th = (key, label) => `<th scope="col" aria-sort="${sort.key === key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button class="sort-btn" data-action="stats-sort" data-key="${key}">${label}${sort.key === key ? (sort.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
+  const cols = [['mins', 'Mins', p => minsText(p.ms)], ...(all ? [['games', 'Games', p => p.games], ['avg', 'Avg mins', p => p.avail ? wholeMins(p.ms / p.avail) : '·']] : []),
+    ['goals', 'Goals', p => p.goal || '·'], ...(all && missGames ? [['acc', 'Accuracy', p => pctText(p.goalM, p.goalM + p.miss)]] : [])];
   const playerTable = `<h3 class="subhead">Players</h3>
-    <div class="fair-wrap"><table class="fair stats-table">
-      <thead><tr><th scope="col">Player</th><th scope="col">Games</th><th scope="col">Mins</th><th scope="col">Avg mins played per game available</th><th scope="col">Goals</th>${missGames ? '<th scope="col">Accuracy</th>' : ''}</tr></thead>
-      <tbody>${list.map(p => `<tr><td>${escapeHtml(playerName(p.id))}</td><td>${p.games}</td><td>${minsText(p.ms)}</td><td>${p.avail ? wholeMins(p.ms / p.avail) : '·'}</td>
-        <td>${p.goal || '·'}</td>${missGames ? `<td>${pctText(p.goalM, p.goalM + p.miss)}</td>` : ''}</tr>`).join('')}</tbody>
+    <div class="fair-wrap"><table class="fair stats-table players-table">
+      <thead><tr>${th('name', 'Player')}${cols.map(([k, l]) => th(k, l)).join('')}</tr></thead>
+      <tbody>${sorted.map(p => `<tr class="${followRow(p.id)}"><td>${pnameHtml(p.id)}</td>${cols.map(([, , f]) => `<td>${f(p)}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>
-    <p class="hint">Games counts games where they got on court. Mins is total court time. The average divides their court time by the games they were available for, so games they missed don't pull it down, but games spent on the bench do.${missGames && missGames < finished.length ? ' Accuracy only counts games where misses were tracked.' : ''}</p>`;
+    <div class="table-foot"><button class="btn ghost small" data-action="stats-cols" aria-pressed="${all}">${all ? 'Fewer columns' : 'All columns'}</button>
+      <span class="hint">Tap a name for that player's games and positions.</span></div>
+    ${all ? `<p class="hint">Games counts games where they got on court. Avg mins divides their court time by the games they were available for, so games they missed don't pull it down, but games on the bench do.${missGames && missGames < finished.length ? ' Accuracy only counts games where misses were tracked.' : ''}</p>` : ''}`;
 
-  const court = `<h3 class="subhead">Court time by position</h3>
+  // The full position grid is for the people planning lineups. Everyone
+  // can see one player's positions on their page.
+  const court = isStaff() ? `<h3 class="subhead">Court time by position</h3>
     ${courtTimeTable(list, minsText)}
-    <p class="hint">Total minutes in each position this season. Darker means more.</p>`;
+    <p class="hint">Total minutes in each position this season. Darker means more.</p>` : '';
 
   // Extra stats tracked in any game this season. Each counts only the games
   // that tracked it.
@@ -3850,7 +4166,13 @@ function renderSeasonStatsTab(){
     ${extraStatsTableHtml(list, [...usKeys], [...themKeys], oppCounts, CUR.team ? CUR.team.name : 'Our team', 'Other teams')}
     ${partly ? '<p class="hint">Some stats weren\'t tracked in every game. Each one counts only the games that tracked it.</p>' : ''}` : '';
 
-  return `${anyExtra ? statsViewHtml() : ''}${recordCard}${seasonAwardsHtml()}${resultsList}${playerTable}${extra}${court}
+  const fid = followedId(), fp = fid && players[fid];
+  const followCard = fid ? `<button class="follow-card" data-action="player-open" data-player="${escapeHtml(fid)}">
+      <span>${STAR} <b>${escapeHtml(playerName(fid))}</b></span>
+      <span class="hint">${fp ? `${fp.games} game${fp.games === 1 ? '' : 's'} · ${minsText(fp.ms)} min · ${fp.goal} goal${fp.goal === 1 ? '' : 's'}` : 'No games yet'}</span>
+      <span class="lc-go">See all ›</span></button>`
+    : '<p class="hint follow-tip">Tip: tap your player\'s name below to follow them.</p>';
+  return `${anyExtra ? statsViewHtml() : ''}${followCard}${recordCard}${seasonAwardsHtml()}${resultsList}${playerTable}${extra}${court}
     <div class="lineup-tools"><button class="btn ghost small" data-action="reload-stats">Refresh</button></div>`;
 }
 
@@ -3910,7 +4232,7 @@ function renderPeopleTab(){
   const regenKey = 'regen-code';
   const codeCard = `<div class="code-card">
       <span class="label">Invite parents</span>
-      <span style="font-size:0.9rem">Send parents the invite link. They tap it, sign in, and they're in the team. They don't need to type the code.</span>
+      <span style="font-size:0.9rem">Send parents this link. They tap it and sign in: no code needed.</span>
       <button class="btn invite-btn" data-action="share-code">${navigator.share ? 'Send invite link' : 'Copy invite link'}</button>
       <div class="code-foot">
         <div class="code-row">
@@ -3919,7 +4241,7 @@ function renderPeopleTab(){
           ${manager ? `<button class="btn small ${isArmed(regenKey) ? 'armed' : ''}" data-action="regen-code">
             ${isArmed(regenKey) ? 'Confirm new code (old link and code stop working)' : 'New code'}</button>` : ''}
         </div>
-        <span style="font-size:0.82rem; opacity:0.9">Only needed if the link doesn't work: they tap “Join with Team Code” and type this in. New people join as viewers until given a role.</span>
+        <span style="font-size:0.82rem; opacity:0.9">Only needed if the link doesn't work. New people join as viewers.</span>
       </div>
     </div>`;
 
@@ -3937,13 +4259,17 @@ function renderPeopleTab(){
     const rmKey = 'rm-' + m.id;
     // The only Coach/Manager can't be removed, so the team is never left without one.
     const onlyCoach = lastCoach && roles.includes('coach');
+    const canRemove = !isMe && !onlyCoach;
+    // Remove is tucked behind "⋯" so it isn't tapped by accident.
+    const open = canRemove && UI.memberMenu === m.id;
     return `<div class="list-row">
         ${head}
+        ${canRemove ? `<button class="btn ghost small more-btn" data-action="member-menu" data-member="${escapeHtml(m.id)}" aria-expanded="${open}" aria-label="More options for ${escapeHtml(m.name || 'this person')}">⋯</button>` : ''}
         <div class="role-toggles">
           <button class="role-toggle coach" aria-pressed="${roles.includes('coach')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="coach">Coach/Manager</button>
           <button class="role-toggle scorer" aria-pressed="${roles.includes('scorer')}" data-action="toggle-role" data-member="${escapeHtml(m.id)}" data-role="scorer">Scorer</button>
         </div>
-        ${isMe || onlyCoach ? '' : `<div class="member-actions">
+        ${!open ? '' : `<div class="member-actions">
           <button class="btn danger small ${isArmed(rmKey) ? 'armed' : ''}" data-action="remove-member" data-member="${escapeHtml(m.id)}">
             ${isArmed(rmKey) ? 'Confirm remove ' + escapeHtml(m.name || 'person') : 'Remove'}</button>
         </div>`}
@@ -3954,7 +4280,7 @@ function renderPeopleTab(){
   const me = myMember();
   const archive = !me || (CUR.myMembership && CUR.myMembership.archived) ? '' : `<div class="danger-zone">
       <button class="btn ghost small" data-action="archive-team">Archive this team</button>
-      <p class="hint" style="margin:0.4rem 0 0">Hides it from your home screen only. You stay in the team, nobody else is affected, and you can unarchive it any time.</p>
+      <p class="hint" style="margin:0.4rem 0 0">Hides it from your home screen only. You can bring it back any time.</p>
     </div>`;
   const leave = !me ? '' : (lastCoach && (me.roles || []).includes('coach'))
     ? `<p class="hint danger-zone">You're the only Coach/Manager. To leave this season, make someone else Coach/Manager first.</p>`
@@ -4006,9 +4332,9 @@ function renderPeopleTab(){
     ${scoringPanel}
     <h3 class="subhead">Support Crew <span class="hint" style="font-family:var(--font-body); text-transform:none">${members.length}</span></h3>
     <div class="list-card">${rows}</div>
-    ${manager ? `<p class="hint role-help"><b>Coach/Manager:</b> runs the team: players, games, lineups, court time and who does what. A team can have more than one.<br>
+    ${manager ? `<details class="more-info"><summary>What do the roles mean?</summary><p class="hint role-help"><b>Coach/Manager:</b> runs the team: players, games, lineups, court time and who does what. A team can have more than one.<br>
       <b>Scorer:</b> scores games. Only one person scores a game at a time; during a game, scoring can be handed to another Scorer here. One person can be both Coach/Manager and Scorer.<br>
-      <b>Everyone else:</b> can follow games and see the stats.</p>` : ''}
+      <b>Everyone else:</b> can follow games and see the stats.</p></details>` : ''}
     ${archive}
     ${leave}`;
 }
@@ -5693,7 +6019,7 @@ document.addEventListener('click', async (e) => {
       UI.deleteAcct = null; UI.showInstall = false;
       await signOut(auth);
     } else if (a === 'show-form'){
-      UI.form = btn.dataset.formName; render();
+      UI.addChoice = false; UI.form = btn.dataset.formName; render();
       const first = document.querySelector('#app form input:not([type=hidden])');
       if (first) first.focus();
     } else if (a === 'close-form'){
@@ -5708,8 +6034,10 @@ document.addEventListener('click', async (e) => {
       const g = findGame(UI.gameId); if (g) await shareSummary(g);
     } else if (a === 'reload-stats'){
       CUR.seasonEvents = null; loadSeasonEvents(true); render();
+    } else if (a === 'add-choice' || a === 'add-choice-close'){
+      UI.addChoice = a === 'add-choice'; render();
     } else if (a === 'import-open'){
-      closeImport(); UI.form = 'import'; render();
+      UI.addChoice = false; closeImport(); UI.form = 'import'; render();
     } else if (a === 'import-cancel'){
       closeImport(); render();
     } else if (a === 'import-read'){
@@ -5736,6 +6064,23 @@ document.addEventListener('click', async (e) => {
       await togglePlayer(btn.dataset.player);
     } else if (a === 'toggle-role'){
       await toggleRole(btn.dataset.member, btn.dataset.role);
+    } else if (a === 'player-open'){
+      UI.playerSheet = btn.dataset.player; render(); focusSheet();
+    } else if (a === 'player-close'){
+      UI.playerSheet = null; render();
+    } else if (a === 'follow-toggle'){
+      const id = btn.dataset.player;
+      setFollow(isFollowed(id) ? null : id);
+      toast(isFollowed(id) ? `Following ${playerName(id)} on this phone.` : 'Stopped following.');
+      render();
+    } else if (a === 'stats-sort'){
+      const k = btn.dataset.key, cur = UI.statsSort || { key:'name', dir:1 };
+      // Names sort A to Z first; numbers biggest first.
+      UI.statsSort = { key:k, dir:cur.key === k ? -cur.dir : (k === 'name' ? 1 : -1) }; render();
+    } else if (a === 'stats-cols'){
+      UI.statsAllCols = !UI.statsAllCols; render();
+    } else if (a === 'member-menu'){
+      UI.memberMenu = UI.memberMenu === btn.dataset.member ? null : btn.dataset.member; render();
     } else if (a === 'remove-member'){
       const key = 'rm-' + btn.dataset.member;
       if (!isArmed(key)) return arm(key);
@@ -5818,7 +6163,9 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'owner-teams-hide'){
       HOME.all = null; render();
     } else if (a === 'mg-open'){
-      UI.showMgGuide = true; render(); focusSheet();
+      UI.showHelp = false; UI.showMgGuide = true;
+      if (UI.view !== 'season'){ UI.view = 'season'; UI.tab = 'games'; }
+      render(); focusSheet();
     } else if (a === 'mg-close'){
       UI.showMgGuide = false; render();
     } else if (a === 'mg-tab'){
@@ -5836,7 +6183,17 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'share-code'){
       await shareCode();
     } else if (a === 'open-game'){
+      UI.playerSheet = null;
       openGame(btn.dataset.game);
+    } else if (a === 'open-live'){
+      // From the home screen the season opens first; its games then load.
+      const { team, season, game } = btn.dataset;
+      if (UI.seasonId === season && findGame(game)) openGame(game);
+      else {
+        openSeason(team, season);
+        UI = { ...UI, view:'game', gameId:game, gameTab:'live', period:1 };
+        saveNav(); render(); window.scrollTo(0, 0);
+      }
     } else if (a === 'finalise-lineup'){
       // Start with who's playing; the Lineup tab is next to it.
       openGame(btn.dataset.game);
@@ -5958,7 +6315,7 @@ document.addEventListener('click', async (e) => {
       await handOverScoring(btn.dataset.game, btn.dataset.member);
     } else if (a === 'dismiss-practice-card'){
       try { localStorage.setItem(PRACTICE_CARD_KEY, '1'); } catch(e){}
-      toast('Hidden. You can still try a practice game from the bottom of the Games list.');
+      toast('Hidden. You can still try a practice game from Help.');
       render();
     } else if (a === 'sub-open'){
       UI.subSheet = true; UI.statPos = null; UI.pickPos = null; UI.pendingEvent = null; render(); focusSheet();
@@ -5967,6 +6324,7 @@ document.addEventListener('click', async (e) => {
       const sub = document.querySelector('[data-action="sub-open"]');
       if (sub) sub.focus();
     } else if (a === 'start-practice'){
+      UI.showHelp = false;
       startPractice();
     } else if (a === 'end-practice'){
       endPractice();
@@ -6190,6 +6548,7 @@ document.addEventListener('keydown', (e) => {
     const av = document.querySelector('[data-action="user-menu"]'); if (av) av.focus();
     return;
   }
+  if (e.key === 'Escape' && UI.playerSheet){ UI.playerSheet = null; render(); return; }
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
   if (e.key === 'Escape' && (UI.showMgGuide || UI.invitePick || UI.handover)){ UI.showMgGuide = false; UI.invitePick = false; UI.handover = null; render(); return; }
   if (e.key === 'Escape' && UI.subSheet){ UI.subSheet = false; render(); return; }
@@ -6225,6 +6584,10 @@ document.addEventListener('touchend', (e) => {
 let timeUpKey = null;
 let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
+  document.querySelectorAll('[data-lclock]').forEach(el => {
+    const lg = LIVE.clocks.get(el.dataset.lclock);
+    if (lg) el.textContent = fmtClock(periodMs(lg) - elapsedMs(lg));
+  });
   const g = UI.view === 'game' ? findGame(UI.gameId) : null;
   syncWakeLock(g);
   // Stop listening if the scorer leaves the Live tab or play stops.
