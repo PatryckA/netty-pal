@@ -66,6 +66,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   the only Coach/Manager of a season other people are in. Google and Facebook users confirm
   with a sign-in popup first; email-link users are asked to sign in again. No rule changes
   were needed: it only uses permissions members and Coach/Managers already have.
+- (Added 2026-10-13) **Email and password**: "Continue with email" now signs in with an email
+  and password (Firebase Email/Password), so nobody has to leave the app; on iPhones an emailed
+  link opens in Safari, not the installed app. "Create an account" (name, email, password of at
+  least 6 characters), and "Forgot password?" emails a link to set a new one (this is also how
+  someone who used email links gets a password). The emailed sign-in link stays as a backup
+  ("Email me a sign-in link"). A note at the top of the form tells people who used emailed
+  links before to tap Forgot password to set one. Typing a Gmail address shows "Using Gmail? Continue with Google
+  is quicker". Problems show in the form. Needs Email/Password switched on in Firebase console >
+  Authentication > Sign-in method.
 - **Install on your phone**: a home screen card (until installed or put away) and an item in
   the account menu (tap your photo/initials; hidden once installed) open step-by-step instructions for iPhone/iPad and Android.
   Android browsers that support it get a one-tap Install button.
