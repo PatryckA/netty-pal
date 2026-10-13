@@ -376,6 +376,26 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .game-card:hover{border-color:var(--accent);}
 .team-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
 .team-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
+.player-row{width:100%; background:none; border:none; border-top:1px solid var(--line); text-align:left; cursor:pointer; color:var(--ink); font:inherit; min-height:52px; flex-wrap:nowrap;}
+.list-card > .player-row:first-child{border-top:none;}
+.player-row:hover{background:var(--surface-2);}
+.player-row[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
+.player-row.pressing{background:var(--warm-bg); transition:background 0.5s;}
+.player-row .pname{font-weight:700;}
+.pref-chips{display:inline-flex; gap:0.25rem; flex:none;}
+.pref-chip{width:1.75rem; height:1.75rem; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:0.72rem; color:var(--chip-ink);}
+.pref-chip.att{background:var(--warm);} .pref-chip.mid{background:var(--accent); color:var(--accent-contrast);} .pref-chip.def{background:var(--ok);}
+.pref-line{display:flex; align-items:center; gap:0.5rem; margin:0 0 0.8rem;}
+.pref-row{flex-direction:column; align-items:stretch; gap:0.5rem;}
+.pref-head{display:flex; align-items:center; gap:0.6rem;}
+.pref-picks{display:grid; grid-template-columns:repeat(7, 1fr); gap:0.3rem;}
+.pref-pick{position:relative; min-height:44px; border-radius:50%; aspect-ratio:1; max-width:3rem; justify-self:center; width:100%;
+  border:1.5px solid var(--line); background:var(--surface); color:var(--ink); font-family:var(--font-display); font-weight:800; font-size:0.85rem; cursor:pointer; padding:0;}
+.pref-pick.on{border-color:transparent; color:var(--chip-ink);}
+.pref-pick.on.att{background:var(--warm);} .pref-pick.on.mid{background:var(--accent); color:var(--accent-contrast);} .pref-pick.on.def{background:var(--ok);}
+.pref-pick sup{position:absolute; top:-3px; right:-3px; width:1.05rem; height:1.05rem; border-radius:50%; background:var(--pop); color:var(--pop-ink); font-family:var(--font-body); font-size:0.65rem; line-height:1.05rem; text-align:center;}
+.pref-pick:disabled{opacity:0.35; cursor:default;}
+.pref-help{border-color:var(--pop);}
 .game-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
 .game-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
 .game-card.past{opacity:0.8;}
@@ -4204,6 +4224,7 @@ function playerSheetHtml(id){
           <button class="btn ${following ? 'ghost' : ''} small" data-action="follow-toggle" data-player="${escapeHtml(id)}" aria-pressed="${following}">${following ? '★ Following ' + first : '☆ Follow ' + first}</button>
           <span class="hint">${following ? 'Starred in lineups and stats on this phone. Tap to stop.' : 'Star them in lineups and stats on this phone.'}</span>
         </div>
+        ${playerPrefs(pl).length ? `<p class="pref-line"><b>Preferred positions</b> ${prefChipsHtml(pl)}</p>` : ''}
         ${body}
       </div>
     </div>`;
@@ -4341,39 +4362,119 @@ function renderDetailsTab(g){
     ${UI.archiveAsk ? archiveSheetHtml(findGame(UI.archiveAsk)) : ''}`;
 }
 
+// Players: tap one for their stats page; Coach/Managers press and hold for
+// Rename / Remove from team / Delete. "Set preferred positions" lets them
+// pick up to 3 positions per player, shown as little bibs by each name.
 function renderPlayersTab(){
   const editable = canEditRoster();
+  const editing = editable && UI.prefEdit;
   const players = CUR.players.slice().sort((a,b) =>
     (b.active !== false) - (a.active !== false) || (a.name || '').localeCompare(b.name || ''));
   const activeCount = players.filter(p => p.active !== false).length;
 
-  const rows = players.map(p => {
+  const rows = players.filter(p => !editing || p.active !== false).map(p => {
     const inactive = p.active === false;
-    if (!editable) return `<div class="list-row ${inactive ? 'inactive' : ''}">
-        <span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
-        <span class="pname grow">${escapeHtml(p.name)}</span>
-        ${inactive ? '<span class="badge">Removed</span>' : ''}
-      </div>`;
-    return `<div class="list-row ${inactive ? 'inactive' : ''}">
-        <span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
-        <input class="row-input" id="pl-${escapeHtml(p.id)}" value="${escapeHtml(p.name)}" maxlength="40"
-          data-field="player-name" data-player="${escapeHtml(p.id)}" aria-label="Player name">
-        <button class="btn ghost small" data-action="toggle-player" data-player="${escapeHtml(p.id)}">
-          ${inactive ? 'Add back' : 'Remove from team'}</button>
-      </div>`;
+    const head = `<span class="avatar small" aria-hidden="true">${escapeHtml(initials(p.name))}</span>
+      <span class="pname">${escapeHtml(p.name)}</span>`;
+    if (editing){
+      const prefs = playerPrefs(p);
+      return `<div class="list-row pref-row">
+          <div class="pref-head">${head}</div>
+          <div class="pref-picks" role="group" aria-label="Preferred positions for ${escapeHtml(p.name)}">
+            ${POSITIONS.map(pos => {
+              const n = prefs.indexOf(pos) + 1;
+              return `<button class="pref-pick ${n ? 'on ' + POS_ZONE[pos] : ''}" data-action="pref-toggle" data-player="${escapeHtml(p.id)}" data-pos="${pos}"
+                aria-pressed="${!!n}" aria-label="${POS_NAMES[pos]}${n ? ', choice ' + n : ''}" ${!n && prefs.length >= 3 ? 'disabled' : ''}>${pos}${n ? `<sup>${n}</sup>` : ''}</button>`;
+            }).join('')}
+          </div>
+        </div>`;
+    }
+    return `<button class="list-row player-row ${inactive ? 'inactive' : ''}" data-action="player-open" data-player="${escapeHtml(p.id)}" ${editable ? 'data-longpress' : ''}>
+        ${head}
+        <span class="grow"></span>
+        ${inactive ? '<span class="badge">Removed</span>' : prefChipsHtml(p)}
+      </button>`;
   }).join('');
 
-  const add = editable ? `<form class="add-inline" data-form="add-player">
+  const add = editable && !editing ? `<form class="add-inline" data-form="add-player">
       <input class="text-input" id="add-player-name" name="name" placeholder="Add a player" maxlength="40" required aria-label="New player name">
       <button type="submit" class="btn">Add</button>
     </form>` : '';
+  const tools = !editable ? '' : editing
+    ? `<div class="panel pref-help"><p style="margin:0 0 0.5rem">Tap up to <b>3 positions</b> for each player, most preferred first. Tap again to clear. Changes save straight away.</p>
+        <button class="btn" data-action="pref-done">Done</button></div>`
+    : `<div class="lineup-tools" style="margin:0 0 0.6rem"><button class="btn ghost small" data-action="pref-edit">Set preferred positions</button></div>`;
 
   return `<h3 class="subhead">Players <span class="hint" style="font-family:var(--font-body); text-transform:none">${activeCount} on the team</span></h3>
+    ${tools}
     <div class="list-card">
       ${rows || '<div class="empty-state">No players yet.</div>'}
       ${add}
     </div>
-    ${editable ? '<p class="hint">Fill-ins go here too. "Remove from team" is for someone who has left: they stop appearing in lineups but keep their stats, and you can add them back. To leave someone out of a single game, untick them on that game\'s Players tab instead.</p>' : ''}`;
+    ${editable && !editing ? '<p class="hint">Tap a player for their stats. Press and hold to rename, remove or delete them. Fill-ins go here too. To leave someone out of one game, untick them on that game\'s Players tab.</p>' : ''}
+    ${UI.playerMenu ? playerMenuHtml(UI.playerMenu) : ''}`;
+}
+
+// Up to 3 preferred positions, most preferred first.
+function playerPrefs(p){ return (Array.isArray(p && p.positions) ? p.positions : []).filter(x => POSITIONS.includes(x)).slice(0, 3); }
+function prefChipsHtml(p){
+  const prefs = playerPrefs(p);
+  return prefs.length ? `<span class="pref-chips" aria-label="Preferred positions: ${prefs.join(', ')}">${prefs.map(pos =>
+    `<span class="pref-chip ${POS_ZONE[pos]}" aria-hidden="true">${pos}</span>`).join('')}</span>` : '';
+}
+async function togglePref(playerId, pos){
+  const p = CUR.players.find(x => x.id === playerId);
+  if (!p || !POSITIONS.includes(pos)) return;
+  const cur = playerPrefs(p);
+  const next = cur.includes(pos) ? cur.filter(x => x !== pos) : cur.length >= 3 ? cur : [...cur, pos];
+  await updateDoc(doc(seasonRef(), 'players', playerId), { positions:next });
+}
+
+// Has this player been in a game that started? Then deleting them would
+// break past lineups and stats, so they can only be removed from the team.
+function playerHasHistory(id){
+  return CUR.games.some(g => (g.status || 'scheduled') !== 'scheduled' && (
+    !Array.isArray(g.available) || g.available.includes(id)
+    || Object.values(g.plan || {}).some(pl => Object.values(pl || {}).includes(id))
+    || !!(g.summary && g.summary.courtTime && g.summary.courtTime[id])));
+}
+// Deletes a player who hasn't played, and takes them out of upcoming games.
+async function deletePlayer(id){
+  const batch = writeBatch(db);
+  CUR.games.filter(g => (g.status || 'scheduled') === 'scheduled').forEach(g => {
+    const upd = {};
+    if (Array.isArray(g.available) && g.available.includes(id)) upd.available = g.available.filter(x => x !== id);
+    Object.entries(g.plan || {}).forEach(([per, pl]) => Object.entries(pl || {}).forEach(([pos, pid]) => {
+      if (pid === id) upd[`plan.${per}.${pos}`] = DELETE_FIELD;
+    }));
+    if (Object.keys(upd).length) batch.update(gameRef(g.id), upd);
+  });
+  batch.delete(doc(seasonRef(), 'players', id));
+  await batch.commit();
+}
+
+function playerMenuHtml(id){
+  const p = CUR.players.find(x => x.id === id);
+  if (!p) return '';
+  const inactive = p.active === false;
+  const delKey = 'del-player-' + id;
+  const history = playerHasHistory(id);
+  return `<div class="sheet-backdrop" data-action="player-menu-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="player-menu-title">
+      <div class="sheet-head"><div class="grow"><h3 id="player-menu-title">${escapeHtml(p.name)}</h3></div>
+        <button class="btn ghost small" data-action="player-menu-close">Close</button></div>
+      <div class="sheet-body">
+        <div class="field" style="margin-top:0.9rem"><label for="pm-name">Name</label>
+          <input class="text-input" id="pm-name" value="${escapeHtml(p.name)}" maxlength="40" data-field="player-name" data-player="${escapeHtml(id)}">
+          <span class="hint">Saves when you tap away.</span></div>
+        <button class="btn ${inactive ? '' : 'ghost'}" style="width:100%" data-action="toggle-player" data-player="${escapeHtml(id)}">${inactive ? 'Add back to the team' : 'Remove from team'}</button>
+        <p class="hint" style="margin:0.4rem 0 0">${inactive ? 'They\'ll appear in lineups again.' : 'For someone who has left: they stop appearing in lineups but keep their stats, and you can add them back.'}</p>
+        <div class="danger-zone">${history
+          ? '<p class="hint" style="margin:0">They\'ve been in a game, so they can\'t be deleted (their stats would break). Remove them from the team instead.</p>'
+          : `<button class="btn danger small ${isArmed(delKey) ? 'armed' : ''}" data-action="delete-player" data-player="${escapeHtml(id)}">${isArmed(delKey) ? 'Confirm delete ' + escapeHtml(p.name) : 'Delete player'}</button>
+            <p class="hint" style="margin:0.4rem 0 0">Deletes them completely, for typos or someone added by mistake. Only possible before they've played.</p>`}</div>
+      </div>
+    </div>`;
 }
 
 function renderPeopleTab(){
@@ -6224,6 +6325,20 @@ document.addEventListener('click', async (e) => {
       UI.tab = btn.dataset.tab; UI.form = null; saveNav(); render();
     } else if (a === 'toggle-player'){
       await togglePlayer(btn.dataset.player);
+    } else if (a === 'pref-edit' || a === 'pref-done'){
+      UI.prefEdit = a === 'pref-edit'; render();
+    } else if (a === 'pref-toggle'){
+      await togglePref(btn.dataset.player, btn.dataset.pos);
+    } else if (a === 'player-menu-close'){
+      UI.playerMenu = null; render();
+    } else if (a === 'delete-player'){
+      const key = 'del-player-' + btn.dataset.player;
+      if (!isArmed(key)) return arm(key);
+      disarm(key);
+      const name = playerName(btn.dataset.player);
+      UI.playerMenu = null;
+      await deletePlayer(btn.dataset.player);
+      toast(`${name} deleted.`);
     } else if (a === 'toggle-role'){
       await toggleRole(btn.dataset.member, btn.dataset.role);
     } else if (a === 'player-open'){
@@ -6668,7 +6783,7 @@ document.addEventListener('pointercancel', () => { if (drag) endDrag(); });
 // scrolling) cancels it.
 let press = null;
 document.addEventListener('pointerdown', (e) => {
-  const card = e.target.closest('.game-card[data-longpress], .team-card[data-longpress]');
+  const card = e.target.closest('.game-card[data-longpress], .team-card[data-longpress], .player-row[data-longpress]');
   if (!card) return;
   const x = e.clientX, y = e.clientY;
   press = { x, y, card, timer:setTimeout(() => {
@@ -6676,6 +6791,7 @@ document.addEventListener('pointerdown', (e) => {
     holdFired = true;
     if (navigator.vibrate) try { navigator.vibrate(30); } catch(err){}
     if (card.dataset.game) UI.archiveAsk = card.dataset.game;
+    else if (card.dataset.player) UI.playerMenu = card.dataset.player;
     else UI.teamMenu = { teamId:card.dataset.team, seasonId:card.dataset.season };
     render(); focusSheet();
   }, 550) };
@@ -6686,7 +6802,7 @@ document.addEventListener('pointermove', (e) => { if (press && Math.hypot(e.clie
 // Lifting the finger after a long press: ignore the tap that comes with it.
 document.addEventListener('pointerup', () => { cancelPress(); if (holdFired){ holdFired = false; swallowNextClick(); } });
 document.addEventListener('pointercancel', () => { cancelPress(); holdFired = false; });
-document.addEventListener('contextmenu', (e) => { if (e.target.closest('.game-card[data-longpress], .team-card[data-longpress]')) e.preventDefault(); });
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('.game-card[data-longpress], .team-card[data-longpress], .player-row[data-longpress]')) e.preventDefault(); });
 
 // Close the account menu without redrawing the page, so the tap that closed
 // it still lands on whatever was tapped.
@@ -6713,6 +6829,7 @@ document.addEventListener('keydown', (e) => {
     const av = document.querySelector('[data-action="user-menu"]'); if (av) av.focus();
     return;
   }
+  if (e.key === 'Escape' && UI.playerMenu){ UI.playerMenu = null; render(); return; }
   if (e.key === 'Escape' && UI.playerSheet){ UI.playerSheet = null; render(); return; }
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
   if (e.key === 'Escape' && (UI.showMgGuide || UI.invitePick || UI.handover)){ UI.showMgGuide = false; UI.invitePick = false; UI.handover = null; render(); return; }

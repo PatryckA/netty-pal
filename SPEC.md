@@ -113,6 +113,17 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ---
 
+### Preferred positions and the Players list (added 2026-10-13)
+- Each player can have up to **3 preferred positions**, most preferred first, stored as
+  `positions: ['GS','GA']` on the player. Coach/Managers tap **Set preferred positions** above
+  the list, then tap up to 3 bibs per player (numbered 1 to 3); changes save straight away.
+- The list shows them as little coloured bibs by each name, and on the player's stats page.
+- Tap a player to open their stats page. Coach/Managers **press and hold** a player for
+  Rename, Remove from team / Add back (keeps their stats), and **Delete player** (two taps),
+  only for players who haven't been in a game that started; deleting also takes them out of
+  upcoming games' Who's playing and lineups. The "Remove from team" button in each row is gone.
+- No rule changes (Coach/Managers can already write players).
+
 ## 4. Fixtures
 
 - A Coach/Manager can add fixtures for the season: round, date, time, venue/court, opponent.
