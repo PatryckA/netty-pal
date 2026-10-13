@@ -209,6 +209,14 @@ main{flex:1; padding:1rem 1rem 4rem;}
 }
 .signin-card h3{font-size:1.3rem;}
 .signin-card p{margin:0; color:var(--ink-soft); font-size:0.9rem;}
+.signin-card .signin-error{color:var(--critical); background:var(--critical-bg); border-radius:var(--r-sm); padding:0.55rem 0.7rem; font-weight:700;}
+.signin-links .link-btn{color:var(--pop-text); font-weight:800; text-decoration:underline; min-height:36px;}
+.gmail-nudge{margin:0.35rem 0 0 !important; padding:0.5rem 0.7rem; background:var(--accent-bg); border-radius:var(--r-sm); color:var(--ink) !important;}
+.gmail-nudge[hidden]{display:none;}
+.gmail-nudge .link-btn{color:var(--pop-text); font-weight:800;}
+.pw-wrap{display:flex; gap:0.4rem; align-items:stretch;}
+.pw-wrap .text-input{flex:1; min-width:0;}
+.pw-toggle{flex:none;}
 .hero .fine a{color:var(--ink-soft);}
 .panel.invite-panel{border-color:var(--accent); background:var(--accent-bg);}
 .invite-panel p{margin:0 0 0.6rem;}
@@ -854,6 +862,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
 import {
   getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
   sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
   reauthenticateWithPopup, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
@@ -1054,7 +1063,7 @@ function friendlyError(err){
   if (code.includes('unauthorized-domain')) return "This web address isn't allowed to sign in yet. Add it under Firebase > Authentication > Settings > Authorised domains.";
   if (code.includes('unavailable') || code.includes('network')) return 'No connection. Check your internet and try again.';
   if (code.includes('account-exists-with-different-credential'))
-    return "You've already signed in with this email another way (probably Google or an email link). Please sign in that way instead.";
+    return "You've already signed in with this email another way (probably Google, or email and password). Please sign in that way instead.";
   if (code.includes('operation-not-allowed')) return "That way of signing in isn't switched on yet. Please use another option for now.";
   if (code.includes('invalid-email')) return "That email address doesn't look right.";
   if (code.includes('invalid-action-code') || code.includes('expired-action-code'))
@@ -1517,11 +1526,63 @@ function renderSignedOut(){
         <p class="fine">Netty Pal doesn't replace any official app for fixtures and court numbers, such as NetballHQ.</p>
       </div>`;
   let panel;
-  if (UI.signin === 'sent'){
+  // Email and password: sign in, create an account, or reset a password.
+  // The emailed link is still there as a backup.
+  const err = UI.signinError ? `<p class="signin-error" role="alert">${escapeHtml(UI.signinError)}</p>` : '';
+  const emailField = `<div class="field"><label for="si-email">Email</label>
+      <input class="text-input" id="si-email" name="email" type="email" autocomplete="email" inputmode="email" required value="${escapeHtml(UI.signinEmail || '')}">
+      ${gmailNudgeHtml()}</div>`;
+  const pwField = (newPw) => `<div class="field"><label for="si-pw">${newPw ? 'Choose a password' : 'Password'}</label>
+      <div class="pw-wrap"><input class="text-input" id="si-pw" name="password" type="${UI.showPw ? 'text' : 'password'}" autocomplete="${newPw ? 'new-password' : 'current-password'}" required ${newPw ? 'minlength="6"' : ''}>
+        <button type="button" class="btn ghost small pw-toggle" data-action="toggle-pw" aria-pressed="${!!UI.showPw}">${UI.showPw ? 'Hide' : 'Show'}</button></div>
+      ${newPw ? '<span class="hint">At least 6 characters.</span>' : ''}</div>`;
+  const modeLink = (mode, label) => `<button type="button" class="link-btn" data-action="signin-mode" data-mode="${mode}">${label}</button>`;
+  if (UI.signin === 'password'){
+    panel = `<form class="signin-card" data-form="pw-signin">
+        <h3>Sign in with email</h3>
+        ${err}${emailField}${pwField(false)}
+        <div class="form-actions">
+          <button type="button" class="btn ghost" data-action="signin-back">Back</button>
+          <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Sign in</button>
+        </div>
+        <p class="signin-links">${modeLink('forgot', 'Forgot password?')}</p>
+        <p class="signin-links"><b>New to Netty Pal?</b> ${modeLink('create', 'Create an account')}</p>
+        <p class="signin-links">Rather not use a password? ${modeLink('email', 'Email me a sign-in link')}</p>
+      </form>`;
+  } else if (UI.signin === 'create'){
+    panel = `<form class="signin-card" data-form="pw-create">
+        <h3>Create an account</h3>
+        ${err}
+        <div class="field"><label for="si-name">Your name <span class="hint">(so your team knows who you are)</span></label>
+          <input class="text-input" id="si-name" name="name" autocomplete="name" maxlength="60" required placeholder="e.g. Sam Lee"></div>
+        ${emailField}${pwField(true)}
+        <div class="form-actions">
+          <button type="button" class="btn ghost" data-action="signin-mode" data-mode="password">Back</button>
+          <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Create account</button>
+        </div>
+        <p class="signin-links">Already have an account? ${modeLink('password', 'Sign in')}</p>
+      </form>`;
+  } else if (UI.signin === 'forgot'){
+    panel = `<form class="signin-card" data-form="pw-reset">
+        <h3>Set a new password</h3>
+        <p>We'll email you a link to choose a new password. This also works if you used to sign in with an email link and never had a password.</p>
+        ${err}${emailField}
+        <div class="form-actions">
+          <button type="button" class="btn ghost" data-action="signin-mode" data-mode="password">Back</button>
+          <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Email me a link</button>
+        </div>
+      </form>`;
+  } else if (UI.signin === 'reset-sent'){
+    panel = `<div class="signin-card">
+        <h3>Check your email</h3>
+        <p>If there's a Netty Pal account for <b>${escapeHtml(UI.signinEmail || '')}</b>, we've sent a link to set a new password. It can take a minute, and may land in junk mail. Then come back here and sign in.</p>
+        <button class="btn" data-action="signin-mode" data-mode="password">Back to sign in</button>
+      </div>`;
+  } else if (UI.signin === 'sent'){
     panel = `<div class="signin-card">
         <h3>Check your email</h3>
         <p>We've sent a sign-in link to <b>${escapeHtml(UI.signinEmail || '')}</b>. Open it on this phone to sign in. It can take a minute, and may land in junk mail.</p>
-        <button class="btn ghost" data-action="signin-back">Use a different option</button>
+        <button class="btn ghost" data-action="signin-mode" data-mode="password">Sign in with a password instead</button>
       </div>`;
   } else if (UI.signin === 'email' || UI.signin === 'confirm'){
     const confirm = UI.signin === 'confirm';
@@ -1529,12 +1590,11 @@ function renderSignedOut(){
         <h3>${confirm ? 'Finish signing in' : 'Sign in with email'}</h3>
         ${confirm ? '<p>Please type your email again to finish signing in on this device.</p>'
           : "<p>We'll email you a sign-in link. No password needed.</p>"}
-        <div class="field"><label for="si-email">Email</label>
-          <input class="text-input" id="si-email" name="email" type="email" autocomplete="email" required value="${escapeHtml(UI.signinEmail || '')}"></div>
+        ${err}${emailField}
         <div class="field"><label for="si-name">Your name <span class="hint">(so your team knows who you are)</span></label>
           <input class="text-input" id="si-name" name="name" autocomplete="name" maxlength="60" placeholder="e.g. Sam Lee"></div>
         <div class="form-actions">
-          ${confirm ? '' : '<button type="button" class="btn ghost" data-action="signin-back">Back</button>'}
+          ${confirm ? '' : '<button type="button" class="btn ghost" data-action="signin-mode" data-mode="password">Back</button>'}
           <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>${confirm ? 'Sign in' : 'Email me a link'}</button>
         </div>
       </form>`;
@@ -1623,6 +1683,62 @@ async function finishEmailLink(email, name){
   }
   UI.signin = null;
 }
+/* ---- Email and password ----
+   The usual way to sign in with email: nobody has to leave the app (which
+   matters on iPhones, where an emailed link opens in Safari, not in the
+   installed app). A forgotten password, or someone who used to sign in with
+   an emailed link, gets a "set a new password" email. */
+async function passwordSignIn(fd){
+  const email = String(fd.get('email') || '').trim();
+  UI.signinEmail = email;
+  await signInWithEmailAndPassword(auth, email, String(fd.get('password') || ''));
+  UI.signin = null; UI.signinError = null; UI.showPw = false;
+}
+async function passwordCreate(fd){
+  const email = String(fd.get('email') || '').trim(), name = String(fd.get('name') || '').trim();
+  UI.signinEmail = email;
+  const cred = await createUserWithEmailAndPassword(auth, email, String(fd.get('password') || ''));
+  if (name){ await updateProfile(cred.user, { displayName:name }); USER = auth.currentUser; }
+  UI.signin = null; UI.signinError = null; UI.showPw = false;
+}
+async function passwordReset(fd){
+  const email = String(fd.get('email') || '').trim();
+  UI.signinEmail = email;
+  // Comes back to Netty Pal after the new password is set.
+  await sendPasswordResetEmail(auth, email, { url:`${location.origin}${location.pathname}` });
+  UI.signin = 'reset-sent'; UI.signinError = null;
+}
+// Sign-in forms show their problem in the form, not in a passing toast.
+async function runSignin(fn){
+  if (UI.busy) return;
+  UI.busy = true; UI.signinError = null; render();
+  try { await fn(); }
+  catch (err){ console.warn('Netty Pal: sign-in', err); UI.signinError = signinErrorText(err); }
+  finally { UI.busy = false; render(); }
+}
+function signinErrorText(err){
+  const code = (err && err.code) || '';
+  if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found') || code.includes('invalid-login'))
+    return "That email and password don't match. Check them and try again. New here? Tap Create an account. Used to sign in with an emailed link? Tap Forgot password to set one.";
+  if (code.includes('email-already-in-use'))
+    return "There's already a Netty Pal account for that email. Sign in instead, or tap Forgot password if you don't have a password yet.";
+  if (code.includes('weak-password')) return 'Please choose a password with at least 6 characters.';
+  if (code.includes('missing-password')) return 'Please type your password.';
+  if (code.includes('too-many-requests')) return 'Too many tries. Please wait a few minutes, or tap Forgot password.';
+  return friendlyError(err);
+}
+// Gmail addresses already have a Google account: one tap is quicker.
+const GMAIL = /@(gmail|googlemail)\./i;
+function gmailNudgeHtml(){
+  return `<p class="gmail-nudge" ${GMAIL.test(UI.signinEmail || '') ? '' : 'hidden'}>Using Gmail? <button type="button" class="link-btn" data-action="sign-in">Continue with Google</button> is quicker: no password needed.</p>`;
+}
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'si-email') return;
+  UI.signinEmail = e.target.value;
+  const nudge = e.target.parentElement.querySelector('.gmail-nudge');
+  if (nudge) nudge.hidden = !GMAIL.test(e.target.value);
+});
+
 // Runs once when the page opens: is this the link from the email?
 async function checkEmailLink(){
   if (!isSignInWithEmailLink(auth, location.href)) return;
@@ -1912,7 +2028,7 @@ function helpSheetHtml(){
   const sections = [
     section('Getting started', [
       qa('How do I join my team?', 'Tap the invite link your coach/manager sent you and sign in. Or tap <b>Join with Team Code</b> and type in the code they sent. No link or code yet? Ask your coach/manager for one.'),
-      qa('Which sign-in should I use?', 'Google or Facebook is quickest. Email works too: we email you a sign-in link (check your junk folder if it doesn\'t arrive).'),
+      qa('Which sign-in should I use?', 'Google or Facebook is quickest. Or use your email and a password: tap <b>Continue with email</b>, then <b>Create an account</b> the first time. Forgot your password? Tap <b>Forgot password?</b> and we\'ll email you a link to set a new one (check your junk folder if it doesn\'t arrive).'),
       qa('Can I start my own team?', 'Yes. Tap <b>Create New Team</b> on the home screen. You\'ll be its Coach/Manager.'),
       qa('How do I put Netty Pal on my phone?', (USER ? 'Tap your photo or initials at the top right, then <b>Install on your phone</b>, and follow the steps.' : 'Tap <b>Show me how</b> on the install card and follow the steps.') + ' It then opens like an app, without the address bar.')
     ], level === 'none'),
@@ -2092,7 +2208,7 @@ function deleteAccountHtml(){
   else if (d.error) body = `<p role="alert">Couldn't check your teams just now. This is usually a connection hiccup.</p>
       <button class="btn small" data-action="delete-account-open">Try again</button>`;
   else if (d.working) body = `<div class="loading-state" role="status">${escapeHtml(d.working)}</div>`;
-  else if (d.relogin) body = `<p role="alert"><b>Please sign in again first.</b> For your security, an account can only be deleted soon after signing in. Sign out, sign back in with your email link, then come back here and tap <b>Delete my account</b> straight away.</p>
+  else if (d.relogin) body = `<p role="alert"><b>Please sign in again first.</b> For your security, an account can only be deleted soon after signing in. Sign out, sign back in, then come back here and tap <b>Delete my account</b> straight away.</p>
       <button class="btn" data-action="sign-out">Sign out</button>`;
   else {
     const label = s => `<b>${escapeHtml(s.teamName)}</b>${s.seasonName ? ' (' + escapeHtml(s.seasonName) + ')' : ''}`;
@@ -6042,13 +6158,21 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'sign-in-facebook'){
       await signInPopup(new FacebookAuthProvider());
     } else if (a === 'sign-in-email'){
-      UI.signin = 'email'; render();
+      UI.signin = 'password'; UI.signinError = null; render();
       const f = document.getElementById('si-email'); if (f) f.focus();
     } else if (a === 'copy-link'){
       try { await navigator.clipboard.writeText(location.href); toast('Link copied. Paste it into Chrome or Safari.'); }
       catch (err){ toast("Couldn't copy. Use the ⋯ menu to open in your browser instead.", true); }
     } else if (a === 'signin-back'){
-      UI.signin = null; render();
+      UI.signin = null; UI.signinError = null; render();
+    } else if (a === 'signin-mode'){
+      UI.signin = btn.dataset.mode; UI.signinError = null; UI.showPw = false; render();
+      const f = document.querySelector('#app form input:not([type=hidden])'); if (f) f.focus();
+    } else if (a === 'toggle-pw'){
+      // Keep what's been typed: the redraw would otherwise clear the password.
+      const pw = document.getElementById('si-pw'), val = pw ? pw.value : '';
+      UI.showPw = !UI.showPw; render();
+      const again = document.getElementById('si-pw'); if (again){ again.value = val; again.focus(); }
     } else if (a === 'sign-out'){
       UI.userMenu = false;
       closeSeason();
@@ -6430,7 +6554,10 @@ document.addEventListener('submit', (e) => {
   else if (name === 'add-game') runBusy(async () => { await addGame(fd); done(); });
   else if (name === 'edit-game') runBusy(() => saveGame(fd));
   else if (name === 'import-save') runBusy(() => saveImport(fd));
-  else if (name === 'email-signin') runBusy(() => sendEmailLink(fd));
+  else if (name === 'email-signin') runSignin(() => sendEmailLink(fd));
+  else if (name === 'pw-signin') runSignin(() => passwordSignIn(fd));
+  else if (name === 'pw-create') runSignin(() => passwordCreate(fd));
+  else if (name === 'pw-reset') runSignin(() => passwordReset(fd));
   else if (name === 'email-confirm') runBusy(() => finishEmailLink(String(fd.get('email') || '').trim(), String(fd.get('name') || '').trim()));
   else if (name === 'add-correction'){ const g = findGame(UI.gameId); if (g) runBusy(() => addCorrection(g, fd)); }
 });
