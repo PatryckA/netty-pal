@@ -403,6 +403,11 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .auto-table td{padding:0.35rem 0.2rem;}
 .auto-table td.bench{color:var(--ink-soft);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
+.uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
+.uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
+.uneven-warn p:last-child{margin:0;}
+.auto-table tr.uneven-row td{background:var(--warm-bg);}
+.uneven-tag{display:inline-block; min-width:1.4rem; padding:0 0.3rem; border-radius:var(--r-pill); background:var(--warm); color:var(--surface); font-size:0.72rem; font-weight:800; text-align:center;}
 .auto-notes{margin:0.4rem 0 0; padding-left:1.1rem; font-size:0.875rem; color:var(--warm);}
 .game-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
 .game-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
@@ -2998,6 +3003,7 @@ function makeAutoPlan(g, opts){
   const shootSlots = open.filter(pos => SHOOTERS_POS.includes(pos)).length;
   const shooters = ids.filter(canShoot);
   const extraShooters = new Set();
+  const fairQ = { ...q };
   const minOf = id => Math.max(1, fixedOn[id] ? fixedOn[id].size : 0);
   while (shooters.reduce((a, id) => a + q[id], 0) < Math.min(shooters.length, shootSlots) * P){
     const up = shooters.filter(id => q[id] < P).sort((a, b) => avgAfter(a, q[a]) - avgAfter(b, q[b]))[0];
@@ -3112,7 +3118,10 @@ function makeAutoPlan(g, opts){
   const chosen = candidates[(opts.alt || 0) % Math.min(5, candidates.length)];
 
   // Notes on anything it couldn't do.
-  if (extraShooters.size) notes.push(`${[...extraShooters].map(playerName).join(' and ')} ${extraShooters.size === 1 ? 'plays' : 'play'} extra ${periodNoun(g, true)}: only ${shooters.length} player${shooters.length === 1 ? '' : 's'} playing chose GS or GA. Add shooting preferences in Team > Players to share it out.`);
+  // Court time made uneven by a lack of shooters: flagged in the preview
+  // so the coach can fix it by hand.
+  const shift = ids.map(id => ({ id, d:q[id] - fairQ[id] })).filter(x => x.d);
+  const uneven = shift.length ? { up:shift.filter(x => x.d > 0), down:shift.filter(x => x.d < 0), shooters:shooters.length, fairQ } : null;
   if (!shooters.length) notes.push('Nobody playing has GS or GA as a preferred position, so the shooting positions are left empty. Set preferred positions in Team > Players.');
   for (let p = 1; p <= P; p++){
     const empty = open.filter(pos => !chosen.plan[p][pos]);
@@ -3123,7 +3132,7 @@ function makeAutoPlan(g, opts){
     const onQ = []; for (let p = 1; p <= P; p++) if (Object.values(chosen.plan[p]).includes(id)) onQ.push(p);
     if (onQ.length && onQ.length < P && benchRun(onQ)) notes.push(`${playerName(id)} sits out two ${periodNoun(g, true)} in a row (it couldn't be avoided).`);
   });
-  return { plan:chosen.plan, ids, P, pm, tot, games, notes, count:candidates.length };
+  return { plan:chosen.plan, ids, P, pm, tot, games, notes, uneven, count:candidates.length };
 }
 
 function autoSheetHtml(g){
@@ -3141,13 +3150,23 @@ function autoSheetHtml(g){
       const pref = playerPrefs(CUR.players.find(x => x.id === id)).includes(pos);
       return `<td><span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}" title="${pref ? 'Preferred' : 'Not a preferred position'}">${pos}</span></td>`;
     };
+    const u = r.uneven;
+    const shiftOf = id => u ? ([...u.up, ...u.down].find(x => x.id === id) || { d:0 }).d : 0;
     const rows = r.ids.map(id => {
       const q = qs.filter(p => Object.values(r.plan[p]).includes(id)).length;
       const games = r.games[id] || 0, tot = r.tot[id] || 0;
       const before = games ? wholeMins(tot / games) : '·', after = wholeMins((tot + q * r.pm) / (games + 1));
-      return `<tr><td>${escapeHtml(playerName(id))}</td>${qs.map(p => cell(id, p)).join('')}<td class="avg">${before} → ${after}</td></tr>`;
+      const d = shiftOf(id);
+      return `<tr class="${d ? 'uneven-row' : ''}"><td>${escapeHtml(playerName(id))}${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}</td>${qs.map(p => cell(id, p)).join('')}<td class="avg">${before} → ${after}</td></tr>`;
     }).join('');
-    body = `<div class="fair-wrap"><table class="fair auto-table">
+    const nameList = list => list.map(x => `<b>${escapeHtml(playerName(x.id))}</b>`).join(', ').replace(/, ([^,]*)$/, ' and $1');
+    const noun = periodNoun(g, true);
+    const warn = u ? `<div class="uneven-warn" role="alert">
+        <p><b>Court time is uneven because of shooters.</b> Only ${u.shooters} player${u.shooters === 1 ? '' : 's'} playing chose GS or GA, so to fill the shooting positions
+          ${nameList(u.up)} ${u.up.length === 1 ? 'plays' : 'play'} extra ${noun}${u.down.length ? `, and ${nameList(u.down)} ${u.down.length === 1 ? 'plays' : 'play'} fewer` : ''} (marked + and − below).</p>
+        <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
+      </div>` : '';
+    body = `${warn}<div class="fair-wrap"><table class="fair auto-table">
         <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col">${escapeHtml(periodName(g, p))}</th>`).join('')}<th scope="col">Season avg mins</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
       <p class="hint">Coloured bibs are preferred positions; grey ones aren't. "Season avg mins" is minutes per game available, now → after this game.</p>

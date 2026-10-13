@@ -138,7 +138,9 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   saved summaries), so anyone behind catches up.
 - **Bench**: nobody sits out two quarters in a row unless it can't be avoided (noted).
 - **Shooters**: only players with GS or GA as a preferred position play GS or GA. If there
-  aren't enough, they play extra quarters (noted), or the position is left empty.
+  aren't enough, they play extra quarters, or the position is left empty. When that makes court
+  time uneven, the preview shows a warning box naming who plays extra and who plays fewer
+  (rows marked + and −), with how to fix it by hand.
 - **Short of players**: WD is left empty first, then WA, then GA.
 - **Prioritise**: *Top preferences* (1st choice where possible, then 2nd, then 3rd) or
   *Variety* (rotates players through their preferred positions across the quarters).
