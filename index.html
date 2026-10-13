@@ -396,6 +396,19 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .pref-pick sup{position:absolute; top:-3px; right:-3px; width:1.05rem; height:1.05rem; border-radius:50%; background:var(--pop); color:var(--pop-ink); font-family:var(--font-body); font-size:0.65rem; line-height:1.05rem; text-align:center;}
 .pref-pick:disabled{opacity:0.35; cursor:default;}
 .pref-help{border-color:var(--pop);}
+.pref-chip.off{background:var(--surface-2); color:var(--ink-soft); border:1.5px solid var(--line);}
+.auto-opt{display:flex; flex-direction:column; gap:0.3rem; margin:0 0 0.8rem;}
+.auto-opt .label{font-size:0.78rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft);}
+.auto-opt .subtabs{margin:0;}
+.auto-table td{padding:0.35rem 0.2rem;}
+.auto-table td.bench{color:var(--ink-soft);}
+.auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
+.uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
+.uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
+.uneven-warn p:last-child{margin:0;}
+.auto-table tr.uneven-row td{background:var(--warm-bg);}
+.uneven-tag{display:inline-block; min-width:1.4rem; padding:0 0.3rem; border-radius:var(--r-pill); background:var(--warm); color:var(--surface); font-size:0.72rem; font-weight:800; text-align:center;}
+.auto-notes{margin:0.4rem 0 0; padding-left:1.1rem; font-size:0.875rem; color:var(--warm);}
 .game-card[data-longpress]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
 .game-card.pressing{transform:scale(0.98); border-color:var(--warm); transition:transform 0.5s, border-color 0.5s;}
 .game-card.past{opacity:0.8;}
@@ -2906,6 +2919,289 @@ function renderGame(){
     ${content}`;
 }
 
+/* ---- Fill lineup for me ----
+   Coach/Managers can have Netty Pal plan every quarter of a game that
+   hasn't started, then check it in a preview before using it.
+   1. How many quarters each available player gets: everyone gets the even
+      share (rounded down), and the spare quarters go one at a time to
+      whoever has the lowest season average (minutes per game they were
+      available for, from finished games), so anyone behind catches up.
+   2. Which quarters: nobody sits out two in a row where that's possible,
+      and each quarter needs players who can shoot (only players who chose
+      GS or GA as a preferred position play there).
+   3. Which positions, quarter by quarter: the best match for preferences
+      ("Top preferences"), or rotating through each player's preferences
+      ("Variety"). Short of players, WD is left empty first, then WA, then GA.
+   Many candidate plans are tried and the best ones are offered. */
+const EMPTY_FIRST = ['WD', 'WA', 'GA', 'GD', 'GK', 'GS'];
+const SHOOTERS_POS = ['GS', 'GA'];
+function seededRandom(seed){
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+// Season court time so far, from the summaries saved with finished games:
+// total ms on court and the number of games each player was available for.
+function seasonCourtTotals(skipId){
+  const tot = {}, games = {};
+  CUR.games.filter(x => x.id !== skipId && !x.archived && !x.bye && isGameOver(x) && x.summary && x.summary.courtTime).forEach(x => {
+    const ct = x.summary.courtTime;
+    new Set([...availableIds(x), ...Object.keys(ct)]).forEach(id => { games[id] = (games[id] || 0) + 1; });
+    Object.entries(ct).forEach(([id, pos]) => { tot[id] = (tot[id] || 0) + Object.values(pos || {}).reduce((a, b) => a + (b || 0), 0); });
+  });
+  return { tot, games };
+}
+let autoCache = null;
+function autoPlan(g, opts){
+  const key = JSON.stringify([g.id, opts, g.plan || {}, availableIds(g), CUR.players.map(x => [x.id, x.positions || []])]);
+  if (autoCache && autoCache.key === key) return autoCache.r;
+  const r = makeAutoPlan(g, opts);
+  autoCache = { key, r };
+  return r;
+}
+function makeAutoPlan(g, opts){
+  const P = periodCount(g), pm = periodMs(g);
+  const ids = byName(availableIds(g));
+  const N = ids.length, K = Math.min(7, N);
+  const rng = seededRandom(opts.seed || 1);
+  const notes = [];
+  if (!N) return { error:'Nobody is marked as playing. Tick who\'s playing on the Players tab first.' };
+  const canShoot = id => playerPrefs(CUR.players.find(x => x.id === id)).some(pos => SHOOTERS_POS.includes(pos));
+  const open = POSITIONS.filter(pos => !EMPTY_FIRST.slice(0, 7 - K).includes(pos));
+
+  // What's already set and being kept.
+  const fixed = {}, fixedOn = {};
+  for (let p = 1; p <= P; p++){
+    fixed[p] = {};
+    const own = opts.keep ? ownPlan(g, p) : null;
+    if (own) POSITIONS.forEach(pos => {
+      const id = own[pos];
+      if (id && ids.includes(id) && !Object.values(fixed[p]).includes(id)){ fixed[p][pos] = id; (fixedOn[id] = fixedOn[id] || new Set()).add(p); }
+    });
+  }
+
+  // 1. Quarters each.
+  const { tot, games } = seasonCourtTotals(g.id);
+  const avgAfter = (id, q) => ((tot[id] || 0) + q * pm) / ((games[id] || 0) + 1);
+  const base = Math.min(P, Math.floor(K * P / N));
+  const q = {};
+  ids.forEach(id => { q[id] = Math.max(base, fixedOn[id] ? fixedOn[id].size : 0); });
+  let spare = K * P - ids.reduce((a, id) => a + q[id], 0);
+  while (spare > 0){
+    const cands = ids.filter(id => q[id] < P);
+    if (!cands.length) break;
+    cands.sort((a, b) => avgAfter(a, q[a]) - avgAfter(b, q[b]) || q[a] - q[b] || rng() - 0.5);
+    q[cands[0]]++; spare--;
+  }
+  while (spare < 0){
+    const cands = ids.filter(id => q[id] > (fixedOn[id] ? fixedOn[id].size : 0));
+    if (!cands.length) break;
+    cands.sort((a, b) => avgAfter(b, q[b]) - avgAfter(a, q[a]));
+    q[cands[0]]--; spare++;
+  }
+  // Shooting positions need shooters every quarter. If there aren't many,
+  // they play extra quarters, taken from whoever is furthest ahead.
+  const shootSlots = open.filter(pos => SHOOTERS_POS.includes(pos)).length;
+  const shooters = ids.filter(canShoot);
+  const extraShooters = new Set();
+  const fairQ = { ...q };
+  const minOf = id => Math.max(1, fixedOn[id] ? fixedOn[id].size : 0);
+  while (shooters.reduce((a, id) => a + q[id], 0) < Math.min(shooters.length, shootSlots) * P){
+    const up = shooters.filter(id => q[id] < P).sort((a, b) => avgAfter(a, q[a]) - avgAfter(b, q[b]))[0];
+    const down = ids.filter(id => !canShoot(id) && q[id] > minOf(id)).sort((a, b) => avgAfter(b, q[b]) - avgAfter(a, q[a]))[0];
+    if (!up || !down) break;
+    q[up]++; q[down]--; extraShooters.add(up);
+  }
+  const shootNeed = Math.min(shooters.length, shootSlots);
+
+  // 2. Which quarters: random tries at filling every quarter exactly.
+  const subsets = (n) => {
+    const out = [];
+    for (let m = 0; m < (1 << P); m++){
+      const set = []; for (let p = 1; p <= P; p++) if (m & (1 << (p - 1))) set.push(p);
+      if (set.length === n) out.push(set);
+    }
+    return out;
+  };
+  const benchRun = set => { for (let p = 1; p < P; p++) if (!set.includes(p) && !set.includes(p + 1)) return true; return false; };
+  const patternsFor = id => {
+    const must = fixedOn[id] || new Set();
+    return subsets(q[id]).filter(set => [...must].every(p => set.includes(p)));
+  };
+  const tryFill = (strictBench) => {
+    const order = ids.slice().sort(() => rng() - 0.5).sort((a, b) => patternsFor(a).length - patternsFor(b).length);
+    const cap = {}; for (let p = 1; p <= P; p++) cap[p] = K;
+    const pick = {};
+    let nodes = 0;
+    const dfs = (i) => {
+      if (++nodes > 4000) return false;
+      if (i === order.length) return true;
+      const id = order[i];
+      let pats = patternsFor(id).sort(() => rng() - 0.5);
+      const good = pats.filter(set => !benchRun(set));
+      if (strictBench && good.length) pats = good; else pats = [...good, ...pats.filter(set => benchRun(set))];
+      for (const set of pats){
+        if (!set.every(p => cap[p] > 0)) continue;
+        set.forEach(p => cap[p]--); pick[id] = set;
+        const left = order.length - i - 1;
+        let ok = true; for (let p = 1; p <= P; p++) if (cap[p] > left) ok = false;
+        if (ok && dfs(i + 1)) return true;
+        set.forEach(p => cap[p]++); delete pick[id];
+      }
+      return false;
+    };
+    if (!dfs(0)) return null;
+    // Every quarter needs its shooters.
+    for (let p = 1; p <= P; p++) if (ids.filter(id => pick[id].includes(p) && canShoot(id)).length < shootNeed) return null;
+    return pick;
+  };
+
+  // 3. Positions for one quarter: the best arrangement, worked out exactly
+  // (at most 7 players and 7 positions). A shooting position can only go to
+  // a shooter; leaving a position empty, or a player without one, costs a lot.
+  const prefScore = (id, pos, playedHere) => {
+    if (SHOOTERS_POS.includes(pos) && !canShoot(id)) return null;
+    const prefs = playerPrefs(CUR.players.find(x => x.id === id));
+    const r = prefs.indexOf(pos);
+    if (r < 0) return prefs.length ? 0 : 20;
+    if (opts.mode === 'variety') return [100, 90, 80][r] - 60 * (playedHere || 0);
+    return [100, 70, 40][r];
+  };
+  const placeQuarter = (on, lock, played) => {
+    const posList = open.filter(pos => !lock[pos]);
+    const players = on.filter(id => !Object.values(lock).includes(id));
+    const memo = new Map();
+    const best = (i, mask) => {
+      if (i === posList.length) return { score:-300 * (players.length - bitCount(mask)), pick:[] };
+      const key = i + ':' + mask;
+      if (memo.has(key)) return memo.get(key);
+      const pos = posList[i];
+      let out = best(i + 1, mask); out = { score:out.score - 500, pick:[null, ...out.pick] };
+      players.forEach((id, j) => {
+        if (mask & (1 << j)) return;
+        const sc = prefScore(id, pos, played[id] && played[id][pos]);
+        if (sc === null) return;
+        const rest = best(i + 1, mask | (1 << j));
+        const total = rest.score + sc + rng() * 0.01;
+        if (total > out.score) out = { score:total, pick:[id, ...rest.pick] };
+      });
+      memo.set(key, out);
+      return out;
+    };
+    const r = best(0, 0);
+    const plan = { ...lock };
+    posList.forEach((pos, i) => { if (r.pick[i]) plan[pos] = r.pick[i]; });
+    return { plan, score:r.score };
+  };
+  const bitCount = m => { let c = 0; while (m){ c += m & 1; m >>= 1; } return c; };
+
+  const candidates = [];
+  const seen = new Set();
+  for (let t = 0; t < 60; t++){
+    const pick = tryFill(t < 45);
+    if (!pick) continue;
+    const plan = {}, played = {};
+    let score = 0;
+    for (let p = 1; p <= P; p++){
+      const on = ids.filter(id => pick[id].includes(p));
+      const r = placeQuarter(on, fixed[p], played);
+      plan[p] = r.plan; score += r.score;
+      Object.entries(r.plan).forEach(([pos, id]) => { (played[id] = played[id] || {})[pos] = ((played[id] || {})[pos] || 0) + 1; });
+    }
+    ids.forEach(id => { if (benchRun(pick[id]) && pick[id].length) score -= 1000; });
+    const sig = JSON.stringify(plan);
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    candidates.push({ plan, score });
+  }
+  if (!candidates.length) return { error:"Couldn't make a lineup that fits. Try keeping fewer of the existing positions." };
+  candidates.sort((a, b) => b.score - a.score);
+  const chosen = candidates[(opts.alt || 0) % Math.min(5, candidates.length)];
+
+  // Notes on anything it couldn't do.
+  // Court time made uneven by a lack of shooters: flagged in the preview
+  // so the coach can fix it by hand.
+  const shift = ids.map(id => ({ id, d:q[id] - fairQ[id] })).filter(x => x.d);
+  const uneven = shift.length ? { up:shift.filter(x => x.d > 0), down:shift.filter(x => x.d < 0), shooters:shooters.length, fairQ } : null;
+  if (!shooters.length) notes.push('Nobody playing has GS or GA as a preferred position, so the shooting positions are left empty. Set preferred positions in Team > Players.');
+  for (let p = 1; p <= P; p++){
+    const empty = open.filter(pos => !chosen.plan[p][pos]);
+    if (empty.length && shooters.length) notes.push(`${periodName(g, p)}: ${empty.join(', ')} left empty (not enough players who prefer shooting on court).`);
+  }
+  if (K < 7) notes.push(`Only ${N} playing, so ${EMPTY_FIRST.slice(0, 7 - K).join(', ')} ${7 - K === 1 ? 'is' : 'are'} left empty.`);
+  ids.forEach(id => {
+    const onQ = []; for (let p = 1; p <= P; p++) if (Object.values(chosen.plan[p]).includes(id)) onQ.push(p);
+    if (onQ.length && onQ.length < P && benchRun(onQ)) notes.push(`${playerName(id)} sits out two ${periodNoun(g, true)} in a row (it couldn't be avoided).`);
+  });
+  return { plan:chosen.plan, ids, P, pm, tot, games, notes, uneven, count:candidates.length };
+}
+
+function autoSheetHtml(g){
+  const o = UI.auto;
+  const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(p => ownPlan(g, p) && isPeriodPlanned(g, p));
+  const r = autoPlan(g, { mode:o.mode, keep:hasPlan && o.keep, seed:o.seed, alt:o.alt });
+  const seg = (field, value, label, on) => `<button class="subtab ${on ? 'on' : ''}" data-action="auto-opt" data-field="${field}" data-value="${value}" aria-pressed="${on}">${label}</button>`;
+  let body;
+  if (r.error) body = `<p role="alert">${escapeHtml(r.error)}</p>`;
+  else {
+    const qs = Array.from({ length:r.P }, (_, i) => i + 1);
+    const cell = (id, p) => {
+      const pos = POSITIONS.find(x => r.plan[p][x] === id);
+      if (!pos) return '<td class="bench">–</td>';
+      const pref = playerPrefs(CUR.players.find(x => x.id === id)).includes(pos);
+      return `<td><span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}" title="${pref ? 'Preferred' : 'Not a preferred position'}">${pos}</span></td>`;
+    };
+    const u = r.uneven;
+    const shiftOf = id => u ? ([...u.up, ...u.down].find(x => x.id === id) || { d:0 }).d : 0;
+    const rows = r.ids.map(id => {
+      const q = qs.filter(p => Object.values(r.plan[p]).includes(id)).length;
+      const games = r.games[id] || 0, tot = r.tot[id] || 0;
+      const before = games ? wholeMins(tot / games) : '·', after = wholeMins((tot + q * r.pm) / (games + 1));
+      const d = shiftOf(id);
+      return `<tr class="${d ? 'uneven-row' : ''}"><td>${escapeHtml(playerName(id))}${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}</td>${qs.map(p => cell(id, p)).join('')}<td class="avg">${before} → ${after}</td></tr>`;
+    }).join('');
+    const nameList = list => list.map(x => `<b>${escapeHtml(playerName(x.id))}</b>`).join(', ').replace(/, ([^,]*)$/, ' and $1');
+    const noun = periodNoun(g, true);
+    const warn = u ? `<div class="uneven-warn" role="alert">
+        <p><b>Court time is uneven because of shooters.</b> Only ${u.shooters} player${u.shooters === 1 ? '' : 's'} playing chose GS or GA, so to fill the shooting positions
+          ${nameList(u.up)} ${u.up.length === 1 ? 'plays' : 'play'} extra ${noun}${u.down.length ? `, and ${nameList(u.down)} ${u.down.length === 1 ? 'plays' : 'play'} fewer` : ''} (marked + and − below).</p>
+        <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
+      </div>` : '';
+    body = `${warn}<div class="fair-wrap"><table class="fair auto-table">
+        <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col">${escapeHtml(periodName(g, p))}</th>`).join('')}<th scope="col">Season avg mins</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <p class="hint">Coloured bibs are preferred positions; grey ones aren't. "Season avg mins" is minutes per game available, now → after this game.</p>
+      ${r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
+  }
+  return `<div class="sheet-backdrop" data-action="auto-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="auto-title">
+      <div class="sheet-head"><div class="grow"><h3 id="auto-title">Fill lineup for me</h3></div>
+        <button class="btn ghost small" data-action="auto-close">Close</button></div>
+      <div class="sheet-body">
+        <p style="margin:0.8rem 0 0.5rem">Shares court time fairly (anyone behind on season minutes gets more), puts players in their preferred positions, and only uses players who chose GS or GA as shooters.</p>
+        <div class="auto-opt"><span class="label">Prioritise</span>
+          <div class="subtabs">${seg('mode', 'top', 'Top preferences', o.mode !== 'variety')}${seg('mode', 'variety', 'Variety', o.mode === 'variety')}</div></div>
+        ${hasPlan ? `<div class="auto-opt"><span class="label">Lineup already set</span>
+          <div class="subtabs">${seg('keep', '1', 'Keep it, fill the gaps', o.keep)}${seg('keep', '0', 'Start again', !o.keep)}</div></div>` : ''}
+        ${body}
+        <div class="form-actions" style="margin-top:0.8rem">
+          ${r.error ? '' : `<button class="btn ghost" data-action="auto-again">Try another</button>
+          <button class="btn" data-action="auto-use" ${UI.busy ? 'disabled' : ''}>Use this lineup</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+async function useAutoPlan(g){
+  const o = UI.auto;
+  const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(p => ownPlan(g, p) && isPeriodPlanned(g, p));
+  const r = autoPlan(g, { mode:o.mode, keep:hasPlan && o.keep, seed:o.seed, alt:o.alt });
+  if (r.error) return;
+  const upd = { plan:r.plan };
+  if (!Array.isArray(g.available)) upd.available = r.ids;
+  await updateDoc(gameRef(g.id), upd);
+  UI.auto = null; UI.period = 1;
+  toast('Lineup filled. You can still change anyone.');
+}
+
 function renderLineupTab(g){
   const n = periodCount(g);
   if (UI.period > n) UI.period = 1;
@@ -2962,11 +3258,14 @@ function renderLineupTab(g){
     tools = tools ? `<div class="lineup-tools">${tools}</div>` : '';
   }
 
-  return `${picker}
+  const autoBtn = canEditGames() && (g.status || 'scheduled') === 'scheduled' && !isPractice(g)
+    ? '<div class="lineup-tools" style="margin:0 0 0.6rem"><button class="btn small" data-action="auto-open">Fill lineup for me</button></div>' : '';
+  return `${autoBtn}${picker}
     ${followNote}
     ${dragTip}
     ${courtHtml(plan, editable, g, p, avail)}
     ${tools}
+    ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}
     ${countsHtml}
     ${editable ? '<p class="hint">Or tap a position to pick from a list.</p>' : ''}
     ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, planCountOf(g, counts),
@@ -6650,6 +6949,16 @@ document.addEventListener('click', async (e) => {
       if (!isArmed(key)) return arm(key);
       disarm(key);
       const g = findGame(UI.gameId); if (g) await correctEvent(g, btn.dataset.event, { undone:true });
+    } else if (a === 'auto-open'){
+      UI.auto = { mode:'top', keep:true, seed:Date.now() % 100000, alt:0 }; render(); focusSheet();
+    } else if (a === 'auto-close'){
+      UI.auto = null; render();
+    } else if (a === 'auto-opt'){
+      if (UI.auto){ UI.auto[btn.dataset.field] = btn.dataset.field === 'keep' ? btn.dataset.value === '1' : btn.dataset.value; UI.auto.alt = 0; render(); }
+    } else if (a === 'auto-again'){
+      if (UI.auto){ UI.auto.alt++; render(); }
+    } else if (a === 'auto-use'){
+      const g = findGame(UI.gameId); if (g && UI.auto) await runBusy(() => useAutoPlan(g));
     } else if (a === 'clear-period'){
       if (!isArmed('clear-period')) return arm('clear-period');
       disarm('clear-period'); await clearPeriod();
@@ -6839,6 +7148,7 @@ document.addEventListener('keydown', (e) => {
     const av = document.querySelector('[data-action="user-menu"]'); if (av) av.focus();
     return;
   }
+  if (e.key === 'Escape' && UI.auto){ UI.auto = null; render(); return; }
   if (e.key === 'Escape' && UI.playerMenu){ UI.playerMenu = null; render(); return; }
   if (e.key === 'Escape' && UI.playerSheet){ UI.playerSheet = null; render(); return; }
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
