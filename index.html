@@ -213,6 +213,7 @@ main{flex:1; padding:1rem 1rem 4rem;}
 .signin-links .link-btn{color:var(--pop-text); font-weight:800; text-decoration:underline; min-height:36px;}
 .gmail-nudge{margin:0.35rem 0 0 !important; padding:0.5rem 0.7rem; background:var(--accent-bg); border-radius:var(--r-sm); color:var(--ink) !important;}
 .gmail-nudge[hidden]{display:none;}
+.signin-note .link-btn{color:var(--pop-text); font-weight:800; text-decoration:underline;}
 .gmail-nudge .link-btn{color:var(--pop-text); font-weight:800;}
 .pw-wrap{display:flex; gap:0.4rem; align-items:stretch;}
 .pw-wrap .text-input{flex:1; min-width:0;}
@@ -1540,6 +1541,7 @@ function renderSignedOut(){
   if (UI.signin === 'password'){
     panel = `<form class="signin-card" data-form="pw-signin">
         <h3>Sign in with email</h3>
+        <p class="signin-note">Used an emailed sign-in link before? ${modeLink('forgot', 'Tap Forgot password')} to set a password.</p>
         ${err}${emailField}${pwField(false)}
         <div class="form-actions">
           <button type="button" class="btn ghost" data-action="signin-back">Back</button>

@@ -71,7 +71,8 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   link opens in Safari, not the installed app. "Create an account" (name, email, password of at
   least 6 characters), and "Forgot password?" emails a link to set a new one (this is also how
   someone who used email links gets a password). The emailed sign-in link stays as a backup
-  ("Email me a sign-in link"). Typing a Gmail address shows "Using Gmail? Continue with Google
+  ("Email me a sign-in link"). A note at the top of the form tells people who used emailed
+  links before to tap Forgot password to set one. Typing a Gmail address shows "Using Gmail? Continue with Google
   is quicker". Problems show in the form. Needs Email/Password switched on in Firebase console >
   Authentication > Sign-in method.
 - **Install on your phone**: a home screen card (until installed or put away) and an item in
