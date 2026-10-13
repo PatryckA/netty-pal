@@ -526,6 +526,9 @@ body.dragging{cursor:grabbing;}
 }
 .pick-row:hover{border-color:var(--accent);}
 .pick-row.current{border-color:var(--accent); background:var(--accent-bg);}
+.pick-row.prefers{border-color:var(--pop);}
+.pick-row .psub b{color:var(--pop-text);}
+.pick-row .pref-chips{margin-right:0.2rem;}
 .pick-row .pname{display:block;}
 .pick-row .psub{display:block;}
 .pick-count{font-size:0.82rem; font-weight:800; color:var(--ink-soft); white-space:nowrap; font-variant-numeric:tabular-nums;}
@@ -3047,14 +3050,21 @@ function courtHtml(plan, editable, g, p, avail, tapAction){
 function pickerSheetHtml(g, p, plan, avail, posOf, countOf, note){
   const pos = UI.pickPos;
   const current = plan[pos];
+  // Players who prefer this position come first (1st choice, then 2nd,
+  // then 3rd), with a star; then the least time in it, as before.
+  const prefRank = id => { const r = playerPrefs(CUR.players.find(x => x.id === id)).indexOf(pos); return r < 0 ? 9 : r; };
+  const ORD = ['1st', '2nd', '3rd'];
   const row = (id, sub) => {
-    const c = countOf(id);
-    return `<button class="pick-row ${id === current ? 'current' : ''}" data-action="pick-player" data-player="${escapeHtml(id)}">
-      <span class="grow"><span class="pname">${escapeHtml(playerName(id))}</span><span class="psub">${sub}</span></span>
+    const c = countOf(id), r = prefRank(id);
+    const pl = CUR.players.find(x => x.id === id);
+    return `<button class="pick-row ${id === current ? 'current' : ''} ${r < 9 ? 'prefers' : ''}" data-action="pick-player" data-player="${escapeHtml(id)}">
+      <span class="grow"><span class="pname">${r < 9 ? STAR + ' ' : ''}${escapeHtml(playerName(id))}</span>
+        <span class="psub">${r < 9 ? `<b>Prefers ${pos} (${ORD[r]} choice)</b> · ` : ''}${sub}</span></span>
+      ${prefChipsHtml(pl)}
       <span class="pick-count ${c.zero ? 'zero' : ''}">${escapeHtml(c.text)}</span>
     </button>`;
   };
-  const byCount = (a, b) => countOf(a).n - countOf(b).n || playerName(a).localeCompare(playerName(b));
+  const byCount = (a, b) => prefRank(a) - prefRank(b) || countOf(a).n - countOf(b).n || playerName(a).localeCompare(playerName(b));
   const bench = avail.filter(id => !posOf[id]).sort(byCount);
   const onCourt = avail.filter(id => posOf[id] && posOf[id] !== pos).sort(byCount);
   return `<div class="sheet-backdrop" data-action="close-picker"></div>

@@ -118,6 +118,10 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   `positions: ['GS','GA']` on the player. Coach/Managers tap **Set preferred positions** above
   the list, then tap up to 3 bibs per player (numbered 1 to 3); changes save straight away.
 - The list shows them as little coloured bibs by each name, and on the player's stats page.
+  Everyone in the team can see them.
+- When picking who plays a position (lineup planner, and subs during a game), players who
+  prefer that position are listed first in each group (1st choice, then 2nd, then 3rd), with
+  a star, "Prefers GS (1st choice)" and their bibs; then least time in that position, as before.
 - Tap a player to open their stats page. Coach/Managers **press and hold** a player for
   Rename, Remove from team / Add back (keeps their stats), and **Delete player** (two taps),
   only for players who haven't been in a game that started; deleting also takes them out of
