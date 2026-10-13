@@ -128,6 +128,25 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   upcoming games' Who's playing and lineups. The "Remove from team" button in each row is gone.
 - No rule changes (Coach/Managers can already write players).
 
+### Fill lineup for me (added 2026-10-13)
+- On a game's Lineup tab (before it starts), Coach/Managers tap **Fill lineup for me**. A preview
+  shows each player's position per quarter and their season average minutes (per game
+  available) now and after this game; **Use this lineup** saves it, **Try another** shows the
+  next-best plan. Anything can still be changed by hand afterwards.
+- **Fair court time**: everyone playing gets the even share of quarters (rounded down). Spare
+  quarters go one at a time to whoever has the lowest season average (from finished games'
+  saved summaries), so anyone behind catches up.
+- **Bench**: nobody sits out two quarters in a row unless it can't be avoided (noted).
+- **Shooters**: only players with GS or GA as a preferred position play GS or GA. If there
+  aren't enough, they play extra quarters (noted), or the position is left empty.
+- **Short of players**: WD is left empty first, then WA, then GA.
+- **Prioritise**: *Top preferences* (1st choice where possible, then 2nd, then 3rd) or
+  *Variety* (rotates players through their preferred positions across the quarters).
+- **Lineup already set**: *Keep it, fill the gaps* (positions already set stay) or *Start again*.
+- Positions within each quarter are worked out exactly (best arrangement); many candidate
+  quarter patterns are tried and the best are offered. Saves `plan` (and `available` if it
+  wasn't set). No rule changes.
+
 ## 4. Fixtures
 
 - A Coach/Manager can add fixtures for the season: round, date, time, venue/court, opponent.
