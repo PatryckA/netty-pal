@@ -144,6 +144,9 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   drag it onto another spot in the same quarter. Two positions swap; a bench spot (–) dropped
   on a position brings that player on (and the other off), and the other way round. A quick
   swipe still scrolls and a quick tap still opens suggestions. Saves that quarter only.
+  The same drag works in the **Fill lineup preview** (added 2026-10-15): it changes the preview
+  only (a note says it's been changed by hand), **Use this lineup** saves the changed version,
+  and **Try another** or changing an option starts again.
 - (Added 2026-10-14) **Suggest a change**: Coach/Managers tap a player's spot in the table (any
   quarter that hasn't started) for suggestions: swap with someone on court that quarter, bring
   a bench player on, or bring them on from the bench. Each option is scored on the whole game

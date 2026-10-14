@@ -419,6 +419,7 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .sugg-what{margin:0 0 0.3rem; font-size:0.95rem;}
 .sugg-why{margin:0 0 0.6rem; padding-left:1.1rem; font-size:0.875rem; color:var(--ink-soft);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
+.edited-note{margin:0 0 0.6rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--accent-bg); font-size:0.875rem;}
 .uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
 .uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
 .uneven-warn p:last-child{margin:0;}
@@ -3201,6 +3202,7 @@ function makeAutoPlan(g, opts){
 //   opts.ids          players to list (in order)
 //   opts.avg          { tot, games, pm } to show season average minutes after this game
 //   opts.tap(p)       true if quarter p's cells can be tapped for a suggested change
+//   opts.drag         cells can be dragged to swap, but not tapped (the Fill lineup preview)
 //   opts.shift(id)    + / − quarters to tag (Fill lineup's uneven warning)
 //   opts.current      the quarter shown on the court (highlighted; headings switch quarter)
 function gameGridHtml(g, opts){
@@ -3213,6 +3215,7 @@ function gameGridHtml(g, opts){
     const pref = !pos || !prefs.length || prefs.includes(pos);
     const inner = pos ? `<span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}">${pos}</span>` : '–';
     const label = `${playerName(id)}, ${periodName(g, qs[i])}: ${pos ? POS_NAMES[pos] + (pref ? '' : ' (not a preferred position)') : 'bench'}`;
+    if (opts.drag) return `<td class="${pos ? '' : 'bench'} ${cur}"><button class="grid-cell" data-preview="1" data-player="${escapeHtml(id)}" data-period="${qs[i]}" aria-label="${escapeHtml(label)}. Press and hold, then drag to swap">${inner}</button></td>`;
     if (opts.tap && opts.tap(qs[i])) return `<td class="${pos ? '' : 'bench'} ${cur}"><button class="grid-cell" data-action="suggest-open" data-player="${escapeHtml(id)}" data-period="${qs[i]}" aria-label="${escapeHtml(label)}. Suggest a change">${inner}</button></td>`;
     return `<td class="${pos ? '' : 'bench'} ${cur}" title="${escapeHtml(label)}">${inner}</td>`;
   };
@@ -3397,11 +3400,13 @@ function autoSheetHtml(g){
   const o = UI.auto;
   const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(p => ownPlan(g, p) && isPeriodPlanned(g, p));
   const r = autoPlan(g, { mode:o.mode, keep:hasPlan && o.keep, seed:o.seed, alt:o.alt });
+  // Swaps dragged in the preview change this copy, not the saved lineup.
+  const plan = o.plan || r.plan;
   const seg = (field, value, label, on) => `<button class="subtab ${on ? 'on' : ''}" data-action="auto-opt" data-field="${field}" data-value="${value}" aria-pressed="${on}">${label}</button>`;
   let body;
   if (r.error) body = `<p role="alert">${escapeHtml(r.error)}</p>`;
   else {
-    const u = r.uneven;
+    const u = o.plan ? null : r.uneven;
     const shiftOf = id => u ? ([...u.up, ...u.down].find(x => x.id === id) || { d:0 }).d : 0;
     const nameList = list => list.map(x => `<b>${escapeHtml(playerName(x.id))}</b>`).join(', ').replace(/, ([^,]*)$/, ' and $1');
     const noun = periodNoun(g, true);
@@ -3410,9 +3415,10 @@ function autoSheetHtml(g){
           ${nameList(u.up)} ${u.up.length === 1 ? 'plays' : 'play'} extra ${noun}${u.down.length ? `, and ${nameList(u.down)} ${u.down.length === 1 ? 'plays' : 'play'} fewer` : ''} (marked + and − below).</p>
         <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
       </div>` : '';
-    body = `${warn}${gameGridHtml(g, { lineupOf:p => r.plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null })}
-      <p class="hint">Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
-      ${r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
+    body = `${warn}${o.plan ? '<p class="edited-note">You\'ve changed this lineup by hand. <b>Try another</b> or changing an option starts again.</p>' : ''}
+      ${gameGridHtml(g, { lineupOf:p => plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null, drag:true })}
+      <p class="hint">Press and hold a spot, then drag it onto another spot in the same ${escapeHtml(periodNoun(g))} to swap (bench spots too). Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
+      ${!o.plan && r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
   }
   return `<div class="sheet-backdrop" data-action="auto-close"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="auto-title">
@@ -3437,7 +3443,7 @@ async function useAutoPlan(g){
   const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(p => ownPlan(g, p) && isPeriodPlanned(g, p));
   const r = autoPlan(g, { mode:o.mode, keep:hasPlan && o.keep, seed:o.seed, alt:o.alt });
   if (r.error) return;
-  const upd = { plan:r.plan };
+  const upd = { plan:o.plan || r.plan };
   if (!Array.isArray(g.available)) upd.available = r.ids;
   await updateDoc(gameRef(g.id), upd);
   UI.auto = null; UI.period = 1;
@@ -7212,9 +7218,9 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'auto-close'){
       UI.auto = null; render();
     } else if (a === 'auto-opt'){
-      if (UI.auto){ UI.auto[btn.dataset.field] = btn.dataset.field === 'keep' ? btn.dataset.value === '1' : btn.dataset.value; UI.auto.alt = 0; render(); }
+      if (UI.auto){ UI.auto[btn.dataset.field] = btn.dataset.field === 'keep' ? btn.dataset.value === '1' : btn.dataset.value; UI.auto.alt = 0; UI.auto.plan = null; render(); }
     } else if (a === 'auto-again'){
-      if (UI.auto){ UI.auto.alt++; render(); }
+      if (UI.auto){ UI.auto.alt++; UI.auto.plan = null; render(); }
     } else if (a === 'auto-use'){
       const g = findGame(UI.gameId); if (g && UI.auto) await runBusy(() => useAutoPlan(g));
     } else if (a === 'clear-period'){
@@ -7424,10 +7430,28 @@ document.addEventListener('pointerup', (e) => {
   endGridDrag();
   if (!d.moved) return; // a tap (or a hold without moving) opens the suggestions as usual
   swallowNextClick();
-  if (t) swapInQuarter(parseInt(d.k, 10), d.pid, t.dataset.player).catch(fail);
+  if (!t) return;
+  if (d.el.dataset.preview) swapInPreview(parseInt(d.k, 10), d.pid, t.dataset.player);
+  else swapInQuarter(parseInt(d.k, 10), d.pid, t.dataset.player).catch(fail);
 });
 document.addEventListener('pointercancel', () => endGridDrag());
 document.addEventListener('contextmenu', (e) => { if (e.target.closest('.grid-cell')) e.preventDefault(); });
+// Swap two players' spots in one quarter of the Fill lineup preview.
+function swapInPreview(k, a, b){
+  const g = findGame(UI.gameId);
+  if (!g || !UI.auto || a === b) return;
+  const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(p => ownPlan(g, p) && isPeriodPlanned(g, p));
+  const base = UI.auto.plan || autoPlan(g, { mode:UI.auto.mode, keep:hasPlan && UI.auto.keep, seed:UI.auto.seed, alt:UI.auto.alt }).plan;
+  if (!base) return;
+  const plan = JSON.parse(JSON.stringify(base));
+  const L = plan[k] = plan[k] || {};
+  const pa = POSITIONS.find(pos => L[pos] === a), pb = POSITIONS.find(pos => L[pos] === b);
+  if (!pa && !pb) return;
+  if (pa) L[pa] = b;
+  if (pb) L[pb] = a;
+  UI.auto.plan = plan;
+  render();
+}
 // Swap two players' spots in one quarter (either can be on the bench).
 async function swapInQuarter(k, a, b){
   const g = findGame(UI.gameId);
