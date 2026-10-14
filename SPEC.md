@@ -128,6 +128,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   upcoming games' Who's playing and lineups. The "Remove from team" button in each row is gone.
 - No rule changes (Coach/Managers can already write players).
 
+### Whole game table on the Lineup tab (added 2026-10-14)
+- Under the court, a **Whole game** table lists every player playing with their position in
+  each quarter (– on the bench) and their total quarters; it replaces the "Quarters on court
+  this game" chips. The quarter on the court is highlighted, and tapping a quarter heading
+  shows it on the court. Grey bibs aren't one of the player's preferred positions (players
+  with no preferences show coloured bibs). Before the game, Coach/Managers and Scorers also see
+  season average minutes per game available, now → after this game. The same table is used in
+  the Fill lineup preview.
+
 ### Fill lineup for me (added 2026-10-13)
 - On a game's Lineup tab (before it starts), Coach/Managers tap **Fill lineup for me**. A preview
   shows each player's position per quarter and their season average minutes (per game
