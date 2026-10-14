@@ -405,6 +405,9 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .auto-table th.cur,.auto-table td.cur{background:var(--accent-bg);}
 .auto-table th .sort-btn{min-height:36px;}
 .auto-table tr.no-time td{color:var(--warm);}
+.grid-name{background:none; border:none; padding:0.2rem 0; min-height:36px; font:inherit; font-weight:600; color:inherit; text-align:left; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px;}
+.grid-prefs{display:block; margin:0.15rem 0 0.2rem;}
+.grid-prefs .pref-chip{width:1.5rem; height:1.5rem; font-size:0.62rem;}
 .grid-cell{background:none; border:none; padding:0; min-width:40px; min-height:40px; cursor:pointer; color:inherit; font:inherit; display:inline-flex; align-items:center; justify-content:center; border-radius:50%;}
 .grid-cell:hover,.grid-cell:focus-visible{background:var(--surface-2);}
 .sugg{border:1.5px solid var(--line); border-radius:var(--r); padding:0.7rem 0.85rem; margin-bottom:0.6rem; background:var(--surface);}
@@ -1472,7 +1475,16 @@ function render(){
   else if (UI.showHelp) body += helpSheetHtml();
   else if (UI.playerSheet && USER && CUR.season) body += playerSheetHtml(UI.playerSheet);
   pruneLive();
+  // A redraw keeps an open panel scrolled where it was (e.g. "Try another").
+  const sheetWas = document.querySelector('.sheet[aria-labelledby]');
+  const sheetKey = sheetWas && sheetWas.getAttribute('aria-labelledby');
+  const sheetBody = sheetWas && sheetWas.querySelector('.sheet-body');
+  const sheetScroll = sheetBody ? sheetBody.scrollTop : 0, sheetOuter = sheetWas ? sheetWas.scrollTop : 0;
   app.innerHTML = body;
+  if (sheetKey){
+    const now = document.querySelector(`.sheet[aria-labelledby="${sheetKey}"]`);
+    if (now){ now.scrollTop = sheetOuter; const b = now.querySelector('.sheet-body'); if (b) b.scrollTop = sheetScroll; }
+  }
   restoreInputs(keep);
   // A half-filled fixture form keeps its bye tick (and hidden fields) through a redraw.
   document.querySelectorAll('input[data-field="bye-toggle"]').forEach(syncByeForm);
@@ -3208,7 +3220,11 @@ function gameGridHtml(g, opts){
       const games = opts.avg.games[id] || 0, tot = opts.avg.tot[id] || 0;
       avg = `<td class="avg">${wholeMins((tot + q * opts.avg.pm) / (games + 1))}</td>`;
     }
-    return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}"><td>${escapeHtml(playerName(id))}${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}</td>
+    // Tap a name to see (or hide) their preferred positions underneath it.
+    const open = UI.gridPrefs === id;
+    const pl = CUR.players.find(x => x.id === id);
+    const prefsLine = open ? `<span class="grid-prefs">${playerPrefs(pl).length ? prefChipsHtml(pl) : '<span class="hint">No preferred positions</span>'}</span>` : '';
+    return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}"><td><button class="grid-name" data-action="grid-prefs" data-player="${escapeHtml(id)}" aria-expanded="${open}">${escapeHtml(playerName(id))}</button>${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}${prefsLine}</td>
       ${qs.map((_, i) => cell(id, i)).join('')}<td class="total">${q}</td>${avg}</tr>`;
   }).join('');
   const head = p => opts.current
@@ -3457,7 +3473,7 @@ function renderLineupTab(g){
     ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail, current:p,
       tap:k => canEditGames() && !periodStarted(g, k) && !isPractice(g),
       avg:isStaff() && (g.status || 'scheduled') === 'scheduled' ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
-    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court.${canEditGames() && (g.status || 'scheduled') !== 'final' ? ' Tap a player\'s spot for a suggested change.' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
+    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court, or a name for their preferred positions.${canEditGames() && (g.status || 'scheduled') !== 'final' ? ' Tap a player\'s spot for a suggested change.' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
     ${UI.suggest ? suggestSheetHtml(g) : ''}`;
 
   // Note when this period has its own changes (the Reset button undoes them),
@@ -7174,6 +7190,8 @@ document.addEventListener('click', async (e) => {
       if (!isArmed(key)) return arm(key);
       disarm(key);
       const g = findGame(UI.gameId); if (g) await correctEvent(g, btn.dataset.event, { undone:true });
+    } else if (a === 'grid-prefs'){
+      UI.gridPrefs = UI.gridPrefs === btn.dataset.player ? null : btn.dataset.player; render();
     } else if (a === 'suggest-open'){
       UI.suggest = { pid:btn.dataset.player, k:parseInt(btn.dataset.period, 10) }; render(); focusSheet();
     } else if (a === 'suggest-close'){
