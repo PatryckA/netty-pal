@@ -3072,10 +3072,17 @@ function makeAutoPlan(g, opts){
     const prefs = playerPrefs(CUR.players.find(x => x.id === id));
     const r = prefs.indexOf(pos);
     if (r < 0) return prefs.length ? 0 : 20;
-    if (opts.mode === 'variety') return [100, 90, 80][r] - 60 * (playedHere || 0);
+    // Variety: a smaller pull than the cost of a 2nd position change, so
+    // players rotate once (e.g. GA, GA, WA, WA) rather than every quarter.
+    if (opts.mode === 'variety') return [100, 90, 80][r] - 30 * (playedHere || 0);
     return [100, 70, 40][r];
   };
-  const placeQuarter = (on, lock, played) => {
+  // Position changes: each time a player plays a different position from the
+  // last quarter they were on court. The first one in a game is free; more
+  // cost points, so plans keep players to fewer than 2 changes where possible.
+  const CHANGE_COST = 60;
+  const changeCost = (id, pos, hist) => { const h = hist[id]; return h && h.last && h.last !== pos && h.changes >= 1 ? CHANGE_COST : 0; };
+  const placeQuarter = (on, lock, played, hist) => {
     const posList = open.filter(pos => !lock[pos]);
     const players = on.filter(id => !Object.values(lock).includes(id));
     const memo = new Map();
@@ -3087,8 +3094,9 @@ function makeAutoPlan(g, opts){
       let out = best(i + 1, mask); out = { score:out.score - 500, pick:[null, ...out.pick] };
       players.forEach((id, j) => {
         if (mask & (1 << j)) return;
-        const sc = prefScore(id, pos, played[id] && played[id][pos]);
+        let sc = prefScore(id, pos, played[id] && played[id][pos]);
         if (sc === null) return;
+        sc -= changeCost(id, pos, hist);
         const rest = best(i + 1, mask | (1 << j));
         const total = rest.score + sc + rng() * 0.01;
         if (total > out.score) out = { score:total, pick:[id, ...rest.pick] };
@@ -3108,13 +3116,19 @@ function makeAutoPlan(g, opts){
   for (let t = 0; t < 60; t++){
     const pick = tryFill(t < 45);
     if (!pick) continue;
-    const plan = {}, played = {};
+    const plan = {}, played = {}, hist = {};
     let score = 0;
     for (let p = 1; p <= P; p++){
       const on = ids.filter(id => pick[id].includes(p));
-      const r = placeQuarter(on, fixed[p], played);
+      const r = placeQuarter(on, fixed[p], played, hist);
       plan[p] = r.plan; score += r.score;
-      Object.entries(r.plan).forEach(([pos, id]) => { (played[id] = played[id] || {})[pos] = ((played[id] || {})[pos] || 0) + 1; });
+      Object.entries(r.plan).forEach(([pos, id]) => {
+        (played[id] = played[id] || {})[pos] = ((played[id] || {})[pos] || 0) + 1;
+        const h = hist[id] = hist[id] || { last:null, changes:0 };
+        // Fixed (kept) positions count too, but aren't scored by placeQuarter.
+        if (h.last && h.last !== pos){ if (h.changes >= 1 && fixed[p][pos] === id) score -= CHANGE_COST; h.changes++; }
+        h.last = pos;
+      });
     }
     ids.forEach(id => { if (benchRun(pick[id]) && pick[id].length) score -= 1000; });
     const sig = JSON.stringify(plan);
@@ -3206,8 +3220,13 @@ function lineupScore(g, lineups, ctx){
       pref += r < 0 ? (prefs.length ? 0 : 20) : [100, 70, 40][r];
     });
   });
-  const q = {}, avg = {};
+  const q = {}, avg = {}, changes = {};
+  let extraChanges = 0;
   ctx.ids.forEach(id => {
+    // Position changes beyond the first (see Fill lineup).
+    let last = null; changes[id] = 0;
+    lineups.forEach(l => { const pos = POSITIONS.find(x => l[x] === id); if (pos){ if (last && last !== pos) changes[id]++; last = pos; } });
+    extraChanges += Math.max(0, changes[id] - 1);
     const on = lineups.map(l => Object.values(l).includes(id));
     q[id] = on.filter(Boolean).length;
     if (q[id] >= 2) for (let i = 0; i < P - 1; i++) if (!on[i] && !on[i + 1]){ bench++; break; }
@@ -3216,7 +3235,7 @@ function lineupScore(g, lineups, ctx){
   const vals = Object.values(avg), mean = vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length);
   const spread = vals.reduce((a, v) => a + (v - mean) * (v - mean), 0);
   const fair = -120 * spread;
-  return { total:pref + fair - 500 * empty - 200 * bench - 1000 * badShoot, pref, fair, empty, bench, badShoot, q, avg };
+  return { total:pref + fair - 500 * empty - 200 * bench - 1000 * badShoot - 60 * extraChanges, pref, fair, empty, bench, badShoot, q, avg, changes, extraChanges };
 }
 function suggestionsFor(g, pid, k){
   const P = periodCount(g), ids = byName(availableIds(g)), K = Math.min(7, ids.length);
@@ -3276,6 +3295,13 @@ function describeSuggestion(g, k, s, now, base){
     const better = s.score.fair > now.fair + 1;
     why.push(`${better ? 'Evens out' : 'Makes'} season minutes ${better ? '' : 'less even '}(${fairIds.map(id => `${escapeHtml(playerName(id))} ${wholeMins(now.avg[id] * periodMs(g))} → ${mins(id)} avg`).join(', ')})`);
   }
+  // Position changes per player across the game.
+  const chg = Object.keys(s.score.changes).filter(id => s.score.changes[id] !== now.changes[id]);
+  const fewer = chg.filter(id => s.score.changes[id] < now.changes[id] && now.changes[id] >= 2);
+  const more = chg.filter(id => s.score.changes[id] > now.changes[id] && s.score.changes[id] >= 2);
+  const times = n => n === 1 ? 'once' : n === 2 ? 'twice' : n + ' times';
+  if (fewer.length) why.push(`Fewer position changes (${fewer.map(id => `${escapeHtml(playerName(id))} ${times(s.score.changes[id])}`).join(', ')})`);
+  if (more.length) why.push(`More position changes (${more.map(id => `${escapeHtml(playerName(id))} changes ${times(s.score.changes[id])}`).join(', ')})`);
   if (s.score.bench < now.bench) why.push('Nobody sits out two quarters in a row');
   if (s.score.bench > now.bench) why.push('Someone would sit out two quarters in a row');
   if (s.score.badShoot < now.badShoot) why.push('Puts a player who chose GS or GA in a shooting position');
@@ -3304,7 +3330,7 @@ function suggestSheetHtml(g){
         <div class="psub">Now: ${posNow ? escapeHtml(POS_NAMES[posNow]) : 'on the bench'}</div></div>
         <button class="btn ghost small" data-action="suggest-close">Close</button></div>
       <div class="sheet-body">
-        <p style="margin:0.8rem 0 0.6rem">${better.length ? `${better.length === 1 ? 'A change' : 'Changes'} that ${better.length === 1 ? 'makes' : 'make'} the whole game better (preferred positions, even season minutes, no one sitting out two in a row):`
+        <p style="margin:0.8rem 0 0.6rem">${better.length ? `${better.length === 1 ? 'A change' : 'Changes'} that ${better.length === 1 ? 'makes' : 'make'} the whole game better (preferred positions, even season minutes, no one sitting out two in a row, few position changes):`
           : 'This spot already works well: nothing here makes the game better overall. The closest options:'}</p>
         ${cards || '<p class="hint">No other options for this spot.</p>'}
       </div>
@@ -3345,7 +3371,7 @@ function autoSheetHtml(g){
       <div class="sheet-head"><div class="grow"><h3 id="auto-title">Fill lineup for me</h3></div>
         <button class="btn ghost small" data-action="auto-close">Close</button></div>
       <div class="sheet-body">
-        <p style="margin:0.8rem 0 0.5rem">Shares court time fairly (anyone behind on season minutes gets more), puts players in their preferred positions, and only uses players who chose GS or GA as shooters.</p>
+        <p style="margin:0.8rem 0 0.5rem">Shares court time fairly (anyone behind on season minutes gets more), puts players in their preferred positions, keeps position changes to one per player where it can, and only uses players who chose GS or GA as shooters.</p>
         <div class="auto-opt"><span class="label">Prioritise</span>
           <div class="subtabs">${seg('mode', 'top', 'Top preferences', o.mode !== 'variety')}${seg('mode', 'variety', 'Variety', o.mode === 'variety')}</div></div>
         ${hasPlan ? `<div class="auto-opt"><span class="label">Lineup already set</span>

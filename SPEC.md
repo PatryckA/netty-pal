@@ -158,6 +158,11 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   time uneven, the preview shows a warning box naming who plays extra and who plays fewer
   (rows marked + and −), with how to fix it by hand.
 - **Short of players**: WD is left empty first, then WA, then GA.
+- (Added 2026-10-14) **Few position changes**: a position change is playing a different
+  position from the last quarter a player was on court (bench quarters don't count). The first
+  change in a game is free; each extra one costs points (about half a preference step), so
+  plans and suggestions keep players to fewer than 2 changes where they can. Not a hard rule.
+  Variety mode rotates players once (e.g. GA, GA, WA, WA) rather than every quarter.
 - **Prioritise**: *Top preferences* (1st choice where possible, then 2nd, then 3rd) or
   *Variety* (rotates players through their preferred positions across the quarters).
 - **Lineup already set**: *Keep it, fill the gaps* (positions already set stay) or *Start again*.
