@@ -134,8 +134,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   this game" chips. The quarter on the court is highlighted, and tapping a quarter heading
   shows it on the court. Grey bibs aren't one of the player's preferred positions (players
   with no preferences show coloured bibs). Before the game, Coach/Managers and Scorers also see
-  season average minutes per game available, now → after this game. The same table is used in
-  the Fill lineup preview.
+  "Avg mins after": season minutes per game available, counting this game. The same table is
+  used in the Fill lineup preview.
+- (Added 2026-10-14) **Suggest a change**: Coach/Managers tap a player's spot in the table (any
+  quarter that hasn't started) for suggestions: swap with someone on court that quarter, bring
+  a bench player on, or bring them on from the bench. Each option is scored on the whole game
+  like Fill lineup (preferred positions, even season minutes, nobody out two quarters in a
+  row, only GS/GA choosers at GS/GA, no empty positions). The best few are shown with reasons;
+  "Make this change" saves that quarter (later quarters that followed it keep their lineup).
+  If nothing improves the game it says so and shows the closest options.
 
 ### Fill lineup for me (added 2026-10-13)
 - On a game's Lineup tab (before it starts), Coach/Managers tap **Fill lineup for me**. A preview
@@ -151,6 +158,18 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   time uneven, the preview shows a warning box naming who plays extra and who plays fewer
   (rows marked + and −), with how to fix it by hand.
 - **Short of players**: WD is left empty first, then WA, then GA.
+- (Added 2026-10-14) **Sharing out playing out of position**: when someone has to play a
+  position they didn't choose, Fill lineup and suggestions pick whoever has done it least this
+  season (minutes out of preferred positions per game available). Each game's saved summary
+  keeps a snapshot of players' preferences from its first save (`summary.prefs`), so changing
+  preferences later doesn't rewrite past games; games saved before this use today's
+  preferences. Players with no preferences never count as out of position. The figure isn't
+  shown anywhere; a suggestion may say who "has done it less this season".
+- (Added 2026-10-14) **Few position changes**: a position change is playing a different
+  position from the last quarter a player was on court (bench quarters don't count). The first
+  change in a game is free; each extra one costs points (about half a preference step), so
+  plans and suggestions keep players to fewer than 2 changes where they can. Not a hard rule.
+  Variety mode rotates players once (e.g. GA, GA, WA, WA) rather than every quarter.
 - **Prioritise**: *Top preferences* (1st choice where possible, then 2nd, then 3rd) or
   *Variety* (rotates players through their preferred positions across the quarters).
 - **Lineup already set**: *Keep it, fill the gaps* (positions already set stay) or *Start again*.
