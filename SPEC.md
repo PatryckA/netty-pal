@@ -134,8 +134,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   this game" chips. The quarter on the court is highlighted, and tapping a quarter heading
   shows it on the court. Grey bibs aren't one of the player's preferred positions (players
   with no preferences show coloured bibs). Before the game, Coach/Managers and Scorers also see
-  season average minutes per game available, now → after this game. The same table is used in
-  the Fill lineup preview.
+  "Avg mins after": season minutes per game available, counting this game. The same table is
+  used in the Fill lineup preview.
+- (Added 2026-10-14) **Suggest a change**: Coach/Managers tap a player's spot in the table (any
+  quarter that hasn't started) for suggestions: swap with someone on court that quarter, bring
+  a bench player on, or bring them on from the bench. Each option is scored on the whole game
+  like Fill lineup (preferred positions, even season minutes, nobody out two quarters in a
+  row, only GS/GA choosers at GS/GA, no empty positions). The best few are shown with reasons;
+  "Make this change" saves that quarter (later quarters that followed it keep their lineup).
+  If nothing improves the game it says so and shows the closest options.
 
 ### Fill lineup for me (added 2026-10-13)
 - On a game's Lineup tab (before it starts), Coach/Managers tap **Fill lineup for me**. A preview

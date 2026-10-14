@@ -405,6 +405,12 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .auto-table th.cur,.auto-table td.cur{background:var(--accent-bg);}
 .auto-table th .sort-btn{min-height:36px;}
 .auto-table tr.no-time td{color:var(--warm);}
+.grid-cell{background:none; border:none; padding:0; min-width:40px; min-height:40px; cursor:pointer; color:inherit; font:inherit; display:inline-flex; align-items:center; justify-content:center; border-radius:50%;}
+.grid-cell:hover,.grid-cell:focus-visible{background:var(--surface-2);}
+.sugg{border:1.5px solid var(--line); border-radius:var(--r); padding:0.7rem 0.85rem; margin-bottom:0.6rem; background:var(--surface);}
+.sugg.good{border-color:var(--ok);}
+.sugg-what{margin:0 0 0.3rem; font-size:0.95rem;}
+.sugg-why{margin:0 0 0.6rem; padding-left:1.1rem; font-size:0.875rem; color:var(--ink-soft);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
 .uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
 .uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
@@ -3144,7 +3150,8 @@ function makeAutoPlan(g, opts){
 // under the court on the Lineup tab.
 //   opts.lineupOf(p)  the lineup for quarter p
 //   opts.ids          players to list (in order)
-//   opts.avg          { tot, games, pm } to show season average minutes now → after
+//   opts.avg          { tot, games, pm } to show season average minutes after this game
+//   opts.tap(p)       true if quarter p's cells can be tapped for a suggested change
 //   opts.shift(id)    + / − quarters to tag (Fill lineup's uneven warning)
 //   opts.current      the quarter shown on the court (highlighted; headings switch quarter)
 function gameGridHtml(g, opts){
@@ -3153,10 +3160,12 @@ function gameGridHtml(g, opts){
   const cell = (id, i) => {
     const pos = POSITIONS.find(x => lineups[i][x] === id);
     const cur = opts.current === qs[i] ? 'cur' : '';
-    if (!pos) return `<td class="bench ${cur}">–</td>`;
     const prefs = playerPrefs(CUR.players.find(x => x.id === id));
-    const pref = !prefs.length || prefs.includes(pos);
-    return `<td class="${cur}"><span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}" title="${pref ? POS_NAMES[pos] : POS_NAMES[pos] + ' (not a preferred position)'}">${pos}</span></td>`;
+    const pref = !pos || !prefs.length || prefs.includes(pos);
+    const inner = pos ? `<span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}">${pos}</span>` : '–';
+    const label = `${playerName(id)}, ${periodName(g, qs[i])}: ${pos ? POS_NAMES[pos] + (pref ? '' : ' (not a preferred position)') : 'bench'}`;
+    if (opts.tap && opts.tap(qs[i])) return `<td class="${pos ? '' : 'bench'} ${cur}"><button class="grid-cell" data-action="suggest-open" data-player="${escapeHtml(id)}" data-period="${qs[i]}" aria-label="${escapeHtml(label)}. Suggest a change">${inner}</button></td>`;
+    return `<td class="${pos ? '' : 'bench'} ${cur}" title="${escapeHtml(label)}">${inner}</td>`;
   };
   const rows = opts.ids.map(id => {
     const q = lineups.filter(l => Object.values(l).includes(id)).length;
@@ -3164,7 +3173,7 @@ function gameGridHtml(g, opts){
     let avg = '';
     if (opts.avg){
       const games = opts.avg.games[id] || 0, tot = opts.avg.tot[id] || 0;
-      avg = `<td class="avg">${games ? wholeMins(tot / games) : '·'} → ${wholeMins((tot + q * opts.avg.pm) / (games + 1))}</td>`;
+      avg = `<td class="avg">${wholeMins((tot + q * opts.avg.pm) / (games + 1))}</td>`;
     }
     return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}"><td>${escapeHtml(playerName(id))}${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}</td>
       ${qs.map((_, i) => cell(id, i)).join('')}<td class="total">${q}</td>${avg}</tr>`;
@@ -3173,8 +3182,141 @@ function gameGridHtml(g, opts){
     ? `<button class="sort-btn" data-action="period" data-period="${p}" aria-pressed="${opts.current === p}">${escapeHtml(periodName(g, p))}</button>`
     : escapeHtml(periodName(g, p));
   return `<div class="fair-wrap"><table class="fair auto-table">
-      <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col" class="${opts.current === p ? 'cur' : ''}">${head(p)}</th>`).join('')}<th scope="col">${g.format === 'halves' ? 'Halves' : 'Qtrs'}</th>${opts.avg ? '<th scope="col">Season avg mins</th>' : ''}</tr></thead>
+      <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col" class="${opts.current === p ? 'cur' : ''}">${head(p)}</th>`).join('')}<th scope="col">${g.format === 'halves' ? 'Halves' : 'Qtrs'}</th>${opts.avg ? '<th scope="col">Avg mins after</th>' : ''}</tr></thead>
       <tbody>${rows || `<tr><td colspan="${qs.length + 3}">No players are marked as playing.</td></tr>`}</tbody></table></div>`;
+}
+
+/* ---- Suggest a change ----
+   Tapping a player's spot in the Whole game table looks at every simple
+   change for that spot (swap with someone on court that quarter, bring a
+   bench player on, or bring them on from the bench) and scores the whole
+   game the way Fill lineup does: preferred positions, even season minutes,
+   nobody sitting out two quarters in a row, shooters only at GS and GA.
+   The best few are offered, with the reasons. */
+function lineupScore(g, lineups, ctx){
+  const P = lineups.length;
+  let pref = 0, empty = 0, bench = 0, badShoot = 0;
+  lineups.forEach(l => {
+    ctx.open.forEach(pos => {
+      const id = l[pos];
+      if (!id){ empty++; return; }
+      if (SHOOTERS_POS.includes(pos) && !ctx.canShoot(id)){ badShoot++; return; }
+      const prefs = playerPrefs(CUR.players.find(x => x.id === id));
+      const r = prefs.indexOf(pos);
+      pref += r < 0 ? (prefs.length ? 0 : 20) : [100, 70, 40][r];
+    });
+  });
+  const q = {}, avg = {};
+  ctx.ids.forEach(id => {
+    const on = lineups.map(l => Object.values(l).includes(id));
+    q[id] = on.filter(Boolean).length;
+    if (q[id] >= 2) for (let i = 0; i < P - 1; i++) if (!on[i] && !on[i + 1]){ bench++; break; }
+    avg[id] = ((ctx.tot[id] || 0) + q[id] * ctx.pm) / ((ctx.games[id] || 0) + 1) / ctx.pm;
+  });
+  const vals = Object.values(avg), mean = vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length);
+  const spread = vals.reduce((a, v) => a + (v - mean) * (v - mean), 0);
+  const fair = -120 * spread;
+  return { total:pref + fair - 500 * empty - 200 * bench - 1000 * badShoot, pref, fair, empty, bench, badShoot, q, avg };
+}
+function suggestionsFor(g, pid, k){
+  const P = periodCount(g), ids = byName(availableIds(g)), K = Math.min(7, ids.length);
+  const { tot, games } = seasonCourtTotals(g.id);
+  const canShoot = id => playerPrefs(CUR.players.find(x => x.id === id)).some(pos => SHOOTERS_POS.includes(pos));
+  const ctx = { ids, pm:periodMs(g), tot, games, canShoot, open:POSITIONS.filter(pos => !EMPTY_FIRST.slice(0, 7 - K).includes(pos)) };
+  const base = Array.from({ length:P }, (_, i) => ({ ...lineupFor(g, i + 1) }));
+  const now = lineupScore(g, base, ctx);
+  const L = base[k - 1];
+  const posA = POSITIONS.find(pos => L[pos] === pid);
+  const benchK = ids.filter(id => !Object.values(L).includes(id));
+  const out = [];
+  const tryIt = (changes) => {
+    const next = base.map(l => ({ ...l }));
+    const nl = next[k - 1];
+    changes.forEach(([pos, id]) => { if (id) nl[pos] = id; else delete nl[pos]; });
+    // Never move a non-shooter into GS or GA (one already there can be moved out).
+    if (changes.some(([pos, id]) => id && SHOOTERS_POS.includes(pos) && !canShoot(id))) return;
+    const sc = lineupScore(g, next, ctx);
+    out.push({ lineups:next, score:sc, delta:sc.total - now.total, changes });
+  };
+  if (posA){
+    ctx.open.filter(pos => pos !== posA).forEach(pos => { if (L[pos]) tryIt([[pos, pid], [posA, L[pos]]]); else tryIt([[pos, pid], [posA, null]]); });
+    benchK.forEach(c => tryIt([[posA, c]]));
+  } else {
+    ctx.open.forEach(pos => tryIt([[pos, pid]]));
+  }
+  out.sort((a, b) => b.delta - a.delta);
+  return { now, base, list:out.slice(0, 3), ctx };
+}
+// Plain-English description of a change and why it helps.
+function describeSuggestion(g, k, s, now, base){
+  const before = base[k - 1], after = s.lineups[k - 1];
+  const where = (l, id) => POSITIONS.find(pos => l[pos] === id);
+  const moved = Array.from(new Set([...Object.values(before), ...Object.values(after)])).filter(id => where(before, id) !== where(after, id));
+  const what = moved.map(id => {
+    const a = where(before, id), b = where(after, id);
+    const nm = `<b>${escapeHtml(playerName(id))}</b>`;
+    if (!a) return `${nm} comes on at ${b}`;
+    if (!b) return `${nm} goes to the bench`;
+    return `${nm} moves ${a} → ${b}`;
+  });
+  const why = [];
+  moved.forEach(id => {
+    const b = where(after, id);
+    const prefs = playerPrefs(CUR.players.find(x => x.id === id));
+    if (b && prefs.length){
+      const r = prefs.indexOf(b), ra = prefs.indexOf(where(before, id));
+      if (r >= 0 && (ra < 0 || r < ra)) why.push(`${escapeHtml(playerName(id))} gets a ${['1st', '2nd', '3rd'][r]}-choice position`);
+      else if (r < 0 && where(before, id) && ra >= 0) why.push(`${escapeHtml(playerName(id))} leaves a preferred position`);
+    }
+  });
+  const pm = s.score.q;
+  const fairIds = s.score && Object.keys(pm).filter(id => pm[id] !== now.q[id]);
+  if (fairIds.length){
+    const mins = id => wholeMins(s.score.avg[id] * periodMs(g));
+    const better = s.score.fair > now.fair + 1;
+    why.push(`${better ? 'Evens out' : 'Makes'} season minutes ${better ? '' : 'less even '}(${fairIds.map(id => `${escapeHtml(playerName(id))} ${wholeMins(now.avg[id] * periodMs(g))} → ${mins(id)} avg`).join(', ')})`);
+  }
+  if (s.score.bench < now.bench) why.push('Nobody sits out two quarters in a row');
+  if (s.score.bench > now.bench) why.push('Someone would sit out two quarters in a row');
+  if (s.score.badShoot < now.badShoot) why.push('Puts a player who chose GS or GA in a shooting position');
+  if (s.score.empty < now.empty) why.push('Fills an empty position');
+  if (s.score.empty > now.empty) why.push('Leaves a position empty');
+  return { what, why };
+}
+function suggestSheetHtml(g){
+  const { pid, k } = UI.suggest;
+  if (!CUR.players.some(x => x.id === pid) || periodStarted(g, k)) return '';
+  const { now, base, list } = suggestionsFor(g, pid, k);
+  const posNow = POSITIONS.find(pos => base[k - 1][pos] === pid);
+  const better = list.filter(s => s.delta > 0.5);
+  const shown = better.length ? better : list.slice(0, 2);
+  const cards = shown.map((s, i) => {
+    const d = describeSuggestion(g, k, s, now, base);
+    return `<div class="sugg ${s.delta > 0.5 ? 'good' : ''}">
+        <p class="sugg-what">${d.what.join('; ')}</p>
+        ${d.why.length ? `<ul class="sugg-why">${d.why.map(w => `<li>${w}</li>`).join('')}</ul>` : ''}
+        <button class="btn ${i === 0 && s.delta > 0.5 ? '' : 'ghost'} small" data-action="suggest-apply" data-index="${list.indexOf(s)}">Make this change</button>
+      </div>`;
+  }).join('');
+  return `<div class="sheet-backdrop" data-action="suggest-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sugg-title">
+      <div class="sheet-head"><div class="grow"><h3 id="sugg-title">${escapeHtml(playerName(pid))}, ${escapeHtml(periodName(g, k))}</h3>
+        <div class="psub">Now: ${posNow ? escapeHtml(POS_NAMES[posNow]) : 'on the bench'}</div></div>
+        <button class="btn ghost small" data-action="suggest-close">Close</button></div>
+      <div class="sheet-body">
+        <p style="margin:0.8rem 0 0.6rem">${better.length ? `${better.length === 1 ? 'A change' : 'Changes'} that ${better.length === 1 ? 'makes' : 'make'} the whole game better (preferred positions, even season minutes, no one sitting out two in a row):`
+          : 'This spot already works well: nothing here makes the game better overall. The closest options:'}</p>
+        ${cards || '<p class="hint">No other options for this spot.</p>'}
+      </div>
+    </div>`;
+}
+// Saves one quarter's new lineup. A later quarter that was following this
+// one keeps the lineup it had, so only the chosen quarter changes.
+async function applySuggestion(g, k, lineups){
+  const upd = { [`plan.${k}`]:lineups[k - 1] };
+  for (let p = k + 1; p <= periodCount(g) && !ownPlan(g, p); p++) upd[`plan.${p}`] = { ...lineupFor(g, p) };
+  if (!Array.isArray(g.available)) upd.available = availableIds(g);
+  await updateDoc(gameRef(g.id), upd);
 }
 
 function autoSheetHtml(g){
@@ -3195,7 +3337,7 @@ function autoSheetHtml(g){
         <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
       </div>` : '';
     body = `${warn}${gameGridHtml(g, { lineupOf:p => r.plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null })}
-      <p class="hint">Grey bibs aren't one of the player's preferred positions. "Season avg mins" is minutes per game available, now → after this game.</p>
+      <p class="hint">Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
       ${r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
   }
   return `<div class="sheet-backdrop" data-action="auto-close"></div>
@@ -3259,8 +3401,10 @@ function renderLineupTab(g){
   // Before the game, Coach/Managers and Scorers also see season minutes.
   const countsHtml = `<h3 class="subhead">Whole game</h3>
     ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail, current:p,
+      tap:k => canEditGames() && !periodStarted(g, k) && !isPractice(g),
       avg:isStaff() && (g.status || 'scheduled') === 'scheduled' ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
-    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court. Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Season avg mins" is minutes per game available, now → after this game.' : ''}</p>`;
+    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court.${canEditGames() && (g.status || 'scheduled') !== 'final' ? ' Tap a player\'s spot for a suggested change.' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
+    ${UI.suggest ? suggestSheetHtml(g) : ''}`;
 
   // Note when this period has its own changes (the Reset button undoes them),
   // and offer to clear Q1.
@@ -3295,7 +3439,6 @@ function renderLineupTab(g){
     ${tools}
     ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}
     ${countsHtml}
-    ${editable ? '<p class="hint">Or tap a position to pick from a list.</p>' : ''}
     ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, planCountOf(g, counts),
       `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`) : ''}`;
 }
@@ -6977,6 +7120,17 @@ document.addEventListener('click', async (e) => {
       if (!isArmed(key)) return arm(key);
       disarm(key);
       const g = findGame(UI.gameId); if (g) await correctEvent(g, btn.dataset.event, { undone:true });
+    } else if (a === 'suggest-open'){
+      UI.suggest = { pid:btn.dataset.player, k:parseInt(btn.dataset.period, 10) }; render(); focusSheet();
+    } else if (a === 'suggest-close'){
+      UI.suggest = null; render();
+    } else if (a === 'suggest-apply'){
+      const g = findGame(UI.gameId);
+      if (g && UI.suggest){
+        const { pid, k } = UI.suggest;
+        const s = suggestionsFor(g, pid, k).list[parseInt(btn.dataset.index, 10)];
+        if (s){ UI.suggest = null; await runBusy(() => applySuggestion(g, k, s.lineups)); UI.period = k; toast(`${periodName(g, k)} updated.`); render(); }
+      }
     } else if (a === 'auto-open'){
       UI.auto = { mode:'top', keep:true, seed:Date.now() % 100000, alt:0 }; render(); focusSheet();
     } else if (a === 'auto-close'){
@@ -7176,6 +7330,7 @@ document.addEventListener('keydown', (e) => {
     const av = document.querySelector('[data-action="user-menu"]'); if (av) av.focus();
     return;
   }
+  if (e.key === 'Escape' && UI.suggest){ UI.suggest = null; render(); return; }
   if (e.key === 'Escape' && UI.auto){ UI.auto = null; render(); return; }
   if (e.key === 'Escape' && UI.playerMenu){ UI.playerMenu = null; render(); return; }
   if (e.key === 'Escape' && UI.playerSheet){ UI.playerSheet = null; render(); return; }
