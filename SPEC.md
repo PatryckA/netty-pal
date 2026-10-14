@@ -136,6 +136,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   with no preferences show coloured bibs). Before the game, Coach/Managers and Scorers also see
   "Avg mins after": season minutes per game available, counting this game. The same table is
   used in the Fill lineup preview.
+- (Added 2026-10-14) Tap a **name** in the Whole game table (and the Fill lineup preview) to show
+  that player's preferred positions under it; tap again to hide. Redraws keep an open panel
+  scrolled where it was, so "Try another" and the options don't jump back to the top.
+- (Added 2026-10-14) **Drag to swap** in the Whole game table (Coach/Managers, quarters that
+  haven't started): press and hold a spot (about a quarter of a second) until it lifts, then
+  drag it onto another spot in the same quarter. Two positions swap; a bench spot (–) dropped
+  on a position brings that player on (and the other off), and the other way round. A quick
+  swipe still scrolls and a quick tap still opens suggestions. Saves that quarter only.
 - (Added 2026-10-14) **Suggest a change**: Coach/Managers tap a player's spot in the table (any
   quarter that hasn't started) for suggestions: swap with someone on court that quarter, bring
   a bench player on, or bring them on from the bench. Each option is scored on the whole game
