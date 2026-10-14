@@ -402,6 +402,9 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .auto-opt .subtabs{margin:0;}
 .auto-table td{padding:0.35rem 0.2rem;}
 .auto-table td.bench{color:var(--ink-soft);}
+.auto-table th.cur,.auto-table td.cur{background:var(--accent-bg);}
+.auto-table th .sort-btn{min-height:36px;}
+.auto-table tr.no-time td{color:var(--warm);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
 .uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
 .uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
@@ -3135,6 +3138,45 @@ function makeAutoPlan(g, opts){
   return { plan:chosen.plan, ids, P, pm, tot, games, notes, uneven, count:candidates.length };
 }
 
+// The whole game at a glance: each player's position in every quarter
+// (– on the bench). Coloured bibs are preferred positions (or the player
+// hasn't chosen any); grey ones aren't. Used in the Fill lineup preview and
+// under the court on the Lineup tab.
+//   opts.lineupOf(p)  the lineup for quarter p
+//   opts.ids          players to list (in order)
+//   opts.avg          { tot, games, pm } to show season average minutes now → after
+//   opts.shift(id)    + / − quarters to tag (Fill lineup's uneven warning)
+//   opts.current      the quarter shown on the court (highlighted; headings switch quarter)
+function gameGridHtml(g, opts){
+  const qs = Array.from({ length:periodCount(g) }, (_, i) => i + 1);
+  const lineups = qs.map(p => opts.lineupOf(p) || {});
+  const cell = (id, i) => {
+    const pos = POSITIONS.find(x => lineups[i][x] === id);
+    const cur = opts.current === qs[i] ? 'cur' : '';
+    if (!pos) return `<td class="bench ${cur}">–</td>`;
+    const prefs = playerPrefs(CUR.players.find(x => x.id === id));
+    const pref = !prefs.length || prefs.includes(pos);
+    return `<td class="${cur}"><span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}" title="${pref ? POS_NAMES[pos] : POS_NAMES[pos] + ' (not a preferred position)'}">${pos}</span></td>`;
+  };
+  const rows = opts.ids.map(id => {
+    const q = lineups.filter(l => Object.values(l).includes(id)).length;
+    const d = opts.shift ? opts.shift(id) : 0;
+    let avg = '';
+    if (opts.avg){
+      const games = opts.avg.games[id] || 0, tot = opts.avg.tot[id] || 0;
+      avg = `<td class="avg">${games ? wholeMins(tot / games) : '·'} → ${wholeMins((tot + q * opts.avg.pm) / (games + 1))}</td>`;
+    }
+    return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}"><td>${escapeHtml(playerName(id))}${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}</td>
+      ${qs.map((_, i) => cell(id, i)).join('')}<td class="total">${q}</td>${avg}</tr>`;
+  }).join('');
+  const head = p => opts.current
+    ? `<button class="sort-btn" data-action="period" data-period="${p}" aria-pressed="${opts.current === p}">${escapeHtml(periodName(g, p))}</button>`
+    : escapeHtml(periodName(g, p));
+  return `<div class="fair-wrap"><table class="fair auto-table">
+      <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col" class="${opts.current === p ? 'cur' : ''}">${head(p)}</th>`).join('')}<th scope="col">${g.format === 'halves' ? 'Halves' : 'Qtrs'}</th>${opts.avg ? '<th scope="col">Season avg mins</th>' : ''}</tr></thead>
+      <tbody>${rows || `<tr><td colspan="${qs.length + 3}">No players are marked as playing.</td></tr>`}</tbody></table></div>`;
+}
+
 function autoSheetHtml(g){
   const o = UI.auto;
   const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(p => ownPlan(g, p) && isPeriodPlanned(g, p));
@@ -3143,22 +3185,8 @@ function autoSheetHtml(g){
   let body;
   if (r.error) body = `<p role="alert">${escapeHtml(r.error)}</p>`;
   else {
-    const qs = Array.from({ length:r.P }, (_, i) => i + 1);
-    const cell = (id, p) => {
-      const pos = POSITIONS.find(x => r.plan[p][x] === id);
-      if (!pos) return '<td class="bench">–</td>';
-      const pref = playerPrefs(CUR.players.find(x => x.id === id)).includes(pos);
-      return `<td><span class="pref-chip ${pref ? POS_ZONE[pos] : 'off'}" title="${pref ? 'Preferred' : 'Not a preferred position'}">${pos}</span></td>`;
-    };
     const u = r.uneven;
     const shiftOf = id => u ? ([...u.up, ...u.down].find(x => x.id === id) || { d:0 }).d : 0;
-    const rows = r.ids.map(id => {
-      const q = qs.filter(p => Object.values(r.plan[p]).includes(id)).length;
-      const games = r.games[id] || 0, tot = r.tot[id] || 0;
-      const before = games ? wholeMins(tot / games) : '·', after = wholeMins((tot + q * r.pm) / (games + 1));
-      const d = shiftOf(id);
-      return `<tr class="${d ? 'uneven-row' : ''}"><td>${escapeHtml(playerName(id))}${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}</td>${qs.map(p => cell(id, p)).join('')}<td class="avg">${before} → ${after}</td></tr>`;
-    }).join('');
     const nameList = list => list.map(x => `<b>${escapeHtml(playerName(x.id))}</b>`).join(', ').replace(/, ([^,]*)$/, ' and $1');
     const noun = periodNoun(g, true);
     const warn = u ? `<div class="uneven-warn" role="alert">
@@ -3166,10 +3194,8 @@ function autoSheetHtml(g){
           ${nameList(u.up)} ${u.up.length === 1 ? 'plays' : 'play'} extra ${noun}${u.down.length ? `, and ${nameList(u.down)} ${u.down.length === 1 ? 'plays' : 'play'} fewer` : ''} (marked + and − below).</p>
         <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
       </div>` : '';
-    body = `${warn}<div class="fair-wrap"><table class="fair auto-table">
-        <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col">${escapeHtml(periodName(g, p))}</th>`).join('')}<th scope="col">Season avg mins</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>
-      <p class="hint">Coloured bibs are preferred positions; grey ones aren't. "Season avg mins" is minutes per game available, now → after this game.</p>
+    body = `${warn}${gameGridHtml(g, { lineupOf:p => r.plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null })}
+      <p class="hint">Grey bibs aren't one of the player's preferred positions. "Season avg mins" is minutes per game available, now → after this game.</p>
       ${r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
   }
   return `<div class="sheet-backdrop" data-action="auto-close"></div>
@@ -3229,10 +3255,12 @@ function renderLineupTab(g){
   // Periods on court this game per playing player, to keep it even.
   const counts = gamePeriodCounts(g, avail);
 
-  const countsHtml = `<div class="panel"><h4>${escapeHtml(periodNoun(g, true))} on court this game</h4>
-    ${avail.length ? `<div class="chip-wrap">${avail.slice().sort((a, b) => counts[a] - counts[b]).map(id =>
-      `<span class="chip ${counts[id] ? '' : 'zero'}">${escapeHtml(playerName(id))} <b>${counts[id]}</b></span>`).join('')}</div>`
-      : '<span class="hint">No players are marked as playing.</span>'}</div>`;
+  // The whole game under the court: who plays where in every quarter.
+  // Before the game, Coach/Managers and Scorers also see season minutes.
+  const countsHtml = `<h3 class="subhead">Whole game</h3>
+    ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail, current:p,
+      avg:isStaff() && (g.status || 'scheduled') === 'scheduled' ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
+    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court. Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Season avg mins" is minutes per game available, now → after this game.' : ''}</p>`;
 
   // Note when this period has its own changes (the Reset button undoes them),
   // and offer to clear Q1.
