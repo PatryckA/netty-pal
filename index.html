@@ -410,6 +410,10 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .grid-prefs .pref-chip{width:1.5rem; height:1.5rem; font-size:0.62rem;}
 .grid-cell{background:none; border:none; padding:0; min-width:40px; min-height:40px; cursor:pointer; color:inherit; font:inherit; display:inline-flex; align-items:center; justify-content:center; border-radius:50%;}
 .grid-cell:hover,.grid-cell:focus-visible{background:var(--surface-2);}
+.grid-cell{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+.grid-cell.lifted{background:var(--accent-bg); box-shadow:0 0 0 2px var(--pop); transform:scale(1.12); transition:transform 0.1s;}
+.grid-cell.drop-ok{box-shadow:inset 0 0 0 1.5px var(--line);}
+.grid-cell.drop-hover{background:var(--pop); color:var(--pop-ink); box-shadow:none;}
 .sugg{border:1.5px solid var(--line); border-radius:var(--r); padding:0.7rem 0.85rem; margin-bottom:0.6rem; background:var(--surface);}
 .sugg.good{border-color:var(--ok);}
 .sugg-what{margin:0 0 0.3rem; font-size:0.95rem;}
@@ -3473,7 +3477,7 @@ function renderLineupTab(g){
     ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail, current:p,
       tap:k => canEditGames() && !periodStarted(g, k) && !isPractice(g),
       avg:isStaff() && (g.status || 'scheduled') === 'scheduled' ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
-    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court, or a name for their preferred positions.${canEditGames() && (g.status || 'scheduled') !== 'final' ? ' Tap a player\'s spot for a suggested change.' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
+    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court, or a name for their preferred positions.${canEditGames() && (g.status || 'scheduled') !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same quarter to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
     ${UI.suggest ? suggestSheetHtml(g) : ''}`;
 
   // Note when this period has its own changes (the Reset button undoes them),
@@ -7349,6 +7353,98 @@ document.addEventListener('pointerup', (e) => {
   else if (t.bench && d.from) assignSlot(d.from, '', mode).catch(fail);
 });
 document.addEventListener('pointercancel', () => { if (drag) endDrag(); });
+
+/* ---- Drag to swap in the Whole game table ----
+   Press and hold a player's spot (about a quarter of a second) until it
+   lifts, then drag it onto another spot in the same quarter to swap them.
+   A bench spot (–) can be dragged onto a position to bring that player on,
+   or a position onto a bench spot to take that player off. A quick swipe
+   still scrolls the page, and a quick tap still opens the suggestions. */
+let gdrag = null;
+function gridDropTarget(x, y){
+  const el = document.elementFromPoint(x, y);
+  const cell = el && el.closest('.grid-cell[data-period]');
+  return cell && gdrag && cell.dataset.period === gdrag.k && cell !== gdrag.el ? cell : null;
+}
+function endGridDrag(){
+  if (!gdrag) return;
+  clearTimeout(gdrag.timer);
+  if (gdrag.ghost) gdrag.ghost.remove();
+  if (gdrag.el) gdrag.el.classList.remove('lifted');
+  document.querySelectorAll('.grid-cell.drop-hover, .grid-cell.drop-ok').forEach(c => c.classList.remove('drop-hover', 'drop-ok'));
+  document.body.classList.remove('dragging');
+  gdrag = null;
+}
+function liftGridCell(){
+  if (!gdrag) return;
+  gdrag.picked = true;
+  gdrag.el.classList.add('lifted');
+  document.querySelectorAll(`.grid-cell[data-period="${gdrag.k}"]`).forEach(c => { if (c !== gdrag.el) c.classList.add('drop-ok'); });
+  if (navigator.vibrate) try { navigator.vibrate(20); } catch(err){}
+}
+document.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  const cell = e.target.closest('.grid-cell[data-period]');
+  if (!cell) return;
+  gdrag = { id:e.pointerId, x:e.clientX, y:e.clientY, el:cell, pid:cell.dataset.player, k:cell.dataset.period,
+    mouse:e.pointerType === 'mouse', picked:false, moved:false, ghost:null, timer:null };
+  if (!gdrag.mouse) gdrag.timer = setTimeout(liftGridCell, 250);
+});
+document.addEventListener('pointermove', (e) => {
+  if (!gdrag || e.pointerId !== gdrag.id) return;
+  const far = Math.hypot(e.clientX - gdrag.x, e.clientY - gdrag.y) > 8;
+  if (!gdrag.picked){
+    if (!far) return;
+    // A finger that moves before the spot lifts is scrolling the page.
+    if (!gdrag.mouse){ endGridDrag(); return; }
+    liftGridCell();
+  }
+  if (far) gdrag.moved = true;
+  if (!gdrag.moved) return;
+  e.preventDefault();
+  if (!gdrag.ghost){
+    gdrag.ghost = document.createElement('div');
+    gdrag.ghost.className = 'drag-ghost';
+    gdrag.ghost.textContent = playerName(gdrag.pid);
+    document.body.appendChild(gdrag.ghost);
+    document.body.classList.add('dragging');
+  }
+  gdrag.ghost.style.left = e.clientX + 'px';
+  gdrag.ghost.style.top = e.clientY + 'px';
+  document.querySelectorAll('.grid-cell.drop-hover').forEach(c => c.classList.remove('drop-hover'));
+  const t = gridDropTarget(e.clientX, e.clientY);
+  if (t) t.classList.add('drop-hover');
+}, { passive:false });
+// Once a spot has lifted, the finger drags it instead of scrolling the page.
+document.addEventListener('touchmove', (e) => { if (gdrag && gdrag.picked) e.preventDefault(); }, { passive:false });
+document.addEventListener('pointerup', (e) => {
+  if (!gdrag || e.pointerId !== gdrag.id) return;
+  const d = gdrag;
+  const t = d.picked && d.moved ? gridDropTarget(e.clientX, e.clientY) : null;
+  endGridDrag();
+  if (!d.moved) return; // a tap (or a hold without moving) opens the suggestions as usual
+  swallowNextClick();
+  if (t) swapInQuarter(parseInt(d.k, 10), d.pid, t.dataset.player).catch(fail);
+});
+document.addEventListener('pointercancel', () => endGridDrag());
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('.grid-cell')) e.preventDefault(); });
+// Swap two players' spots in one quarter (either can be on the bench).
+async function swapInQuarter(k, a, b){
+  const g = findGame(UI.gameId);
+  if (!g || !canEditGames() || periodStarted(g, k) || a === b) return;
+  const lineups = Array.from({ length:periodCount(g) }, (_, i) => ({ ...lineupFor(g, i + 1) }));
+  const L = lineups[k - 1];
+  const pa = POSITIONS.find(pos => L[pos] === a), pb = POSITIONS.find(pos => L[pos] === b);
+  if (!pa && !pb) return;
+  // Each takes the other's spot; whoever was on the bench comes on.
+  if (pa) L[pa] = b;
+  if (pb) L[pb] = a;
+  await applySuggestion(g, k, lineups);
+  UI.period = k;
+  const name = id => playerName(id);
+  toast(pa && pb ? `${periodName(g, k)}: ${name(a)} and ${name(b)} swapped.`
+    : `${periodName(g, k)}: ${name(pa ? b : a)} on at ${pa || pb}, ${name(pa ? a : b)} to the bench.`);
+}
 
 // Long press (about half a second) on a game in the list asks to archive,
 // restore or delete it; on a team on the home screen, to archive or
