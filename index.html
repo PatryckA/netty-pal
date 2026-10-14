@@ -1405,7 +1405,12 @@ function gameSummary(g, events){
   const st = computeGame(g, events);
   const courtTime = {};
   Object.entries(st.players).forEach(([id, r]) => { if (r.ms) courtTime[id] = r.pos; });
-  return { us:st.us, them:st.them, courtTime };
+  // Each player's preferred positions as they were for this game, kept from
+  // the first save, so changing preferences later doesn't rewrite the past
+  // (used to share out playing out of position over the season).
+  const prefs = { ...((g.summary && g.summary.prefs) || {}) };
+  Object.keys(courtTime).forEach(id => { if (!prefs[id]) prefs[id] = playerPrefs(CUR.players.find(x => x.id === id)); });
+  return { us:st.us, them:st.them, courtTime, prefs };
 }
 
 /* ---------------------------------------------------------------------
@@ -2950,14 +2955,27 @@ function seededRandom(seed){
 }
 // Season court time so far, from the summaries saved with finished games:
 // total ms on court and the number of games each player was available for.
+// Also time out of preferred positions ("off"), judged by the preferences
+// saved with each game (games from before that was saved use today's).
 function seasonCourtTotals(skipId){
-  const tot = {}, games = {};
+  const tot = {}, games = {}, off = {};
   CUR.games.filter(x => x.id !== skipId && !x.archived && !x.bye && isGameOver(x) && x.summary && x.summary.courtTime).forEach(x => {
-    const ct = x.summary.courtTime;
+    const ct = x.summary.courtTime, saved = x.summary.prefs || {};
     new Set([...availableIds(x), ...Object.keys(ct)]).forEach(id => { games[id] = (games[id] || 0) + 1; });
-    Object.entries(ct).forEach(([id, pos]) => { tot[id] = (tot[id] || 0) + Object.values(pos || {}).reduce((a, b) => a + (b || 0), 0); });
+    Object.entries(ct).forEach(([id, pos]) => {
+      tot[id] = (tot[id] || 0) + Object.values(pos || {}).reduce((a, b) => a + (b || 0), 0);
+      const prefs = Array.isArray(saved[id]) ? saved[id] : playerPrefs(CUR.players.find(p => p.id === id));
+      if (prefs.length) Object.entries(pos || {}).forEach(([k, ms]) => { if (!prefs.includes(k)) off[id] = (off[id] || 0) + (ms || 0); });
+    });
   });
-  return { tot, games };
+  return { tot, games, off };
+}
+// Cost of putting a player (who has preferences) somewhere they don't
+// prefer: more for whoever has done it most this season (per game
+// available), so it's shared out evenly.
+function offPrefCost(id, totals, pm){
+  const games = totals.games[id] || 0;
+  return games ? 25 * ((totals.off[id] || 0) / games) / pm : 0;
 }
 let autoCache = null;
 function autoPlan(g, opts){
@@ -2989,7 +3007,8 @@ function makeAutoPlan(g, opts){
   }
 
   // 1. Quarters each.
-  const { tot, games } = seasonCourtTotals(g.id);
+  const totals = seasonCourtTotals(g.id);
+  const { tot, games } = totals;
   const avgAfter = (id, q) => ((tot[id] || 0) + q * pm) / ((games[id] || 0) + 1);
   const base = Math.min(P, Math.floor(K * P / N));
   const q = {};
@@ -3071,7 +3090,7 @@ function makeAutoPlan(g, opts){
     if (SHOOTERS_POS.includes(pos) && !canShoot(id)) return null;
     const prefs = playerPrefs(CUR.players.find(x => x.id === id));
     const r = prefs.indexOf(pos);
-    if (r < 0) return prefs.length ? 0 : 20;
+    if (r < 0) return prefs.length ? -offPrefCost(id, totals, pm) : 20;
     // Variety: a smaller pull than the cost of a 2nd position change, so
     // players rotate once (e.g. GA, GA, WA, WA) rather than every quarter.
     if (opts.mode === 'variety') return [100, 90, 80][r] - 30 * (playedHere || 0);
@@ -3217,7 +3236,7 @@ function lineupScore(g, lineups, ctx){
       if (SHOOTERS_POS.includes(pos) && !ctx.canShoot(id)){ badShoot++; return; }
       const prefs = playerPrefs(CUR.players.find(x => x.id === id));
       const r = prefs.indexOf(pos);
-      pref += r < 0 ? (prefs.length ? 0 : 20) : [100, 70, 40][r];
+      pref += r < 0 ? (prefs.length ? -offPrefCost(id, ctx, ctx.pm) : 20) : [100, 70, 40][r];
     });
   });
   const q = {}, avg = {}, changes = {};
@@ -3239,9 +3258,9 @@ function lineupScore(g, lineups, ctx){
 }
 function suggestionsFor(g, pid, k){
   const P = periodCount(g), ids = byName(availableIds(g)), K = Math.min(7, ids.length);
-  const { tot, games } = seasonCourtTotals(g.id);
+  const { tot, games, off } = seasonCourtTotals(g.id);
   const canShoot = id => playerPrefs(CUR.players.find(x => x.id === id)).some(pos => SHOOTERS_POS.includes(pos));
-  const ctx = { ids, pm:periodMs(g), tot, games, canShoot, open:POSITIONS.filter(pos => !EMPTY_FIRST.slice(0, 7 - K).includes(pos)) };
+  const ctx = { ids, pm:periodMs(g), tot, games, off, canShoot, open:POSITIONS.filter(pos => !EMPTY_FIRST.slice(0, 7 - K).includes(pos)) };
   const base = Array.from({ length:P }, (_, i) => ({ ...lineupFor(g, i + 1) }));
   const now = lineupScore(g, base, ctx);
   const L = base[k - 1];
@@ -3279,6 +3298,15 @@ function describeSuggestion(g, k, s, now, base){
     return `${nm} moves ${a} → ${b}`;
   });
   const why = [];
+  // Who fills in out of position: share it with whoever has done it less.
+  const ctxNow = seasonCourtTotals(g.id), pmNow = periodMs(g);
+  const outOf = (l, id) => { const pos = where(l, id), pr = playerPrefs(CUR.players.find(x => x.id === id)); return !!(pos && pr.length && !pr.includes(pos)); };
+  const inNow = moved.filter(id => outOf(after, id) && !outOf(before, id));
+  const outNow = moved.filter(id => outOf(before, id) && !outOf(after, id));
+  if (inNow.length && outNow.length){
+    const less = inNow.filter(a => outNow.some(b => offPrefCost(a, ctxNow, pmNow) < offPrefCost(b, ctxNow, pmNow)));
+    if (less.length) why.push(`Shares out playing out of position (${less.map(id => escapeHtml(playerName(id))).join(', ')} has done it less this season)`);
+  }
   moved.forEach(id => {
     const b = where(after, id);
     const prefs = playerPrefs(CUR.players.find(x => x.id === id));

@@ -158,6 +158,13 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   time uneven, the preview shows a warning box naming who plays extra and who plays fewer
   (rows marked + and −), with how to fix it by hand.
 - **Short of players**: WD is left empty first, then WA, then GA.
+- (Added 2026-10-14) **Sharing out playing out of position**: when someone has to play a
+  position they didn't choose, Fill lineup and suggestions pick whoever has done it least this
+  season (minutes out of preferred positions per game available). Each game's saved summary
+  keeps a snapshot of players' preferences from its first save (`summary.prefs`), so changing
+  preferences later doesn't rewrite past games; games saved before this use today's
+  preferences. Players with no preferences never count as out of position. The figure isn't
+  shown anywhere; a suggestion may say who "has done it less this season".
 - (Added 2026-10-14) **Few position changes**: a position change is playing a different
   position from the last quarter a player was on court (bench quarters don't count). The first
   change in a game is free; each extra one costs points (about half a preference step), so
