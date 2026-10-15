@@ -419,6 +419,7 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .sugg-what{margin:0 0 0.3rem; font-size:0.95rem;}
 .sugg-why{margin:0 0 0.6rem; padding-left:1.1rem; font-size:0.875rem; color:var(--ink-soft);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
+.plan-note{margin:0.5rem 0 0.4rem; font-size:0.85rem; font-style:italic; color:var(--ink-soft); text-align:center;}
 .edited-note{margin:0 0 0.6rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--accent-bg); font-size:0.875rem;}
 .uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
 .uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
@@ -2616,7 +2617,7 @@ function managerGuideHtml(){
           `<button class="btn small" data-action="share-code">${navigator.share ? 'Send the team link' : 'Copy the team link'}</button>`)}
         <h4 class="mg-head">Before each game</h4>
         ${step(1, false, "Confirm who's playing", "Open the game and go to its Players tab. Untick anyone who can't come.", '', nextBtn('avail'))}
-        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap or drag a bib or name to put players in positions, for each ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}. "Time on court" on the Game stats tab shows who has played where, to help keep it fair.`, '', nextBtn('lineup'))}
+        ${step(2, false, 'Set the lineup', `On the Lineup tab, tap <b>Fill lineup for me</b> to plan every ${CUR.season && CUR.season.format === 'halves' ? 'half' : 'quarter'}, then tap or drag any spot to change it. "Time on court" on the Game stats tab shows who has played where, to help keep it fair.`, '', nextBtn('lineup'))}
         ${step(3, false, 'Assign a scorer', `Ask a parent to keep score on their phone. They need the Scorer role: in Support Crew, tap Scorer next to their name, or send them a Scorer invite link from there. On game day they open the game and tap Start when the umpire starts play. You can score too. Only one person can score at a time, but scoring can be passed from one Scorer to another in the Support Crew tab (or with Hand over scoring at a break). ${s.scorers ? plural(s.scorers, 'person has', 'people have') + ' the Scorer role.' : 'Nobody has the Scorer role yet.'}`, '',
           '<button class="btn ghost small" data-action="mg-tab" data-tab="people">Go to Support Crew</button>')}
         <p class="hint">On game day, Netty Pal reminds you on the Games tab if the lineup isn't finished. New to scoring? Try a practice game: nothing is saved.</p>
@@ -3197,7 +3198,7 @@ function makeAutoPlan(g, opts){
 // The whole game at a glance: each player's position in every quarter
 // (– on the bench). Coloured bibs are preferred positions (or the player
 // hasn't chosen any); grey ones aren't. Used in the Fill lineup preview and
-// under the court on the Lineup tab.
+// on the Lineup tab.
 //   opts.lineupOf(p)  the lineup for quarter p
 //   opts.ids          players to list (in order)
 //   opts.avg          { tot, games, pm } to show season average minutes after this game
@@ -3417,6 +3418,7 @@ function autoSheetHtml(g){
       </div>` : '';
     body = `${warn}${o.plan ? '<p class="edited-note">You\'ve changed this lineup by hand. <b>Try another</b> or changing an option starts again.</p>' : ''}
       ${gameGridHtml(g, { lineupOf:p => plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null, drag:true })}
+      ${planNoteHtml(g)}
       <p class="hint">Press and hold a spot, then drag it onto another spot in the same ${escapeHtml(periodNoun(g))} to swap (bench spots too). Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
       ${!o.plan && r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
   }
@@ -3450,77 +3452,30 @@ async function useAutoPlan(g){
   toast('Lineup filled. You can still change anyone.');
 }
 
+// The Lineup tab: the Whole game table (who plays where in every quarter),
+// with Fill lineup for me, tap for a suggested change, and press and hold
+// to drag and swap. The court diagram stays on the Game tab.
 function renderLineupTab(g){
-  const n = periodCount(g);
-  if (UI.period > n) UI.period = 1;
-  const p = UI.period;
-  const plan = lineupFor(g, p);
   const avail = byName(availableIds(g));
-  // A period that has started is changed with substitutions on the Game tab,
-  // so here it's read-only.
-  const started = periodStarted(g, p);
-  const editable = canEditGames() && !started;
-
-  const picker = `<div class="period-picker" role="tablist" aria-label="${escapeHtml(periodNoun(g, true))}">
-    ${Array.from({ length:n }, (_, i) => i + 1).map(k => `
-      <button class="period-btn ${k === p ? 'active' : ''}" data-action="period" data-period="${k}" role="tab" aria-selected="${k === p}"
-        aria-label="${escapeHtml(periodName(g, k))}, ${!isPeriodPlanned(g, k) ? 'not planned'
-          : followsPeriod(g, k) ? 'same as ' + escapeHtml(periodName(g, followsPeriod(g, k))) : 'planned'}">
-        <span class="pdot ${!isPeriodPlanned(g, k) ? 'none' : followsPeriod(g, k) ? 'follow' : ''}" aria-hidden="true"></span>${escapeHtml(periodName(g, k))}
-      </button>`).join('')}
-  </div>`;
-
-  // Where each player sits this period.
-  const posOf = {};
-  POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
-
-  // Periods on court this game per playing player, to keep it even.
-  const counts = gamePeriodCounts(g, avail);
-
-  // The whole game under the court: who plays where in every quarter.
-  // Before the game, Coach/Managers and Scorers also see season minutes.
-  const countsHtml = `<h3 class="subhead">Whole game</h3>
-    ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail, current:p,
-      tap:k => canEditGames() && !periodStarted(g, k) && !isPractice(g),
-      avg:isStaff() && (g.status || 'scheduled') === 'scheduled' ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
-    <p class="hint">Tap a ${escapeHtml(periodNoun(g))} heading to show it on the court, or a name for their preferred positions.${canEditGames() && (g.status || 'scheduled') !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same quarter to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && (g.status || 'scheduled') === 'scheduled' ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
-    ${UI.suggest ? suggestSheetHtml(g) : ''}`;
-
-  // Note when this period has its own changes (the Reset button undoes them),
-  // and offer to clear Q1.
-  const prevName = p > 1 ? escapeHtml(periodName(g, p - 1)) : '';
-  const now = started && g.status === 'live' && g.live.period === p && g.live.phase !== 'ended';
-  const followNote = started
-    ? `<p class="follow-note own">${now
-        ? `${escapeHtml(periodName(g, p))} is under way. This is who's on court now.${canScore() ? ' To make a change, use Sub Player(s) on the Game tab.' : ''}`
-        : `${escapeHtml(periodName(g, p))} is over. This is who finished it.`}</p>`
-    : p > 1 && ownPlan(g, p) && isPeriodPlanned(g, p)
-    ? `<p class="follow-note own">${escapeHtml(periodName(g, p))} has its own changes.</p>` : '';
-  const dragTip = editable
-    ? '<p class="court-tip">Drag names around the court to change positions, or drag someone from the bench onto a position.</p>' : '';
-  let tools = '';
-  if (editable){
-    if (p === 1 && ownPlan(g, 1) && isPeriodPlanned(g, 1)){
-      tools = `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
-        ${isArmed('clear-period') ? 'Confirm clear ' + escapeHtml(periodName(g, 1)) : 'Clear ' + escapeHtml(periodName(g, 1))}</button>`;
-    } else if (p > 1 && ownPlan(g, p)){
-      tools = `<button class="btn ghost small ${isArmed('clear-period') ? 'armed' : ''}" data-action="clear-period">
-        ${isArmed('clear-period') ? 'Confirm reset to match ' + prevName : 'Reset to match ' + prevName}</button>`;
-    }
-    tools = tools ? `<div class="lineup-tools">${tools}</div>` : '';
-  }
-
-  const autoBtn = canEditGames() && (g.status || 'scheduled') === 'scheduled' && !isPractice(g)
-    ? '<div class="lineup-tools" style="margin:0 0 0.6rem"><button class="btn small" data-action="auto-open">Fill lineup for me</button></div>' : '';
-  return `${autoBtn}${picker}
-    ${followNote}
-    ${dragTip}
-    ${courtHtml(plan, editable, g, p, avail)}
-    ${tools}
-    ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}
-    ${countsHtml}
-    ${editable && UI.pickPos ? pickerSheetHtml(g, p, plan, avail, posOf, planCountOf(g, counts),
-      `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`) : ''}`;
+  const scheduled = (g.status || 'scheduled') === 'scheduled';
+  const editable = canEditGames() && !isPractice(g);
+  const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(k => ownPlan(g, k) && isPeriodPlanned(g, k));
+  const autoBtn = editable && scheduled
+    ? '<button class="btn small" data-action="auto-open">Fill lineup for me</button>' : '';
+  const clearBtn = editable && scheduled && hasPlan
+    ? `<button class="btn ghost small ${isArmed('clear-lineup') ? 'armed' : ''}" data-action="clear-lineup">${isArmed('clear-lineup') ? 'Confirm clear the whole lineup' : 'Clear lineup'}</button>` : '';
+  const live = g.status === 'live' && canScore()
+    ? `<p class="follow-note own">${escapeHtml(periodNoun(g, true).replace(/^./, c => c.toUpperCase()))} that have started can't be changed here. To change who's on court now, use Sub Player(s) on the Game tab.</p>` : '';
+  return `${autoBtn || clearBtn ? `<div class="lineup-tools" style="margin:0 0 0.6rem">${autoBtn}${clearBtn}</div>` : ''}
+    ${live}
+    <h3 class="subhead">Whole game</h3>
+    ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail,
+      tap:k => editable && !periodStarted(g, k),
+      avg:isStaff() && scheduled ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
+    ${!isGameOver(g) && !periodStarted(g, periodCount(g)) ? planNoteHtml(g) : ''}
+    <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && scheduled ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
+    ${UI.suggest ? suggestSheetHtml(g) : ''}
+    ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}`;
 }
 
 function planCountOf(g, counts){
@@ -3758,6 +3713,14 @@ function seasonTimeHtml(g, detailed){
 /* ---- Live tab ---- */
 // How to change the lineup before a game or between periods (practice games too).
 const LINEUP_TIP = 'Tap or drag a bib or name to change the lineup.';
+// Shown under every planned lineup, so nobody treats it as a promise.
+// Coach/Managers (who make the plan) are told what parents and players see.
+function planNoteHtml(g){
+  if (g && isPractice(g)) return '';
+  return isManager()
+    ? '<p class="plan-note">Parents and players see a note that this is a plan by a volunteer and lineups often change on game day.</p>'
+    : '<p class="plan-note">Planned by a volunteer doing their best to balance lots of expectations. Lineups often change on game day.</p>';
+}
 function renderLiveTab(g){
   if (CUR.eventsError) return `<div class="panel" role="alert"><p style="margin:0">${
     String(CUR.eventsError.code).includes('permission-denied') && isOwner()
@@ -3798,10 +3761,10 @@ function renderLiveTab(g){
       </div>` : '';
     body = canScore() ? `<h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
       <p class="court-tip">${LINEUP_TIP}</p>
-      ${courtHtml(plan, true, g, 1, avail)}`
+      ${courtHtml(plan, true, g, 1, avail)}${planNoteHtml(g)}`
       : `<div class="placeholder-card">This game hasn't started yet.</div>
       ${askToScoreHtml()}
-      <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>${courtHtml(plan, false, g, 1)}`;
+      <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>${courtHtml(plan, false, g, 1)}${planNoteHtml(g)}`;
     if (canScore() && UI.pickPos){
       const posOf = {}; POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
       body += pickerSheetHtml(g, 1, plan, avail, posOf, planCountOf(g, gamePeriodCounts(g, avail)),
@@ -3837,7 +3800,7 @@ function renderLiveTab(g){
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
       ${breakToolsHtml(g)}
       <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' ' + LINEUP_TIP : ''}</p>
-      ${courtHtml(plan, canScore(), g, next, avail)}`;
+      ${courtHtml(plan, canScore(), g, next, avail)}${planNoteHtml(g)}`;
     if (scoring) body += undoBarHtml(g);
     if (canScore() && UI.pickPos){
       UI.pickMode = 'plan';
@@ -7223,6 +7186,11 @@ document.addEventListener('click', async (e) => {
       if (UI.auto){ UI.auto.alt++; UI.auto.plan = null; render(); }
     } else if (a === 'auto-use'){
       const g = findGame(UI.gameId); if (g && UI.auto) await runBusy(() => useAutoPlan(g));
+    } else if (a === 'clear-lineup'){
+      if (!isArmed('clear-lineup')) return arm('clear-lineup');
+      disarm('clear-lineup');
+      const g = findGame(UI.gameId);
+      if (g && (g.status || 'scheduled') === 'scheduled'){ await updateDoc(gameRef(g.id), { plan:{} }); toast('Lineup cleared.'); }
     } else if (a === 'clear-period'){
       if (!isArmed('clear-period')) return arm('clear-period');
       disarm('clear-period'); await clearPeriod();
