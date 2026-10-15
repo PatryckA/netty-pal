@@ -128,6 +128,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   upcoming games' Who's playing and lineups. The "Remove from team" button in each row is gone.
 - No rule changes (Coach/Managers can already write players).
 
+### Lineup tab without the court (changed 2026-10-15)
+- The Lineup tab no longer shows the quarter-by-quarter court (or its quarter picker, bench,
+  Clear Q1 / Reset to match buttons and position picker). It's now **Fill lineup for me**,
+  **Clear lineup** (two taps, before the game) and the **Whole game** table, where spots are
+  tapped for suggestions or held and dragged to swap. The court stays on the Game tab (lineup
+  before the game, and during play). During a game, quarters that have started are read-only
+  here, with a note to use Sub Player(s) on the Game tab.
+
 ### Whole game table on the Lineup tab (added 2026-10-14)
 - Under the court, a **Whole game** table lists every player playing with their position in
   each quarter (– on the bench) and their total quarters; it replaces the "Quarters on court
