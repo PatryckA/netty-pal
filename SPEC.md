@@ -136,6 +136,11 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   before the game, and during play). During a game, quarters that have started are read-only
   here, with a note to use Sub Player(s) on the Game tab.
 
+- (Added 2026-10-15) Every planned lineup has a small note underneath: "This is a plan only.
+  Lineups often change in the moment." It shows under the Whole game table (while any quarter
+  is still to come), the Fill lineup preview, and the Game tab's court before the game and at
+  breaks (everyone sees it, parents included). Not in practice games or finished games.
+
 ### Whole game table on the Lineup tab (added 2026-10-14)
 - Under the court, a **Whole game** table lists every player playing with their position in
   each quarter (– on the bench) and their total quarters; it replaces the "Quarters on court

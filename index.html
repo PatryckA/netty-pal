@@ -419,6 +419,7 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .sugg-what{margin:0 0 0.3rem; font-size:0.95rem;}
 .sugg-why{margin:0 0 0.6rem; padding-left:1.1rem; font-size:0.875rem; color:var(--ink-soft);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
+.plan-note{margin:0.5rem 0 0.4rem; font-size:0.85rem; font-style:italic; color:var(--ink-soft); text-align:center;}
 .edited-note{margin:0 0 0.6rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--accent-bg); font-size:0.875rem;}
 .uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
 .uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
@@ -3417,6 +3418,7 @@ function autoSheetHtml(g){
       </div>` : '';
     body = `${warn}${o.plan ? '<p class="edited-note">You\'ve changed this lineup by hand. <b>Try another</b> or changing an option starts again.</p>' : ''}
       ${gameGridHtml(g, { lineupOf:p => plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null, drag:true })}
+      ${planNoteHtml(g)}
       <p class="hint">Press and hold a spot, then drag it onto another spot in the same ${escapeHtml(periodNoun(g))} to swap (bench spots too). Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
       ${!o.plan && r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
   }
@@ -3470,6 +3472,7 @@ function renderLineupTab(g){
     ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail,
       tap:k => editable && !periodStarted(g, k),
       avg:isStaff() && scheduled ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
+    ${!isGameOver(g) && !periodStarted(g, periodCount(g)) ? planNoteHtml(g) : ''}
     <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && scheduled ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
     ${UI.suggest ? suggestSheetHtml(g) : ''}
     ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}`;
@@ -3710,6 +3713,8 @@ function seasonTimeHtml(g, detailed){
 /* ---- Live tab ---- */
 // How to change the lineup before a game or between periods (practice games too).
 const LINEUP_TIP = 'Tap or drag a bib or name to change the lineup.';
+// Shown under every planned lineup, so nobody treats it as a promise.
+function planNoteHtml(g){ return g && isPractice(g) ? '' : '<p class="plan-note">This is a plan only. Lineups often change in the moment.</p>'; }
 function renderLiveTab(g){
   if (CUR.eventsError) return `<div class="panel" role="alert"><p style="margin:0">${
     String(CUR.eventsError.code).includes('permission-denied') && isOwner()
@@ -3750,10 +3755,10 @@ function renderLiveTab(g){
       </div>` : '';
     body = canScore() ? `<h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>
       <p class="court-tip">${LINEUP_TIP}</p>
-      ${courtHtml(plan, true, g, 1, avail)}`
+      ${courtHtml(plan, true, g, 1, avail)}${planNoteHtml(g)}`
       : `<div class="placeholder-card">This game hasn't started yet.</div>
       ${askToScoreHtml()}
-      <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>${courtHtml(plan, false, g, 1)}`;
+      <h3 class="subhead">${escapeHtml(periodName(g, 1))} lineup</h3>${courtHtml(plan, false, g, 1)}${planNoteHtml(g)}`;
     if (canScore() && UI.pickPos){
       const posOf = {}; POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
       body += pickerSheetHtml(g, 1, plan, avail, posOf, planCountOf(g, gamePeriodCounts(g, avail)),
@@ -3789,7 +3794,7 @@ function renderLiveTab(g){
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
       ${breakToolsHtml(g)}
       <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' ' + LINEUP_TIP : ''}</p>
-      ${courtHtml(plan, canScore(), g, next, avail)}`;
+      ${courtHtml(plan, canScore(), g, next, avail)}${planNoteHtml(g)}`;
     if (scoring) body += undoBarHtml(g);
     if (canScore() && UI.pickPos){
       UI.pickMode = 'plan';
