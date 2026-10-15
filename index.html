@@ -3714,7 +3714,13 @@ function seasonTimeHtml(g, detailed){
 // How to change the lineup before a game or between periods (practice games too).
 const LINEUP_TIP = 'Tap or drag a bib or name to change the lineup.';
 // Shown under every planned lineup, so nobody treats it as a promise.
-function planNoteHtml(g){ return g && isPractice(g) ? '' : '<p class="plan-note"><b>Remember:</b> this is a plan by a volunteer who is trying their best. Lineups are never perfect and often change as circumstances change.</p>'; }
+// Coach/Managers (who make the plan) are told what parents and players see.
+function planNoteHtml(g){
+  if (g && isPractice(g)) return '';
+  return isManager()
+    ? '<p class="plan-note">Parents and players see a note that this is a plan by a volunteer and lineups often change on game day.</p>'
+    : '<p class="plan-note">Planned by a volunteer doing their best to balance lots of expectations. Lineups often change on game day.</p>';
+}
 function renderLiveTab(g){
   if (CUR.eventsError) return `<div class="panel" role="alert"><p style="margin:0">${
     String(CUR.eventsError.code).includes('permission-denied') && isOwner()
