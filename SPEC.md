@@ -136,8 +136,9 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   before the game, and during play). During a game, quarters that have started are read-only
   here, with a note to use Sub Player(s) on the Game tab.
 
-- (Added 2026-10-15) Every planned lineup has a small note underneath: "This is a plan only.
-  Lineups often change in the moment." It shows under the Whole game table (while any quarter
+- (Added 2026-10-15) Every planned lineup has a small note underneath: "Remember: this is a
+  plan by a volunteer who is trying their best. Lineups are never perfect and often change as
+  circumstances change." It shows under the Whole game table (while any quarter
   is still to come), the Fill lineup preview, and the Game tab's court before the game and at
   breaks (everyone sees it, parents included). Not in practice games or finished games.
 
