@@ -405,6 +405,13 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .auto-table th.cur,.auto-table td.cur{background:var(--accent-bg);}
 .auto-table th .sort-btn{min-height:36px;}
 .auto-table tr.no-time td{color:var(--warm);}
+.adj-tag{display:inline-block; padding:0 0.35rem; border-radius:var(--r-pill); background:var(--warm-bg); color:var(--warm); font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; vertical-align:middle;}
+.adj-warn{margin:0 0 0.6rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--warm-bg); color:var(--ink); font-size:0.875rem;}
+.adj-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(5.5rem, 1fr)); gap:0.5rem; margin-bottom:0.6rem;}
+.adj-cell{display:flex; align-items:center; gap:0.4rem;}
+.adj-cell .pos-chip{width:2.2rem; height:2.2rem; font-size:0.85rem;}
+.adj-cell .text-input{width:100%; min-width:0; text-align:center;}
+.adj-total{margin:0 0 0.6rem; font-size:0.95rem;}
 .grid-name{background:none; border:none; padding:0.2rem 0; min-height:36px; font:inherit; font-weight:600; color:inherit; text-align:left; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px;}
 .grid-prefs{display:block; margin:0.15rem 0 0.2rem;}
 .grid-prefs .pref-chip{width:1.5rem; height:1.5rem; font-size:0.62rem;}
@@ -1405,6 +1412,13 @@ function computeGame(g, events){
     if (lineups.length) res.byPeriod[p] = { us, them };
     if (p === L.period){ res.centre = centre; res.lineup = lineups.length ? lineups[lineups.length - 1].lineup || {} : null; }
   }
+  // Court time a Coach/Manager set by hand after the game (minutes per
+  // position, kept as ms in courtAdjust) replaces what was recorded.
+  Object.entries(g.courtAdjust || {}).forEach(([id, pos]) => {
+    const r = P(id);
+    r.pos = {}; r.ms = 0; r.adjusted = true;
+    Object.entries(pos || {}).forEach(([k, ms]) => { if (POSITIONS.includes(k) && ms > 0){ r.pos[k] = ms; r.ms += ms; } });
+  });
   return res;
 }
 
@@ -4301,7 +4315,7 @@ function wholeMins(ms){ return String(Math.round((ms || 0) / 60000)); }
 function courtTimeTable(rows, fmt, playingIds){
   const max = Math.max(1, ...rows.flatMap(r => POSITIONS.map(pos => r.pos[pos] || 0)));
   const body = rows.map(r => `<tr class="${playingIds && playingIds.has(r.id) && !r.ms ? 'no-time' : ''} ${followRow(r.id)}">
-      <td>${pnameHtml(r.id)}</td>
+      <td>${pnameHtml(r.id)}${r.adjusted ? ' <span class="adj-tag" title="Adjusted by a Coach/Manager">adjusted</span>' : ''}</td>
       ${POSITIONS.map(pos => {
         const v = r.pos[pos] || 0;
         const shade = v ? `style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + 30 * v / max)}%, transparent)"` : '';
@@ -4332,6 +4346,83 @@ function progressLineHtml(g){
 // switch (Season only before the game, Game only in practice), and for
 // Coach/Managers and Scorers a Simple / Detailed switch: Detailed splits the
 // time by position. st is this game's figures, or null before it starts.
+/* ---- Adjust court time ----
+   After a game, a Coach/Manager can set a player's minutes in each
+   position by hand (for a sub recorded late, or not at all). Saved on the
+   game as courtAdjust { playerId: { GS: ms, ... } }; computeGame uses it in
+   place of the recorded time, so game stats, season stats, the player page
+   and Fill lineup all follow. Reset to recorded removes it. */
+function gameLengthMs(g){ return periodCount(g) * periodMs(g); }
+function courtAdjustSheetHtml(g, st){
+  const pid = UI.courtAdj.pid;
+  const ids = byName(Array.from(new Set([...availableIds(g), ...Object.keys(st.players).filter(id => st.players[id].ms)])));
+  const total = gameLengthMs(g);
+  let body;
+  if (!pid){
+    // Positions with more minutes than the game had (two players can't both
+    // be GS for the whole game), so the coach can spot a slip.
+    const byPos = {};
+    Object.values(st.players).forEach(r => Object.entries(r.pos || {}).forEach(([k, ms]) => { byPos[k] = (byPos[k] || 0) + ms; }));
+    const over = POSITIONS.filter(k => byPos[k] > total + 30000);
+    body = `<p style="margin:0.8rem 0 0.6rem">Pick a player to set their minutes in each position for this game. Use it when a sub was recorded late or missed.</p>
+      ${over.length ? `<p class="adj-warn" role="alert">More minutes than the game had at ${over.map(k => `${k} (${wholeMins(byPos[k])} of ${wholeMins(total)})`).join(', ')}. Check who else played there.</p>` : ''}
+      <div class="list-card">${ids.map(id => { const r = st.players[id] || { ms:0 };
+        return `<button class="result-row" data-action="adj-pick" data-player="${escapeHtml(id)}">
+          <span class="grow"><span class="pname">${escapeHtml(playerName(id))}${r.adjusted ? ' <span class="adj-tag">adjusted</span>' : ''}</span>
+            <span class="psub">${POSITIONS.filter(k => r.pos && r.pos[k]).map(k => `${k} ${wholeMins(r.pos[k])}`).join(' · ') || 'No court time'}</span></span>
+          <span class="result-badge">${wholeMins(r.ms)} min</span></button>`; }).join('')}</div>`;
+  } else {
+    const r = st.players[pid] || { pos:{}, ms:0 };
+    const adjusted = !!(g.courtAdjust && g.courtAdjust[pid]);
+    body = `<form class="adj-form" data-form="court-adjust" data-player="${escapeHtml(pid)}">
+        <p style="margin:0.8rem 0 0.6rem">Minutes in each position this game (the whole game is ${wholeMins(total)} minutes).</p>
+        <div class="adj-grid">${POSITIONS.map(k => `<label class="adj-cell"><span class="pos-chip ${POS_ZONE[k]}">${k}</span>
+            <input class="text-input" type="number" inputmode="numeric" min="0" max="${wholeMins(total)}" step="1" name="${k}" value="${r.pos && r.pos[k] ? wholeMins(r.pos[k]) : ''}" placeholder="0" aria-label="${POS_NAMES[k]} minutes"></label>`).join('')}</div>
+        <p class="adj-total">Total: <b data-adj-total>${wholeMins(r.ms)}</b> of ${wholeMins(total)} minutes</p>
+        <div class="form-actions">
+          <button type="button" class="btn ghost" data-action="adj-back">Back</button>
+          <button type="submit" class="btn" ${UI.busy ? 'disabled' : ''}>Save</button>
+        </div>
+        ${adjusted ? `<button type="button" class="btn ghost small ${isArmed('adj-reset') ? 'armed' : ''}" data-action="adj-reset" data-player="${escapeHtml(pid)}">${isArmed('adj-reset') ? 'Confirm reset to recorded time' : 'Reset to recorded time'}</button>` : ''}
+      </form>`;
+  }
+  return `<div class="sheet-backdrop" data-action="adj-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="adj-title">
+      <div class="sheet-head"><div class="grow"><h3 id="adj-title">${pid ? escapeHtml(playerName(pid)) : 'Adjust court time'}</h3>
+        <div class="psub">${escapeHtml(gameTitle(g))}</div></div>
+        <button class="btn ghost small" data-action="adj-close">Close</button></div>
+      <div class="sheet-body">${body}</div>
+    </div>`;
+}
+async function saveCourtAdjust(g, pid, fd){
+  const total = gameLengthMs(g);
+  const pos = {};
+  let sum = 0;
+  POSITIONS.forEach(k => {
+    const mins = Math.max(0, Math.round(Number(fd.get(k)) || 0));
+    if (mins){ pos[k] = mins * 60000; sum += mins * 60000; }
+  });
+  if (sum > total + 30000){ toast(`That's ${wholeMins(sum)} minutes, more than the ${wholeMins(total)}-minute game.`, true); return; }
+  const courtAdjust = { ...(g.courtAdjust || {}), [pid]:pos };
+  await updateDoc(gameRef(g.id), { [`courtAdjust.${pid}`]:pos, summary:gameSummary({ ...g, courtAdjust }, CUR.events) });
+  UI.courtAdj = { pid:null };
+  toast(`${playerName(pid)}'s court time updated.`);
+}
+async function resetCourtAdjust(g, pid){
+  const courtAdjust = { ...(g.courtAdjust || {}) };
+  delete courtAdjust[pid];
+  await updateDoc(gameRef(g.id), { [`courtAdjust.${pid}`]:DELETE_FIELD, summary:gameSummary({ ...g, courtAdjust }, CUR.events) });
+  UI.courtAdj = { pid:null };
+  toast(`${playerName(pid)} is back to the recorded time.`);
+}
+// Live total while typing minutes.
+document.addEventListener('input', (e) => {
+  const form = e.target.closest && e.target.closest('form.adj-form');
+  if (!form) return;
+  const sum = POSITIONS.reduce((a, k) => a + Math.max(0, Math.round(Number((form.elements[k] || {}).value) || 0)), 0);
+  const out = form.querySelector('[data-adj-total]'); if (out) out.textContent = sum;
+});
+
 function timeOnCourtHtml(g, st){
   const staff = isStaff();
   const canSeason = !isPractice(g);
@@ -4358,13 +4449,14 @@ function timeOnCourtHtml(g, st){
     ? ` ${benched} player${benched === 1 ? ' was' : 's were'} marked as playing but didn't get on court (highlighted).` : '';
   if (detailed){
     // Least court time first, so anyone who's missed out stands out.
-    const rows = ids.map(id => ({ id, ms:msOf(id), pos:(st.players[id] || {}).pos || {} })).sort((a, b) => a.ms - b.ms);
+    const rows = ids.map(id => ({ id, ms:msOf(id), pos:(st.players[id] || {}).pos || {}, adjusted:!!(st.players[id] || {}).adjusted })).sort((a, b) => a.ms - b.ms);
     return `${head}${courtTimeTable(rows, wholeMins, playing)}
       <p class="hint">Minutes in each position this game.${benchNote}</p>`;
   }
   // Simple: staff see least time first (who's owed a turn); viewers see names in order.
   const order = staff ? ids.slice().sort((a, b) => msOf(a) - msOf(b) || playerName(a).localeCompare(playerName(b))) : byName(ids);
-  const rows = order.map(id => `<tr class="${followRow(id)}"><td>${pnameHtml(id)}</td>
+  const adjMark = id => st && st.players[id] && st.players[id].adjusted ? ' <span class="adj-tag" title="Adjusted by a Coach/Manager">adjusted</span>' : '';
+  const rows = order.map(id => `<tr class="${followRow(id)}"><td>${pnameHtml(id)}${adjMark(id)}</td>
       <td class="this ${staff && playing.has(id) && !msOf(id) ? 'zero-this' : ''}">${wholeMins(msOf(id))}</td></tr>`).join('');
   return `${head}<div class="fair-wrap"><table class="fair simple">
       <caption>Times in minutes</caption>
@@ -4462,7 +4554,10 @@ function renderSummaryTab(g){
     </table></div>
     `;
 
-  const court = timeOnCourtHtml(g, st);
+  const canAdjust = over && isManager() && !isPractice(g);
+  const court = timeOnCourtHtml(g, st)
+    + (canAdjust ? `<div class="lineup-tools"><button class="btn ghost small" data-action="adj-open">Adjust court time</button></div>` : '')
+    + (canAdjust && UI.courtAdj ? courtAdjustSheetHtml(g, st) : '');
 
   // Extra stats, when this game tracks any (and "All stats" is chosen).
   let extra = '';
@@ -7163,6 +7258,19 @@ document.addEventListener('click', async (e) => {
       if (!isArmed(key)) return arm(key);
       disarm(key);
       const g = findGame(UI.gameId); if (g) await correctEvent(g, btn.dataset.event, { undone:true });
+    } else if (a === 'adj-open'){
+      UI.courtAdj = { pid:null }; render(); focusSheet();
+    } else if (a === 'adj-close'){
+      UI.courtAdj = null; render();
+    } else if (a === 'adj-pick'){
+      UI.courtAdj = { pid:btn.dataset.player }; render();
+      const f = document.querySelector('form.adj-form input'); if (f) f.focus();
+    } else if (a === 'adj-back'){
+      UI.courtAdj = { pid:null }; render();
+    } else if (a === 'adj-reset'){
+      if (!isArmed('adj-reset')) return arm('adj-reset');
+      disarm('adj-reset');
+      const g = findGame(UI.gameId); if (g && isManager()) await runBusy(() => resetCourtAdjust(g, btn.dataset.player));
     } else if (a === 'grid-prefs'){
       UI.gridPrefs = UI.gridPrefs === btn.dataset.player ? null : btn.dataset.player; render();
     } else if (a === 'suggest-open'){
@@ -7223,6 +7331,7 @@ document.addEventListener('submit', (e) => {
   else if (name === 'edit-game') runBusy(() => saveGame(fd));
   else if (name === 'import-save') runBusy(() => saveImport(fd));
   else if (name === 'email-signin') runSignin(() => sendEmailLink(fd));
+  else if (name === 'court-adjust'){ const g = findGame(UI.gameId); if (g && isManager()) runBusy(() => saveCourtAdjust(g, form.dataset.player, fd)); }
   else if (name === 'pw-signin') runSignin(() => passwordSignIn(fd));
   else if (name === 'pw-create') runSignin(() => passwordCreate(fd));
   else if (name === 'pw-reset') runSignin(() => passwordReset(fd));
@@ -7490,6 +7599,7 @@ document.addEventListener('keydown', (e) => {
     const av = document.querySelector('[data-action="user-menu"]'); if (av) av.focus();
     return;
   }
+  if (e.key === 'Escape' && UI.courtAdj){ UI.courtAdj = null; render(); return; }
   if (e.key === 'Escape' && UI.suggest){ UI.suggest = null; render(); return; }
   if (e.key === 'Escape' && UI.auto){ UI.auto = null; render(); return; }
   if (e.key === 'Escape' && UI.playerMenu){ UI.playerMenu = null; render(); return; }
