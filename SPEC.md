@@ -339,6 +339,20 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Adjust court time after a game (added 2026-10-17)
+- On a game that has reached full time, **Coach/Managers** (only) get **Adjust court time**
+  under Time on court on the Game stats tab. Pick a player, then type their minutes in each
+  position for that game (whole minutes, prefilled with what was recorded; a running total
+  shows against the game length). Totals over the game length aren't saved; the player list
+  warns when a position has more minutes than the game had.
+- Saved on the game as `courtAdjust { playerId: { GS: ms, ... } }`, which replaces that
+  player's recorded court time everywhere (game and season stats, the player page, Fill
+  lineup fairness and out-of-position sharing); the game's saved summary is updated too.
+  Adjusted players are tagged "adjusted" in the Time on court tables. **Reset to recorded
+  time** removes it. Goals and other stats aren't affected.
+- No rule changes: Coach/Managers can already update games, including finalised ones;
+  Scorers can't change `courtAdjust`.
+
 ### Track more stats (added 2026-10-10)
 - Off by default. **Team Settings > This season > Track more stats** (folded away at the
   bottom) picks extra stats for the season; **Game settings** can choose differently for one
