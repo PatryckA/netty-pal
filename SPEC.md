@@ -179,8 +179,11 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   quarters go one at a time to whoever has the lowest season average (from finished games'
   saved summaries), so anyone behind catches up.
 - **Bench**: nobody sits out two quarters in a row unless it can't be avoided (noted).
-- **Shooters**: only players with GS or GA as a preferred position play GS or GA. If there
-  aren't enough, they play extra quarters, or the position is left empty. When that makes court
+- **Shooters**: players with GS or GA as a preferred position play GS or GA first. If there
+  aren't enough, they play extra quarters, and (changed 2026-10-21) any shooting spot still
+  open is filled by another player rather than left empty, shared by who has played out of
+  position least. A "Short of shooters" box in the preview, and on the Lineup tab once the
+  lineup is used (only for teams that use preferred positions), names who fills in where. When that makes court
   time uneven, the preview shows a warning box naming who plays extra and who plays fewer
   (rows marked + and −), with how to fix it by hand.
 - **Short of players**: WD is left empty first, then WA, then GA.

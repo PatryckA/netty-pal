@@ -3135,7 +3135,10 @@ function makeAutoPlan(g, opts){
   // (at most 7 players and 7 positions). A shooting position can only go to
   // a shooter; leaving a position empty, or a player without one, costs a lot.
   const prefScore = (id, pos, playedHere) => {
-    if (SHOOTERS_POS.includes(pos) && !canShoot(id)) return null;
+    // Shooting positions go to players who chose GS or GA. If there aren't
+    // enough of them on court, someone else fills in (a big cost, so it only
+    // happens when there's no shooter to use) rather than leaving it empty.
+    if (SHOOTERS_POS.includes(pos) && !canShoot(id)) return -400 - offPrefCost(id, totals, pm);
     const prefs = playerPrefs(CUR.players.find(x => x.id === id));
     const r = prefs.indexOf(pos);
     if (r < 0) return prefs.length ? -offPrefCost(id, totals, pm) : 20;
@@ -3212,17 +3215,20 @@ function makeAutoPlan(g, opts){
   // so the coach can fix it by hand.
   const shift = ids.map(id => ({ id, d:q[id] - fairQ[id] })).filter(x => x.d);
   const uneven = shift.length ? { up:shift.filter(x => x.d > 0), down:shift.filter(x => x.d < 0), shooters:shooters.length, fairQ } : null;
-  if (!shooters.length) notes.push('Nobody playing has GS or GA as a preferred position, so the shooting positions are left empty. Set preferred positions in Team > Players.');
+  // Not enough shooters: who fills in at GS or GA, flagged for the coach.
+  const fillIns = [];
+  for (let p = 1; p <= P; p++) SHOOTERS_POS.forEach(pos => { const id = chosen.plan[p][pos]; if (id && !canShoot(id)) fillIns.push({ p, pos, id }); });
+  const shortShooters = fillIns.length ? { shooters:shooters.length, fillIns } : null;
   for (let p = 1; p <= P; p++){
     const empty = open.filter(pos => !chosen.plan[p][pos]);
-    if (empty.length && shooters.length) notes.push(`${periodName(g, p)}: ${empty.join(', ')} left empty (not enough players who prefer shooting on court).`);
+    if (empty.length) notes.push(`${periodName(g, p)}: ${empty.join(', ')} left empty.`);
   }
   if (K < 7) notes.push(`Only ${N} playing, so ${EMPTY_FIRST.slice(0, 7 - K).join(', ')} ${7 - K === 1 ? 'is' : 'are'} left empty.`);
   ids.forEach(id => {
     const onQ = []; for (let p = 1; p <= P; p++) if (Object.values(chosen.plan[p]).includes(id)) onQ.push(p);
     if (onQ.length && onQ.length < P && benchRun(onQ)) notes.push(`${playerName(id)} sits out two ${periodNoun(g, true)} in a row (it couldn't be avoided).`);
   });
-  return { plan:chosen.plan, ids, P, pm, tot, games, notes, uneven, count:candidates.length };
+  return { plan:chosen.plan, ids, P, pm, tot, games, notes, uneven, shortShooters, count:candidates.length };
 }
 
 // The whole game at a glance: each player's position in every quarter
@@ -3237,6 +3243,25 @@ function makeAutoPlan(g, opts){
 //   opts.drag         cells can be dragged to swap, but not tapped (the Fill lineup preview)
 //   opts.shift(id)    + / − quarters to tag (Fill lineup's uneven warning)
 //   opts.current      the quarter shown on the court (highlighted; headings switch quarter)
+// Players filling in at GS or GA who didn't choose a shooting position.
+function fillInWarnHtml(g, fillIns, shooters){
+  if (!fillIns.length) return '';
+  const byPlayer = {};
+  fillIns.forEach(f => { (byPlayer[f.id] = byPlayer[f.id] || []).push(`${f.pos} in ${periodName(g, f.p)}`); });
+  const list = Object.entries(byPlayer).map(([id, w]) => `<b>${escapeHtml(playerName(id))}</b> (${w.join(', ')})`).join('; ');
+  return `<div class="uneven-warn" role="alert"><p><b>Short of shooters.</b> ${shooters === 0 ? 'Nobody playing' : 'Only ' + shooters + ' player' + (shooters === 1 ? '' : 's') + ' playing'} chose GS or GA, so ${list} ${Object.keys(byPlayer).length === 1 ? 'fills' : 'fill'} in. Check this suits them, or add GS or GA as a preferred position in Team &gt; Players.</p></div>`;
+}
+// Fill-ins in the saved lineup, for quarters still to come.
+function lineupFillIns(g){
+  const out = [];
+  const canShoot = id => playerPrefs(CUR.players.find(x => x.id === id)).some(pos => SHOOTERS_POS.includes(pos));
+  for (let p = 1; p <= periodCount(g); p++){
+    if (periodStarted(g, p)) continue;
+    const l = lineupFor(g, p);
+    SHOOTERS_POS.forEach(pos => { if (l[pos] && !canShoot(l[pos])) out.push({ p, pos, id:l[pos] }); });
+  }
+  return out;
+}
 function prefsToggleHtml(){
   return `<button class="btn ghost small" data-action="toggle-all-prefs" aria-pressed="${!!UI.showAllPrefs}">${UI.showAllPrefs ? 'Hide preferred positions' : 'Show preferred positions'}</button>`;
 }
@@ -3451,7 +3476,8 @@ function autoSheetHtml(g){
           ${nameList(u.up)} ${u.up.length === 1 ? 'plays' : 'play'} extra ${noun}${u.down.length ? `, and ${nameList(u.down)} ${u.down.length === 1 ? 'plays' : 'play'} fewer` : ''} (marked + and − below).</p>
         <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
       </div>` : '';
-    body = `${warn}${o.plan ? '<p class="edited-note">You\'ve changed this lineup by hand. <b>Try another</b> or changing an option starts again.</p>' : ''}
+    const shortWarn = !o.plan && r.shortShooters ? fillInWarnHtml(g, r.shortShooters.fillIns, r.shortShooters.shooters) : '';
+    body = `${shortWarn}${warn}${o.plan ? '<p class="edited-note">You\'ve changed this lineup by hand. <b>Try another</b> or changing an option starts again.</p>' : ''}
       <div class="grid-head">${prefsToggleHtml()}</div>
       ${gameGridHtml(g, { lineupOf:p => plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null, drag:true })}
       ${planNoteHtml(g)}
@@ -3467,7 +3493,7 @@ function autoSheetHtml(g){
         <button class="btn ghost" data-action="auto-again">Try another</button>
       </div>`}
       <div class="sheet-body">
-        <p style="margin:0.8rem 0 0.5rem">Plans every quarter for fair court time and preferred positions. Only players who chose GS or GA shoot.</p>
+        <p style="margin:0.8rem 0 0.5rem">Plans every quarter for fair court time and preferred positions. Players who chose GS or GA shoot first.</p>
         <div class="auto-opt"><span class="label">Prioritise</span>
           <div class="subtabs">${seg('mode', 'top', 'Top preferences', o.mode !== 'variety')}${seg('mode', 'variety', 'Variety', o.mode === 'variety')}</div></div>
         ${hasPlan ? `<div class="auto-opt"><span class="label">Lineup already set</span>
@@ -3517,8 +3543,12 @@ function renderLineupTab(g){
     ? `<button class="btn ghost small ${isArmed('clear-lineup') ? 'armed' : ''}" data-action="clear-lineup">${isArmed('clear-lineup') ? 'Confirm clear the whole lineup' : 'Clear lineup'}</button>` : '';
   const live = g.status === 'live' && canScore()
     ? `<p class="follow-note own">${escapeHtml(periodNoun(g, true).replace(/^./, c => c.toUpperCase()))} that have started can't be changed here. To change who's on court now, use Sub Player(s) on the Game tab.</p>` : '';
+  // Only once the team uses preferred positions (otherwise every game would warn).
+  const fills = editable && CUR.players.some(x => playerPrefs(x).length) ? lineupFillIns(g) : [];
+  const shootersPlaying = avail.filter(id => playerPrefs(CUR.players.find(x => x.id === id)).some(pos => SHOOTERS_POS.includes(pos))).length;
   return `${autoBtn || clearBtn ? `<div class="lineup-tools" style="margin:0 0 0.6rem">${autoBtn}${clearBtn}</div>` : ''}
     ${live}
+    ${fillInWarnHtml(g, fills, shootersPlaying)}
     <div class="grid-head"><h3 class="subhead">Whole game</h3>${prefsToggleHtml()}</div>
     ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail,
       tap:k => editable && !periodStarted(g, k),
