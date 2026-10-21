@@ -179,8 +179,11 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   quarters go one at a time to whoever has the lowest season average (from finished games'
   saved summaries), so anyone behind catches up.
 - **Bench**: nobody sits out two quarters in a row unless it can't be avoided (noted).
-- **Shooters**: only players with GS or GA as a preferred position play GS or GA. If there
-  aren't enough, they play extra quarters, or the position is left empty. When that makes court
+- **Shooters**: players with GS or GA as a preferred position play GS or GA first. If there
+  aren't enough, they play extra quarters, and (changed 2026-10-21) any shooting spot still
+  open is filled by another player rather than left empty, shared by who has played out of
+  position least. A "Short of shooters" box in the preview, and on the Lineup tab once the
+  lineup is used (only for teams that use preferred positions), names who fills in where. When that makes court
   time uneven, the preview shows a warning box naming who plays extra and who plays fewer
   (rows marked + and −), with how to fix it by hand.
 - **Short of players**: WD is left empty first, then WA, then GA.
@@ -338,6 +341,21 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 - Season totals include games that have reached full time, finalised or not; games
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
+
+### Lineup tweaks (added 2026-10-21)
+- **Avg mins after** (Whole game table and Fill lineup preview) is the season average minutes
+  per game available: earlier finished games plus this one. Before the game it counts this
+  game as planned (full quarters); once the game has started it uses what was actually played
+  (including Adjust court time) plus planned quarters still to come, so on a finished game it
+  matches Season Stats. Coach/Managers and Scorers see it on live and finished games too.
+- **Show / Hide preferred positions** button above the Whole game table and in the Fill lineup
+  preview shows every player's preferred positions under their name.
+- **Fill lineup preview**: **Use this lineup** and **Try another** sit in a bar under the title
+  (always visible); **Close** needs two taps ("Discard plan?"), and so does Escape. Reopening
+  the preview for the same game shows the same plan until the app reloads.
+- Fix: with "Keep it, fill the gaps", Fill lineup no longer fails when a kept quarter is
+  already full or has a non-shooter kept in GS/GA (players can't be given more quarters than
+  there's room for, and only the shooting spots being filled need shooters).
 
 ### Adjust court time after a game (added 2026-10-17)
 - On a game that has reached full time, **Coach/Managers** (only) get **Adjust court time**
