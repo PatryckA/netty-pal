@@ -339,6 +339,21 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Lineup tweaks (added 2026-10-21)
+- **Avg mins after** (Whole game table and Fill lineup preview) is the season average minutes
+  per game available: earlier finished games plus this one. Before the game it counts this
+  game as planned (full quarters); once the game has started it uses what was actually played
+  (including Adjust court time) plus planned quarters still to come, so on a finished game it
+  matches Season Stats. Coach/Managers and Scorers see it on live and finished games too.
+- **Show / Hide preferred positions** button above the Whole game table and in the Fill lineup
+  preview shows every player's preferred positions under their name.
+- **Fill lineup preview**: **Use this lineup** and **Try another** sit in a bar under the title
+  (always visible); **Close** needs two taps ("Discard plan?"), and so does Escape. Reopening
+  the preview for the same game shows the same plan until the app reloads.
+- Fix: with "Keep it, fill the gaps", Fill lineup no longer fails when a kept quarter is
+  already full or has a non-shooter kept in GS/GA (players can't be given more quarters than
+  there's room for, and only the shooting spots being filled need shooters).
+
 ### Adjust court time after a game (added 2026-10-17)
 - On a game that has reached full time, **Coach/Managers** (only) get **Adjust court time**
   under Time on court on the Game stats tab. Pick a player, then type their minutes in each

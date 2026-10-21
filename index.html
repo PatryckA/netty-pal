@@ -427,6 +427,10 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .sugg-why{margin:0 0 0.6rem; padding-left:1.1rem; font-size:0.875rem; color:var(--ink-soft);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
 .plan-note{margin:0.5rem 0 0.4rem; font-size:0.85rem; font-style:italic; color:var(--ink-soft); text-align:center;}
+.auto-bar{display:flex; gap:0.5rem; padding:0.6rem 1rem; border-bottom:1px solid var(--line); background:var(--surface);}
+.auto-bar .btn{flex:1;}
+.grid-head{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap; margin:0 0 0.4rem;}
+.grid-head .subhead{margin:0;}
 .edited-note{margin:0 0 0.6rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--accent-bg); font-size:0.875rem;}
 .uneven-warn{background:var(--warm-bg); border:2px solid var(--warm); border-radius:var(--r); padding:0.7rem 0.85rem; margin:0 0 0.8rem;}
 .uneven-warn p{margin:0 0 0.4rem; font-size:0.9rem;}
@@ -3042,12 +3046,19 @@ function makeAutoPlan(g, opts){
   const totals = seasonCourtTotals(g.id);
   const { tot, games } = totals;
   const avgAfter = (id, q) => ((tot[id] || 0) + q * pm) / ((games[id] || 0) + 1);
+  // The most quarters each player can play: a quarter whose lineup is
+  // already full (kept) only has room for the players kept in it.
+  const maxQ = {};
+  ids.forEach(id => {
+    maxQ[id] = 0;
+    for (let p = 1; p <= P; p++) if ((fixedOn[id] && fixedOn[id].has(p)) || Object.keys(fixed[p]).length < K) maxQ[id]++;
+  });
   const base = Math.min(P, Math.floor(K * P / N));
   const q = {};
-  ids.forEach(id => { q[id] = Math.max(base, fixedOn[id] ? fixedOn[id].size : 0); });
+  ids.forEach(id => { q[id] = Math.min(maxQ[id], Math.max(base, fixedOn[id] ? fixedOn[id].size : 0)); });
   let spare = K * P - ids.reduce((a, id) => a + q[id], 0);
   while (spare > 0){
-    const cands = ids.filter(id => q[id] < P);
+    const cands = ids.filter(id => q[id] < maxQ[id]);
     if (!cands.length) break;
     cands.sort((a, b) => avgAfter(a, q[a]) - avgAfter(b, q[b]) || q[a] - q[b] || rng() - 0.5);
     q[cands[0]]++; spare--;
@@ -3066,7 +3077,7 @@ function makeAutoPlan(g, opts){
   const fairQ = { ...q };
   const minOf = id => Math.max(1, fixedOn[id] ? fixedOn[id].size : 0);
   while (shooters.reduce((a, id) => a + q[id], 0) < Math.min(shooters.length, shootSlots) * P){
-    const up = shooters.filter(id => q[id] < P).sort((a, b) => avgAfter(a, q[a]) - avgAfter(b, q[b]))[0];
+    const up = shooters.filter(id => q[id] < maxQ[id]).sort((a, b) => avgAfter(a, q[a]) - avgAfter(b, q[b]))[0];
     const down = ids.filter(id => !canShoot(id) && q[id] > minOf(id)).sort((a, b) => avgAfter(b, q[b]) - avgAfter(a, q[a]))[0];
     if (!up || !down) break;
     q[up]++; q[down]--; extraShooters.add(up);
@@ -3110,8 +3121,13 @@ function makeAutoPlan(g, opts){
       return false;
     };
     if (!dfs(0)) return null;
-    // Every quarter needs its shooters.
-    for (let p = 1; p <= P; p++) if (ids.filter(id => pick[id].includes(p) && canShoot(id)).length < shootNeed) return null;
+    // Every quarter needs shooters for the shooting positions it fills
+    // (positions kept from the lineup already set don't count).
+    for (let p = 1; p <= P; p++){
+      const free = open.filter(pos => SHOOTERS_POS.includes(pos) && !fixed[p][pos]).length;
+      const kept = new Set(Object.values(fixed[p]));
+      if (ids.filter(id => pick[id].includes(p) && canShoot(id) && !kept.has(id)).length < Math.min(shootNeed, free)) return null;
+    }
     return pick;
   };
 
@@ -3215,11 +3231,15 @@ function makeAutoPlan(g, opts){
 // on the Lineup tab.
 //   opts.lineupOf(p)  the lineup for quarter p
 //   opts.ids          players to list (in order)
-//   opts.avg          { tot, games, pm } to show season average minutes after this game
+//   opts.avg          { tot, games, pm, thisMs? } to show season average minutes after this
+//                     game: earlier finished games plus this one (thisMs(id), or quarters x length)
 //   opts.tap(p)       true if quarter p's cells can be tapped for a suggested change
 //   opts.drag         cells can be dragged to swap, but not tapped (the Fill lineup preview)
 //   opts.shift(id)    + / − quarters to tag (Fill lineup's uneven warning)
 //   opts.current      the quarter shown on the court (highlighted; headings switch quarter)
+function prefsToggleHtml(){
+  return `<button class="btn ghost small" data-action="toggle-all-prefs" aria-pressed="${!!UI.showAllPrefs}">${UI.showAllPrefs ? 'Hide preferred positions' : 'Show preferred positions'}</button>`;
+}
 function gameGridHtml(g, opts){
   const qs = Array.from({ length:periodCount(g) }, (_, i) => i + 1);
   const lineups = qs.map(p => opts.lineupOf(p) || {});
@@ -3240,10 +3260,11 @@ function gameGridHtml(g, opts){
     let avg = '';
     if (opts.avg){
       const games = opts.avg.games[id] || 0, tot = opts.avg.tot[id] || 0;
-      avg = `<td class="avg">${wholeMins((tot + q * opts.avg.pm) / (games + 1))}</td>`;
+      const thisMs = opts.avg.thisMs ? opts.avg.thisMs(id, q) : q * opts.avg.pm;
+      avg = `<td class="avg">${wholeMins((tot + thisMs) / (games + 1))}</td>`;
     }
     // Tap a name to see (or hide) their preferred positions underneath it.
-    const open = UI.gridPrefs === id;
+    const open = UI.showAllPrefs || UI.gridPrefs === id;
     const pl = CUR.players.find(x => x.id === id);
     const prefsLine = open ? `<span class="grid-prefs">${playerPrefs(pl).length ? prefChipsHtml(pl) : '<span class="hint">No preferred positions</span>'}</span>` : '';
     return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}"><td><button class="grid-name" data-action="grid-prefs" data-player="${escapeHtml(id)}" aria-expanded="${open}">${escapeHtml(playerName(id))}</button>${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}${prefsLine}</td>
@@ -3431,6 +3452,7 @@ function autoSheetHtml(g){
         <p>To even it out: use this lineup, then swap players on the Lineup tab (for example, put someone else in GA), or add GS or GA as a preferred position for more players in Team &gt; Players and try again.</p>
       </div>` : '';
     body = `${warn}${o.plan ? '<p class="edited-note">You\'ve changed this lineup by hand. <b>Try another</b> or changing an option starts again.</p>' : ''}
+      <div class="grid-head">${prefsToggleHtml()}</div>
       ${gameGridHtml(g, { lineupOf:p => plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null, drag:true })}
       ${planNoteHtml(g)}
       <p class="hint">Press and hold a spot, then drag it onto another spot in the same ${escapeHtml(periodNoun(g))} to swap (bench spots too). Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
@@ -3439,7 +3461,11 @@ function autoSheetHtml(g){
   return `<div class="sheet-backdrop" data-action="auto-close"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="auto-title">
       <div class="sheet-head"><div class="grow"><h3 id="auto-title">Fill lineup for me</h3></div>
-        <button class="btn ghost small" data-action="auto-close">Close</button></div>
+        <button class="btn ${isArmed('auto-close') ? 'danger armed' : 'ghost'} small" data-action="auto-close">${isArmed('auto-close') ? 'Discard plan?' : 'Close'}</button></div>
+      ${r.error ? '' : `<div class="auto-bar">
+        <button class="btn" data-action="auto-use" ${UI.busy ? 'disabled' : ''}>Use this lineup</button>
+        <button class="btn ghost" data-action="auto-again">Try another</button>
+      </div>`}
       <div class="sheet-body">
         <p style="margin:0.8rem 0 0.5rem">Shares court time fairly (anyone behind on season minutes gets more), puts players in their preferred positions, keeps position changes to one per player where it can, and only uses players who chose GS or GA as shooters.</p>
         <div class="auto-opt"><span class="label">Prioritise</span>
@@ -3466,6 +3492,17 @@ async function useAutoPlan(g){
   toast('Lineup filled. You can still change anyone.');
 }
 
+// This game's court time for "Avg mins after": what was actually played
+// (including any Adjust court time) for quarters that have started, plus
+// full planned quarters still to come.
+function gameMsFn(g){
+  if ((g.status || 'scheduled') === 'scheduled' || CUR.eventsFor !== g.id || !CUR.loaded.events) return null;
+  const st = computeGame(g, CUR.events);
+  const pm = periodMs(g);
+  const todo = Array.from({ length:periodCount(g) }, (_, i) => i + 1).filter(k => !periodStarted(g, k) && !isGameOver(g));
+  return id => ((st.players[id] || {}).ms || 0) + todo.filter(k => Object.values(lineupFor(g, k)).includes(id)).length * pm;
+}
+
 // The Lineup tab: the Whole game table (who plays where in every quarter),
 // with Fill lineup for me, tap for a suggested change, and press and hold
 // to drag and swap. The court diagram stays on the Game tab.
@@ -3482,12 +3519,12 @@ function renderLineupTab(g){
     ? `<p class="follow-note own">${escapeHtml(periodNoun(g, true).replace(/^./, c => c.toUpperCase()))} that have started can't be changed here. To change who's on court now, use Sub Player(s) on the Game tab.</p>` : '';
   return `${autoBtn || clearBtn ? `<div class="lineup-tools" style="margin:0 0 0.6rem">${autoBtn}${clearBtn}</div>` : ''}
     ${live}
-    <h3 class="subhead">Whole game</h3>
+    <div class="grid-head"><h3 class="subhead">Whole game</h3>${prefsToggleHtml()}</div>
     ${gameGridHtml(g, { lineupOf:k => lineupFor(g, k), ids:avail,
       tap:k => editable && !periodStarted(g, k),
-      avg:isStaff() && scheduled ? { ...seasonCourtTotals(g.id), pm:periodMs(g) } : null })}
+      avg:isStaff() && !isPractice(g) ? { ...seasonCourtTotals(g.id), pm:periodMs(g), thisMs:gameMsFn(g) } : null })}
     ${!isGameOver(g) && !periodStarted(g, periodCount(g)) ? planNoteHtml(g) : ''}
-    <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && scheduled ? ' "Avg mins after" is season minutes per game available, counting this game.' : ''}</p>
+    <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && !isPractice(g) ? ' "Avg mins after" is season minutes per game available, counting this game' + (scheduled ? ' as planned.' : isGameOver(g) ? '.' : ' (played so far, plus what\'s planned).') : ''}</p>
     ${UI.suggest ? suggestSheetHtml(g) : ''}
     ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}`;
 }
@@ -7271,6 +7308,8 @@ document.addEventListener('click', async (e) => {
       if (!isArmed('adj-reset')) return arm('adj-reset');
       disarm('adj-reset');
       const g = findGame(UI.gameId); if (g && isManager()) await runBusy(() => resetCourtAdjust(g, btn.dataset.player));
+    } else if (a === 'toggle-all-prefs'){
+      UI.showAllPrefs = !UI.showAllPrefs; UI.gridPrefs = null; render();
     } else if (a === 'grid-prefs'){
       UI.gridPrefs = UI.gridPrefs === btn.dataset.player ? null : btn.dataset.player; render();
     } else if (a === 'suggest-open'){
@@ -7285,9 +7324,13 @@ document.addEventListener('click', async (e) => {
         if (s){ UI.suggest = null; await runBusy(() => applySuggestion(g, k, s.lineups)); UI.period = k; toast(`${periodName(g, k)} updated.`); render(); }
       }
     } else if (a === 'auto-open'){
-      UI.auto = { mode:'top', keep:true, seed:Date.now() % 100000, alt:0 }; render(); focusSheet();
+      UI.autoSeeds = UI.autoSeeds || {};
+      if (!UI.autoSeeds[UI.gameId]) UI.autoSeeds[UI.gameId] = Date.now() % 100000;
+      UI.auto = { mode:'top', keep:true, seed:UI.autoSeeds[UI.gameId], alt:0 }; render(); focusSheet();
     } else if (a === 'auto-close'){
-      UI.auto = null; render();
+      // Two taps, so a stray tap doesn't lose the plan before it's saved.
+      if (!isArmed('auto-close')){ toast('Tap again to close without saving, or tap Use this lineup.'); return arm('auto-close'); }
+      disarm('auto-close'); UI.auto = null; render();
     } else if (a === 'auto-opt'){
       if (UI.auto){ UI.auto[btn.dataset.field] = btn.dataset.field === 'keep' ? btn.dataset.value === '1' : btn.dataset.value; UI.auto.alt = 0; UI.auto.plan = null; render(); }
     } else if (a === 'auto-again'){
@@ -7601,7 +7644,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape' && UI.courtAdj){ UI.courtAdj = null; render(); return; }
   if (e.key === 'Escape' && UI.suggest){ UI.suggest = null; render(); return; }
-  if (e.key === 'Escape' && UI.auto){ UI.auto = null; render(); return; }
+  if (e.key === 'Escape' && UI.auto){ if (!isArmed('auto-close')) arm('auto-close'); else { disarm('auto-close'); UI.auto = null; render(); } return; }
   if (e.key === 'Escape' && UI.playerMenu){ UI.playerMenu = null; render(); return; }
   if (e.key === 'Escape' && UI.playerSheet){ UI.playerSheet = null; render(); return; }
   if (e.key === 'Escape' && UI.showGuide){ closeGuide(); return; }
