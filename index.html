@@ -3455,7 +3455,7 @@ function autoSheetHtml(g){
       <div class="grid-head">${prefsToggleHtml()}</div>
       ${gameGridHtml(g, { lineupOf:p => plan[p], ids:r.ids, avg:{ tot:r.tot, games:r.games, pm:r.pm }, shift:u ? shiftOf : null, drag:true })}
       ${planNoteHtml(g)}
-      <p class="hint">Press and hold a spot, then drag it onto another spot in the same ${escapeHtml(periodNoun(g))} to swap (bench spots too). Grey bibs aren't one of the player's preferred positions. "Avg mins after" is season minutes per game available, counting this game.</p>
+      <p class="hint">Hold a spot and drag to swap. Grey bibs: not a preferred position. Avg mins after: season minutes per game available, including this one.</p>
       ${!o.plan && r.notes.length ? `<ul class="auto-notes">${r.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}`;
   }
   return `<div class="sheet-backdrop" data-action="auto-close"></div>
@@ -3467,7 +3467,7 @@ function autoSheetHtml(g){
         <button class="btn ghost" data-action="auto-again">Try another</button>
       </div>`}
       <div class="sheet-body">
-        <p style="margin:0.8rem 0 0.5rem">Shares court time fairly (anyone behind on season minutes gets more), puts players in their preferred positions, keeps position changes to one per player where it can, and only uses players who chose GS or GA as shooters.</p>
+        <p style="margin:0.8rem 0 0.5rem">Plans every quarter for fair court time and preferred positions. Only players who chose GS or GA shoot.</p>
         <div class="auto-opt"><span class="label">Prioritise</span>
           <div class="subtabs">${seg('mode', 'top', 'Top preferences', o.mode !== 'variety')}${seg('mode', 'variety', 'Variety', o.mode === 'variety')}</div></div>
         ${hasPlan ? `<div class="auto-opt"><span class="label">Lineup already set</span>
