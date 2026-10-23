@@ -3539,6 +3539,10 @@ function renderLineupTab(g){
   const hasPlan = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(k => ownPlan(g, k) && isPeriodPlanned(g, k));
   const autoBtn = editable && scheduled
     ? '<button class="btn small" data-action="auto-open">Fill lineup for me</button>' : '';
+  const anyPlanned = Array.from({ length:periodCount(g) }, (_, i) => i + 1).some(k => POSITIONS.some(pos => lineupFor(g, k)[pos]));
+  const canShareLineup = isManager() && !isPractice(g) && !isGameOver(g) && anyPlanned;
+  if (canShareLineup) prepareLineupShare(g);
+  const shareBtn = canShareLineup ? '<button class="btn ghost small" data-action="share-lineup">Share lineup</button>' : '';
   const clearBtn = editable && scheduled && hasPlan
     ? `<button class="btn ghost small ${isArmed('clear-lineup') ? 'armed' : ''}" data-action="clear-lineup">${isArmed('clear-lineup') ? 'Confirm clear the whole lineup' : 'Clear lineup'}</button>` : '';
   const live = g.status === 'live' && canScore()
@@ -3546,7 +3550,7 @@ function renderLineupTab(g){
   // Only once the team uses preferred positions (otherwise every game would warn).
   const fills = editable && CUR.players.some(x => playerPrefs(x).length) ? lineupFillIns(g) : [];
   const shootersPlaying = avail.filter(id => playerPrefs(CUR.players.find(x => x.id === id)).some(pos => SHOOTERS_POS.includes(pos))).length;
-  return `${autoBtn || clearBtn ? `<div class="lineup-tools" style="margin:0 0 0.6rem">${autoBtn}${clearBtn}</div>` : ''}
+  return `${autoBtn || clearBtn || shareBtn ? `<div class="lineup-tools" style="margin:0 0 0.6rem">${autoBtn}${shareBtn}${clearBtn}</div>` : ''}
     ${live}
     ${fillInWarnHtml(g, fills, shootersPlaying)}
     <div class="grid-head"><h3 class="subhead">Whole game</h3>${prefsToggleHtml()}</div>
@@ -3794,13 +3798,14 @@ function seasonTimeHtml(g, detailed){
 /* ---- Live tab ---- */
 // How to change the lineup before a game or between periods (practice games too).
 const LINEUP_TIP = 'Tap or drag a bib or name to change the lineup.';
+const PLAN_NOTE = 'Planned by a volunteer doing their best to balance lots of expectations. Lineups often change on game day.';
 // Shown under every planned lineup, so nobody treats it as a promise.
 // Coach/Managers (who make the plan) are told what parents and players see.
 function planNoteHtml(g){
   if (g && isPractice(g)) return '';
   return isManager()
     ? '<p class="plan-note">Parents and players see a note that this is a plan by a volunteer and lineups often change on game day.</p>'
-    : '<p class="plan-note">Planned by a volunteer doing their best to balance lots of expectations. Lineups often change on game day.</p>';
+    : `<p class="plan-note">${PLAN_NOTE}</p>`;
 }
 function renderLiveTab(g){
   if (CUR.eventsError) return `<div class="panel" role="alert"><p style="margin:0">${
@@ -4814,6 +4819,120 @@ async function shareSummary(g){
     return;
   }
   try { await navigator.clipboard.writeText(text); toast('Score copied. Paste it into a message.'); }
+  catch(e){ toast(text); }
+}
+
+/* ---- Share the planned lineup ----
+   Coach/Managers can send the whole game's lineup as a picture (like the
+   result card): each player's position in every quarter, with the note
+   parents see (not the coach's version). */
+function lineupShareText(g){
+  const n = periodCount(g);
+  const lines = [`${teamLabel(g, 'us')} ${gameTitle(g)}${g.round ? ', Round ' + g.round : ''}${g.date ? ', ' + shareDate(g) : ''}: planned lineup`];
+  for (let p = 1; p <= n; p++){
+    const l = lineupFor(g, p);
+    lines.push(`${periodName(g, p)}: ${POSITIONS.filter(pos => l[pos]).map(pos => `${pos} ${playerName(l[pos])}`).join(', ') || 'not set'}`);
+  }
+  lines.push(PLAN_NOTE);
+  return lines.join('\n');
+}
+async function lineupImage(g){
+  try {
+    await Promise.all([document.fonts.load('900 100px Archivo'), document.fonts.load('700 40px "DM Sans"'), document.fonts.load('800 40px "DM Sans"')]);
+  } catch(e){ /* falls back to system fonts */ }
+  const n = periodCount(g), ids = byName(availableIds(g));
+  const lineups = Array.from({ length:n }, (_, i) => lineupFor(g, i + 1));
+  const W = 1080, top = 470, rowH = 78, H = top + 90 + ids.length * rowH + 200;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fontStretch = 'extra-condensed';
+  const display = (size, weight) => `${weight || 900} ${size}px Archivo, "Arial Narrow", sans-serif`;
+  const body = (size, weight) => `${weight || 700} ${size}px "DM Sans", "Segoe UI", sans-serif`;
+  const fit = (text, max) => { let t = String(text); while (t.length > 1 && x.measureText(t).width > max) t = t.slice(0, -2) + '…'; return t; };
+  const ZONE = { att:'#C8641C', mid:'#0B0B0D', def:'#2E7550' };
+
+  // Background, header bar and stripe, as on the result card.
+  x.fillStyle = '#F5F5F6'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#0B0B0D'; x.fillRect(0, 0, W, 150);
+  x.fillStyle = '#FFFFFF'; x.fillRect(0, 150, W, 12);
+  x.fillStyle = '#0B0B0D'; for (let sx = 12; sx < W; sx += 24) x.fillRect(sx, 150, 12, 12);
+  drawBall(x, 95, 75, 42);
+  x.fillStyle = '#FFFFFF'; x.textBaseline = 'middle'; x.textAlign = 'left';
+  x.font = display(58); x.fillText('NETTY PAL', 160, 78);
+  x.fillStyle = '#B4B4BC'; x.textAlign = 'right'; x.font = body(34);
+  x.fillText(fit([g.round ? 'Round ' + g.round : '', g.date ? shareDate(g) : ''].filter(Boolean).join(' · '), 560), W - 60, 78);
+
+  // Title, teams, and when and where.
+  x.textAlign = 'center';
+  x.fillStyle = '#C2005E'; x.font = display(84); x.fillText('PLANNED LINEUP', W / 2, 240);
+  x.fillStyle = '#0B0B0D'; x.font = body(42, 800);
+  x.fillText(fit(`${teamLabel(g, 'us')} ${gameTitle(g)}`.toUpperCase(), W - 120), W / 2, 315);
+  x.fillStyle = '#5F5F66'; x.font = body(32);
+  x.fillText(fit([g.time ? fmtTime(g.time) : '', g.venue, g.court ? courtLabel(g.court) : ''].filter(Boolean).join(' · '), W - 120), W / 2, 370);
+
+  // Table: player names, then a column of bibs per quarter.
+  const nameX = 70, colW = Math.min(170, (W - 470) / n), col0 = W - 60 - n * colW;
+  x.fillStyle = '#5F5F66'; x.font = body(28, 800);
+  x.textAlign = 'left'; x.fillText('PLAYER', nameX, top + 20);
+  x.textAlign = 'center';
+  for (let p = 1; p <= n; p++){ x.fillStyle = '#C2005E'; x.font = display(40); x.fillText(periodName(g, p).toUpperCase(), col0 + (p - 0.5) * colW, top + 20); }
+  ids.forEach((id, i) => {
+    const y = top + 90 + i * rowH;
+    if (i % 2 === 0){ x.fillStyle = '#FFFFFF'; x.fillRect(40, y - rowH / 2, W - 80, rowH); }
+    x.fillStyle = '#0B0B0D'; x.textAlign = 'left'; x.font = body(36);
+    x.fillText(fit(playerName(id), col0 - nameX - 20), nameX, y);
+    x.textAlign = 'center';
+    lineups.forEach((l, k) => {
+      const cx = col0 + (k + 0.5) * colW;
+      const pos = POSITIONS.find(q => l[q] === id);
+      if (!pos){ x.fillStyle = '#A6A6AE'; x.font = body(36); x.fillText('–', cx, y); return; }
+      x.fillStyle = ZONE[POS_ZONE[pos]]; x.beginPath(); x.arc(cx, y, 28, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#FFFFFF'; x.font = display(28); x.fillText(pos, cx, y + 1);
+    });
+  });
+
+  // The note parents see, wrapped over two or three lines.
+  x.fillStyle = '#5F5F66'; x.font = `italic ${body(30, 600)}`;
+  const words = PLAN_NOTE.split(' '), out = [''];
+  words.forEach(w => { const t = out[out.length - 1] ? out[out.length - 1] + ' ' + w : w; if (x.measureText(t).width > W - 160 && out[out.length - 1]) out.push(w); else out[out.length - 1] = t; });
+  const ny = top + 90 + ids.length * rowH + 40;
+  out.forEach((line, i) => x.fillText(line, W / 2, ny + i * 42));
+  return await new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('No image')), 'image/png'));
+}
+// Made ahead of the tap (phones only allow sharing straight after one).
+function prepareLineupShare(g){
+  const text = lineupShareText(g);
+  const key = 'lineup|' + g.id + '|' + text;
+  if (CUR.lineupShare && CUR.lineupShare.key === key) return;
+  const share = { key, text, file:null };
+  share.ready = lineupImage(g).then(blob => {
+    share.file = new File([blob], `netty-pal-lineup-${nameKey(teamLabel(g, 'us')).replace(/ /g, '-')}-v-${nameKey(teamLabel(g, 'them')).replace(/ /g, '-')}.png`, { type:'image/png' });
+  }).catch(err => console.warn('Netty Pal: lineup image', err));
+  CUR.lineupShare = share;
+}
+async function shareLineup(g){
+  prepareLineupShare(g);
+  const share = CUR.lineupShare;
+  if (!share.file && share.ready) await Promise.race([share.ready, new Promise(r => setTimeout(r, 1000))]);
+  const { text, file } = share;
+  if (file && navigator.canShare && navigator.canShare({ files:[file] })){
+    try { await navigator.share({ files:[file] }); } catch(e){ if (e.name !== 'AbortError') throw e; }
+    return;
+  }
+  if (file){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Lineup saved as a picture. Add it to a message.');
+    return;
+  }
+  if (navigator.share){
+    try { await navigator.share({ text }); } catch(e){ if (e.name !== 'AbortError') throw e; }
+    return;
+  }
+  try { await navigator.clipboard.writeText(text); toast('Lineup copied. Paste it into a message.'); }
   catch(e){ toast(text); }
 }
 
@@ -6978,6 +7097,8 @@ document.addEventListener('click', async (e) => {
       goHome();
     } else if (a === 'reload-home'){
       loadHome();
+    } else if (a === 'share-lineup'){
+      const g = findGame(UI.gameId); if (g && isManager()) await shareLineup(g);
     } else if (a === 'share-summary'){
       const g = findGame(UI.gameId); if (g) await shareSummary(g);
     } else if (a === 'reload-stats'){

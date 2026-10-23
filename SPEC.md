@@ -342,6 +342,16 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Share lineup (added 2026-10-23)
+- **Share lineup** button in the Lineup tab, shown only to Coach/Managers, on games that
+  aren't finished and have at least one position planned (not practices).
+- Shares a picture (like the result card): team vs opponent, time, venue and court, then
+  each player's position in every quarter (zone-coloured, "-" for the bench), and the parent
+  note: "Planned by a volunteer doing their best to balance lots of expectations. Lineups
+  often change on game day." (not the coach version).
+- If the phone can't share pictures, it saves the picture; failing that, shares or copies a
+  text version.
+
 ### Lineup tweaks (added 2026-10-21)
 - **Avg mins after** (Whole game table and Fill lineup preview) is the season average minutes
   per game available: earlier finished games plus this one. Before the game it counts this
