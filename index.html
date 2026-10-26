@@ -425,6 +425,13 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .sugg.good{border-color:var(--ok);}
 .sugg-what{margin:0 0 0.3rem; font-size:0.95rem;}
 .sugg-why{margin:0 0 0.6rem; padding-left:1.1rem; font-size:0.875rem; color:var(--ink-soft);}
+.pick-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:0.45rem; margin-bottom:0.8rem;}
+.pick{display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:56px; padding:0.35rem 0.3rem; border:1.5px solid var(--line); border-radius:var(--r); background:var(--surface); color:var(--ink); font:inherit; cursor:pointer; text-align:center;}
+.pick b{font-size:1.05rem;}
+.pick span{font-size:0.75rem; color:var(--ink-soft); line-height:1.2;}
+.pick.empty{border-style:dashed; border-color:var(--ok);}
+.pick.empty span{color:var(--ok); font-weight:600;}
+.pick .pref{color:var(--ok);}
 .auto-table td.avg{white-space:nowrap; font-weight:700; font-size:0.85rem;}
 .plan-note{margin:0.5rem 0 0.4rem; font-size:0.85rem; font-style:italic; color:var(--ink-soft); text-align:center;}
 .auto-bar{display:flex; gap:0.5rem; padding:0.6rem 1rem; border-bottom:1px solid var(--line); background:var(--surface);}
@@ -3445,8 +3452,43 @@ function suggestSheetHtml(g){
         <p style="margin:0.8rem 0 0.6rem">${better.length ? `${better.length === 1 ? 'A change' : 'Changes'} that ${better.length === 1 ? 'makes' : 'make'} the whole game better (preferred positions, even season minutes, no one sitting out two in a row, few position changes):`
           : 'This spot already works well: nothing here makes the game better overall. The closest options:'}</p>
         ${cards || '<p class="hint">No other options for this spot.</p>'}
+        ${manualPickHtml(g, pid, k)}
       </div>
     </div>`;
+}
+// Every spot a player could be put in for quarter k, empty spots first.
+function manualOptions(g, pid, k){
+  const L = lineupFor(g, k), posA = POSITIONS.find(pos => L[pos] === pid);
+  const prefs = playerPrefs(CUR.players.find(x => x.id === pid));
+  const opts = POSITIONS.filter(pos => pos !== posA).map(pos => ({ pos, other:L[pos] || null, pref:prefs.indexOf(pos) }));
+  opts.sort((a, b) => (a.other ? 1 : 0) - (b.other ? 1 : 0));
+  if (posA) opts.push({ pos:'bench', other:null, pref:-1 });
+  return { L, posA, opts };
+}
+function manualPickHtml(g, pid, k){
+  const { posA, opts } = manualOptions(g, pid, k);
+  const first = playerName(pid).split(' ')[0];
+  const btns = opts.map(o => {
+    let sub;
+    if (o.pos === 'bench') sub = 'Bench';
+    else if (!o.other) sub = 'Empty';
+    else sub = posA ? `Swap with ${escapeHtml(playerName(o.other).split(' ')[0])}` : `${escapeHtml(playerName(o.other).split(' ')[0])} to bench`;
+    const pref = o.pref >= 0 ? ` <span class="pref">${['1st', '2nd', '3rd'][o.pref]} choice</span>` : '';
+    const label = o.pos === 'bench' ? `Put ${first} on the bench` : `Put ${first} at ${POS_NAMES[o.pos]}. ${sub.replace(/<[^>]*>/g, '')}`;
+    return `<button class="pick ${o.pos !== 'bench' && !o.other ? 'empty' : ''}" data-action="suggest-pick" data-pos="${o.pos}" aria-label="${escapeHtml(label)}"><b>${o.pos === 'bench' ? '&#8645;' : o.pos}</b><span>${sub}</span>${pref}</button>`;
+  }).join('');
+  return `<p style="margin:0.8rem 0 0.5rem"><b>Or choose a spot for ${escapeHtml(first)}:</b></p><div class="pick-grid">${btns}</div>`;
+}
+// The whole-game lineups after putting pid at pos ('bench' to sit out) in quarter k.
+function manualLineups(g, pid, k, pos){
+  const { L, posA } = manualOptions(g, pid, k);
+  const next = Array.from({ length:periodCount(g) }, (_, i) => ({ ...lineupFor(g, i + 1) }));
+  const nl = next[k - 1];
+  if (pos === 'bench'){ if (posA) delete nl[posA]; return next; }
+  const other = L[pos];
+  nl[pos] = pid;
+  if (posA){ if (other) nl[posA] = other; else delete nl[posA]; }
+  return next;
 }
 // Saves one quarter's new lineup. A later quarter that was following this
 // one keeps the lineup it had, so only the chosen quarter changes.
@@ -3558,7 +3600,7 @@ function renderLineupTab(g){
       tap:k => editable && !periodStarted(g, k),
       avg:isStaff() && !isPractice(g) ? { ...seasonCourtTotals(g.id), pm:periodMs(g), thisMs:gameMsFn(g) } : null })}
     ${!isGameOver(g) && !periodStarted(g, periodCount(g)) ? planNoteHtml(g) : ''}
-    <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for a suggested change, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && !isPractice(g) ? ' "Avg mins after" is season minutes per game available, counting this game' + (scheduled ? ' as planned.' : isGameOver(g) ? '.' : ' (played so far, plus what\'s planned).') : ''}</p>
+    <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for suggestions or to pick any spot, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && !isPractice(g) ? ' "Avg mins after" is season minutes per game available, counting this game' + (scheduled ? ' as planned.' : isGameOver(g) ? '.' : ' (played so far, plus what\'s planned).') : ''}</p>
     ${UI.suggest ? suggestSheetHtml(g) : ''}
     ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}`;
 }
@@ -7467,6 +7509,13 @@ document.addEventListener('click', async (e) => {
       UI.suggest = { pid:btn.dataset.player, k:parseInt(btn.dataset.period, 10) }; render(); focusSheet();
     } else if (a === 'suggest-close'){
       UI.suggest = null; render();
+    } else if (a === 'suggest-pick'){
+      const g = findGame(UI.gameId);
+      if (g && UI.suggest && canEditGames()){
+        const { pid, k } = UI.suggest, pos = btn.dataset.pos;
+        if (pos !== 'bench' && !POSITIONS.includes(pos)) return;
+        UI.suggest = null; await runBusy(() => applySuggestion(g, k, manualLineups(g, pid, k, pos))); UI.period = k; toast(`${periodName(g, k)} updated.`); render();
+      }
     } else if (a === 'suggest-apply'){
       const g = findGame(UI.gameId);
       if (g && UI.suggest){
