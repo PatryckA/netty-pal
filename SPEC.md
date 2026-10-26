@@ -342,6 +342,20 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Pick any spot (added 2026-10-26)
+- Tapping a player's spot in the Whole game table still shows suggested changes, and now also
+  **Or choose a spot for [name]**: a button for every position, empty positions first (dashed
+  green, "Empty"), then filled ones ("Swap with X", or "X to bench" if the player is on the
+  bench), then **Bench** for a player on court. Their 1st/2nd/3rd choice positions are labelled.
+- When the quarter has empty positions, the spot buttons come first and the suggestions below;
+  on a full quarter the suggestions come first.
+- Picking one saves that quarter straight away, like Make this change. It's the coach's call,
+  so it doesn't apply the shooters-only rule.
+- An **Empty** row under the Whole game table shows each quarter's empty positions (quarters not
+  yet started). Tapping one lists the available players: bench first, then by preference for
+  that position (1st/2nd/3rd choice), then fewest season minutes, with quarters planned and
+  avg mins. A player picked from another position leaves that one empty.
+
 ### Share lineup (added 2026-10-23)
 - **Share lineup** button in the Lineup tab, shown only to Coach/Managers, on games that
   aren't finished and have at least one position planned (not practices).
