@@ -342,6 +342,25 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Record a game afterwards (added 2026-11-02)
+- For games nobody scored, or where scoring stopped part way. Coach/Managers and Scorers see
+  **Record game afterwards** on the Game tab of a game not yet started (dated today or earlier),
+  and **Record the rest** on a started game that hasn't reached full time.
+- **Step 1, who played where:** a dropdown per position for each quarter still to record,
+  prefilled with the plan (or what was on court). Choosing a player already in that quarter
+  swaps them. Later quarters that were following one (no plan of their own, not changed here)
+  follow the change. Players not ticked as playing can be chosen and are added to who played.
+- **Step 2, goals:** + / - counters per quarter for our GS and GA (from step 1) and the other
+  team, with misses (optional) when the game tracks them. The running score is in the header.
+- **Part way:** finished quarters are left as recorded. For the quarter scoring stopped in, a
+  lineup change applies from when it stopped, and the goals entered are added to what was
+  recorded. If the clock was still running it's treated as played to the end.
+- **Save** writes the same events live scoring does (lineup at the start of each quarter, shots
+  and the period end at full length) and puts the game at Full time, so score, quarter scores,
+  shooter stats, court time and season totals all work. The person saving becomes the scorer
+  (taking over if someone else was). Then check the timeline / Adjust court time and Finalise.
+- No rule changes: Scorers and Coach/Managers can already write these events and game fields.
+
 ### Pick any spot (added 2026-10-26)
 - Tapping a player's spot in the Whole game table still shows suggested changes, and now also
   **Or choose a spot for [name]**: a button for every position, empty positions first (dashed

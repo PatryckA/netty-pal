@@ -432,6 +432,20 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .pick.empty{border-style:dashed; border-color:var(--ok);}
 .pick.empty span{color:var(--ok); font-weight:600;}
 .pick .pref{color:var(--ok);}
+.rec-head{margin:1rem 0 0.4rem; font-size:1.05rem; text-transform:uppercase;}
+.rec-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.4rem 0.6rem;}
+.rec-pos{display:flex; align-items:center; gap:0.4rem;}
+.rec-pos span{width:2rem; font-weight:700; flex:none;}
+.rec-pos select{flex:1; min-width:0; padding:0.45rem 0.5rem; font-size:0.9rem;}
+.rec-score b{color:var(--ink);}
+.rec-row{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0.4rem; padding:0.5rem 0; border-bottom:1px solid var(--line);}
+.rec-who{min-width:8rem;}
+.rec-steps{display:flex; gap:0.8rem; flex-wrap:wrap;}
+.rec-step{display:flex; align-items:center; gap:0.3rem;}
+.rec-kind{font-size:0.8rem; color:var(--ink-soft);}
+.rec-btn{width:44px; height:44px; border:1.5px solid var(--line); border-radius:50%; background:var(--surface); color:var(--ink); font-size:1.3rem; line-height:1; cursor:pointer;}
+.rec-btn:disabled{opacity:0.35; cursor:default;}
+.rec-num{min-width:1.6rem; text-align:center; font-weight:700; font-size:1.1rem;}
 .empty-row td{vertical-align:top;}
 .gap-btn{display:block; margin:0.15rem auto; min-width:40px; min-height:40px; padding:0 0.3rem; border:1.5px dashed var(--ok); border-radius:999px; background:var(--surface); color:var(--ok); font:inherit; font-size:0.75rem; font-weight:700; cursor:pointer;}
 .fill-list{display:flex; flex-direction:column; gap:0.45rem; margin:0.8rem 0;}
@@ -3924,6 +3938,7 @@ function renderLiveTab(g){
         ${empty ? `<p class="hint" style="margin:0">${empty} position${empty === 1 ? ' is' : 's are'} empty in the ${escapeHtml(periodName(g, 1))} lineup. Fill ${empty === 1 ? 'it' : 'them'} below, or start anyway.</p>` : ''}
         <button class="btn go big" data-action="start-game" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, 1))}</button>
         <p class="hint" style="margin:0">Tap it when the umpire starts play. The clock starts and you become the scorer.</p>
+        ${canRecordAfter(g) ? '<p class="hint" style="margin:0">Already played and nobody scored? Record it from memory instead.</p><div class="guide-links" style="margin-top:0"><button class="btn small" data-action="rec-open">Record game afterwards</button></div>' : ''}
         <div class="guide-links">
           <button class="btn ghost small" data-action="show-guide">New to scoring? How to score</button>
           ${isPractice(g) || !canPractise() ? '' : '<button class="btn ghost small" data-action="start-practice">Try a practice game</button>'}
@@ -3940,7 +3955,7 @@ function renderLiveTab(g){
       body += pickerSheetHtml(g, 1, plan, avail, posOf, planCountOf(g, gamePeriodCounts(g, avail)),
         `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`);
     }
-    return startCard + scoreboardHtml(g, st) + body;
+    return startCard + scoreboardHtml(g, st) + body + (UI.rec && UI.rec.gameId === g.id ? recSheetHtml(g) : '');
   }
 
   body += scorerBarHtml(g);
@@ -4003,7 +4018,10 @@ function renderLiveTab(g){
 
   // The full-time timeline is for Coach/Managers and Scorers (to check and fix); viewers don't see it.
   if (isGameOver(g) && canScore()) body += timelineHtml(g, true, status !== 'final');
+  if (canRecordAfter(g)) body += `<div class="panel"><p style="margin:0 0 0.5rem">Scoring stopped part way? Fill in the rest of the game from memory.</p>
+      <button class="btn ghost small" data-action="rec-open">Record the rest</button></div>`;
   if (UI.handover === g.id) body += handoverSheetHtml(g);
+  if (UI.rec && UI.rec.gameId === g.id) body += recSheetHtml(g);
   return scoreboardHtml(g, st) + body;
 }
 
@@ -7122,6 +7140,157 @@ async function addCorrection(g, fd){
 }
 
 /* ---------------------------------------------------------------------
+   Record a game afterwards: for games nobody scored (or scoring stopped
+   part way). Step 1 is who played where in each period still to record,
+   step 2 is goals (and misses) per shooter per period. Saving writes the
+   same events live scoring would (lineups at the start of each period,
+   shots at its end), so stats, court time and season totals all work.
+--------------------------------------------------------------------- */
+// Games that can be recorded afterwards: not finished, not a practice or
+// bye, and (if not started) on or before today.
+function canRecordAfter(g){
+  if (!g || isPractice(g) || g.bye || !canScore() || isGameOver(g) || g.status === 'final') return false;
+  if (g.status === 'scheduled' || !g.live) return !g.date || g.date <= todayIso();
+  return true;
+}
+// Which periods need recording, and the one scoring stopped part way through (if any).
+function recPeriods(g){
+  const n = periodCount(g), L = g.live || {};
+  if (g.status === 'scheduled' || !L.period) return { from:1, partial:0, stopT:0 };
+  if (L.phase === 'ended') return { from:L.period + 1, partial:0, stopT:0 };
+  return { from:L.period, partial:L.period, stopT:elapsedMs(g) };
+}
+function openRecord(g){
+  const { from, partial, stopT } = recPeriods(g), n = periodCount(g);
+  const avail = new Set(availableIds(g)), st = computeGame(g, CUR.events);
+  const keep = l => { const o = {}; POSITIONS.forEach(pos => { if (l && l[pos] && avail.has(l[pos])) o[pos] = l[pos]; }); return o; };
+  const lineups = {}, goals = {};
+  for (let p = from; p <= n; p++){
+    if (p === partial) lineups[p] = { ...(st.lineup || {}) };
+    else if (ownPlan(g, p) || p === 1) lineups[p] = keep(planFor(g, p));
+    else lineups[p] = p - 1 >= from ? { ...lineups[p - 1] } : startLineup(g, p);
+    goals[p] = {};
+  }
+  UI.rec = { gameId:g.id, step:1, from, partial, stopT, lineups, goals, edited:{} };
+}
+function recPlayers(){ return byName(CUR.players.filter(p => p.active !== false).map(p => p.id)); }
+function recCount(p, key, kind){ const c = UI.rec.goals[p][key]; return (c && c[kind]) || 0; }
+// The score so far: what was recorded live plus what's been entered here.
+function recScore(g){
+  const st = computeGame(g, CUR.events);
+  let us = st.us, them = st.them;
+  Object.values(UI.rec.goals).forEach(gp => Object.entries(gp).forEach(([k, c]) => { if (k === 'opp') them += c.goal || 0; else us += c.goal || 0; }));
+  return { us, them, st };
+}
+function recStepper(p, key, kind, label){
+  const v = recCount(p, key, kind);
+  return `<div class="rec-step"><span class="rec-kind">${label}</span>
+      <button class="rec-btn" data-action="rec-step" data-period="${p}" data-key="${escapeHtml(key)}" data-kind="${kind}" data-d="-1" ${v ? '' : 'disabled'} aria-label="One less ${label.toLowerCase()}">&minus;</button>
+      <span class="rec-num" aria-live="polite">${v}</span>
+      <button class="rec-btn" data-action="rec-step" data-period="${p}" data-key="${escapeHtml(key)}" data-kind="${kind}" data-d="1" aria-label="One more ${label.toLowerCase()}">+</button></div>`;
+}
+function recSheetHtml(g){
+  const R = UI.rec, n = periodCount(g), miss = tracksMiss(g), pm = periodMs(g);
+  const periods = Array.from({ length:n - R.from + 1 }, (_, i) => R.from + i);
+  const players = recPlayers(), avail = new Set(availableIds(g));
+  const { us, them, st } = recScore(g);
+  const partNote = p => p === R.partial
+    ? `<p class="hint" style="margin:0 0 0.4rem">Scoring stopped ${R.stopT >= pm ? 'at the end of' : 'with ' + fmtMins(pm - R.stopT) + ' left in'} ${escapeHtml(periodName(g, p))}${(st.byPeriod[p] && (st.byPeriod[p].us || st.byPeriod[p].them)) ? ` (${st.byPeriod[p].us}&ndash;${st.byPeriod[p].them} recorded by then)` : ''}. ${R.step === 1 ? (R.stopT >= pm ? 'This lineup played to the end.' : 'Change anyone who came on after that.') : 'Add only the goals that weren\'t recorded.'}</p>`
+    : '';
+  let body;
+  if (R.step === 1){
+    body = `<p style="margin:0.8rem 0 0.4rem">Who played where? We've filled in the ${periods[0] === 1 ? 'planned lineup' : 'lineup'}; change anyone who played somewhere else. Each player can only be in one position per ${escapeHtml(periodNoun(g))}.</p>
+      ${periods.map(p => {
+        const L = R.lineups[p], locked = p === R.partial && R.stopT >= pm;
+        return `<h4 class="rec-head">${escapeHtml(periodName(g, p))}</h4>${partNote(p)}
+          <div class="rec-grid">${POSITIONS.map(pos => `<label class="rec-pos"><span>${pos}</span>
+            <select class="select-input" data-field="rec-slot" data-period="${p}" data-pos="${pos}" ${locked ? 'disabled' : ''} aria-label="${escapeHtml(periodName(g, p))} ${POS_NAMES[pos]}">
+              <option value="">Empty</option>
+              ${players.map(id => `<option value="${escapeHtml(id)}" ${L[pos] === id ? 'selected' : ''}>${escapeHtml(playerName(id))}${avail.has(id) ? '' : ' (not ticked as playing)'}</option>`).join('')}
+            </select></label>`).join('')}</div>`;
+      }).join('')}`;
+  } else {
+    body = `<p class="hint" style="margin:0.8rem 0 0.4rem">Goals${miss ? ' (misses are optional)' : ''} for each ${escapeHtml(periodNoun(g))}.</p>
+      ${periods.map(p => {
+        const L = R.lineups[p];
+        const rows = SHOOTERS_POS.filter(pos => L[pos]).map(pos => `<div class="rec-row"><div class="rec-who"><b>${pos}</b> ${escapeHtml(playerName(L[pos]))}</div>
+            <div class="rec-steps">${recStepper(p, L[pos], 'goal', 'Goals')}${miss ? recStepper(p, L[pos], 'miss', 'Misses') : ''}</div></div>`).join('');
+        return `<h4 class="rec-head">${escapeHtml(periodName(g, p))}</h4>${partNote(p)}
+          ${rows || '<p class="hint">Nobody was in GS or GA. Go back to add them.</p>'}
+          <div class="rec-row"><div class="rec-who"><b>${escapeHtml(teamLabel(g, 'them'))}</b></div>
+            <div class="rec-steps">${recStepper(p, 'opp', 'goal', 'Goals')}${miss ? recStepper(p, 'opp', 'miss', 'Misses') : ''}</div></div>`;
+      }).join('')}
+      ${g.scorerUid && USER && g.scorerUid !== USER.uid ? `<p class="hint">Saving takes over scoring from ${escapeHtml(g.scorerName || 'the scorer')}.</p>` : ''}
+      <p class="hint">Saving ends the game at full time. Check Game stats, fix anything with the timeline or Adjust court time, then Finalise.</p>`;
+  }
+  const bar = R.step === 1
+    ? `<button class="btn" data-action="rec-next">Next: goals</button>`
+    : `<button class="btn ghost" data-action="rec-back">Back</button><button class="btn go" data-action="rec-save" ${UI.busy ? 'disabled' : ''}>Save game</button>`;
+  return `<div class="sheet-backdrop" data-action="rec-close"></div>
+    <div class="sheet sub-sheet" role="dialog" aria-modal="true" aria-labelledby="rec-title">
+      <div class="sheet-head"><div class="grow"><h3 id="rec-title">Record ${R.from > 1 ? 'the rest' : 'game'}</h3>
+        <div class="psub">Step ${R.step} of 2: ${R.step === 1 ? 'who played where' : `goals <span class="rec-score">(${escapeHtml(teamLabel(g, 'us'))} <b>${us}</b> &ndash; <b>${them}</b> ${escapeHtml(teamLabel(g, 'them'))})</span>`}</div></div>
+        <button class="btn ghost small ${isArmed('rec-close') ? 'armed' : ''}" data-action="rec-close">${isArmed('rec-close') ? 'Discard?' : 'Close'}</button></div>
+      <div class="auto-bar">${bar}</div>
+      <div class="sheet-body">${body}</div>
+    </div>`;
+}
+// Puts a player in a position for period p, swapping with wherever they were.
+// Later periods that were following this one (not changed by hand, no own
+// plan) follow the change.
+function recSetSlot(g, p, pos, pid){
+  const R = UI.rec, L = { ...R.lineups[p] };
+  if (pid){
+    const from = POSITIONS.find(x => x !== pos && L[x] === pid);
+    if (from){ if (L[pos]) L[from] = L[pos]; else delete L[from]; }
+    L[pos] = pid;
+  } else delete L[pos];
+  R.lineups[p] = L; R.edited[p] = true;
+  for (let q = p + 1; q <= periodCount(g) && !R.edited[q] && !ownPlan(g, q) && q !== R.partial; q++) R.lineups[q] = { ...L };
+}
+async function saveRecord(g){
+  const R = UI.rec, n = periodCount(g), pm = periodMs(g), miss = tracksMiss(g);
+  const me = memberProfile().name;
+  // Someone else was scoring: take over first (the clock can only be changed by the scorer).
+  if (g.live && g.scorerUid && g.scorerUid !== USER.uid){
+    await updateDoc(gameRef(g.id), { scorerUid:USER.uid, scorerName:me });
+  }
+  const events = [];
+  const add = f => events.push({ ...newEvent(f), at:Date.now() + events.length });
+  const used = new Set(availableIds(g));
+  const st = computeGame(g, CUR.events);
+  for (let p = R.from; p <= n; p++){
+    const L = R.lineups[p];
+    Object.values(L).forEach(id => used.add(id));
+    if (p === R.partial){
+      const before = st.lineup || {};
+      const changed = POSITIONS.some(pos => (before[pos] || '') !== (L[pos] || ''));
+      if (changed && R.stopT < pm) add({ type:'lineup', period:p, t:R.stopT, lineup:L });
+    } else add({ type:'lineup', period:p, t:0, lineup:L, start:true });
+    Object.entries(R.goals[p]).forEach(([key, c]) => {
+      ['goal', 'miss'].forEach(kind => {
+        if (kind === 'miss' && !miss) return;
+        for (let i = 0; i < (c[kind] || 0); i++){
+          if (key === 'opp') add({ type:kind === 'goal' ? 'oppGoal' : 'oppMiss', period:p, t:pm });
+          else {
+            const pos = SHOOTERS_POS.find(x => L[x] === key);
+            if (pos) add({ type:kind, pos, playerId:key, period:p, t:pm });
+          }
+        }
+      });
+    });
+    add({ type:'periodEnd', period:p, t:pm });
+  }
+  const live = { period:n, phase:'ended', startedAt:null, elapsedMs:pm, firstCentre:(g.live && g.live.firstCentre) || 'us' };
+  const available = Array.from(used);
+  const after = { ...g, status:'live', live, available };
+  await writeGame(g, events, { status:'live', scorerUid:USER.uid, scorerName:me, live, available,
+    summary:gameSummary(after, [...CUR.events, ...events]) });
+  UI.rec = null;
+  toast('Game recorded. Check Game stats, then Finalise.');
+}
+
+/* ---------------------------------------------------------------------
    Event wiring
 --------------------------------------------------------------------- */
 async function runBusy(fn){
@@ -7584,6 +7753,26 @@ document.addEventListener('click', async (e) => {
       UI.autoSeeds = UI.autoSeeds || {};
       if (!UI.autoSeeds[UI.gameId]) UI.autoSeeds[UI.gameId] = Date.now() % 100000;
       UI.auto = { mode:'top', keep:true, seed:UI.autoSeeds[UI.gameId], alt:0 }; render(); focusSheet();
+    } else if (a === 'rec-open'){
+      const g = findGame(UI.gameId);
+      if (g && canRecordAfter(g) && CUR.eventsFor === g.id && CUR.loaded.events){ openRecord(g); render(); focusSheet(); }
+    } else if (a === 'rec-close'){
+      if (!isArmed('rec-close')){ toast('Tap again to close without saving.'); return arm('rec-close'); }
+      disarm('rec-close'); UI.rec = null; render();
+    } else if (a === 'rec-next'){
+      if (UI.rec){ UI.rec.step = 2; render(); const b = document.querySelector('.sheet-body'); if (b) b.scrollTop = 0; }
+    } else if (a === 'rec-back'){
+      if (UI.rec){ UI.rec.step = 1; render(); }
+    } else if (a === 'rec-step'){
+      const R = UI.rec, p = parseInt(btn.dataset.period, 10);
+      if (R && R.goals[p]){
+        const c = R.goals[p][btn.dataset.key] = R.goals[p][btn.dataset.key] || {};
+        const k = btn.dataset.kind === 'miss' ? 'miss' : 'goal';
+        c[k] = Math.max(0, (c[k] || 0) + (btn.dataset.d === '-1' ? -1 : 1)); render();
+      }
+    } else if (a === 'rec-save'){
+      const g = findGame(UI.gameId);
+      if (g && UI.rec && canRecordAfter(g)){ await runBusy(() => saveRecord(g)); render(); }
     } else if (a === 'auto-close'){
       // Two taps, so a stray tap doesn't lose the plan before it's saved.
       if (!isArmed('auto-close')){ toast('Tap again to close without saving, or tap Use this lineup.'); return arm('auto-close'); }
@@ -7650,6 +7839,10 @@ document.addEventListener('change', (e) => {
   // Ticking "This round is a bye" hides the fields a bye doesn't need, and
   // the opponent is no longer required.
   if (el.matches('input[data-field="bye-toggle"]')) syncByeForm(el);
+  if (el.matches('select[data-field="rec-slot"]') && UI.rec){
+    const g = findGame(UI.gameId), p = parseInt(el.dataset.period, 10);
+    if (g && UI.rec.lineups[p] && POSITIONS.includes(el.dataset.pos)){ recSetSlot(g, p, el.dataset.pos, el.value); render(); }
+  }
   if (el.matches('select[data-field="event-player"]')){
     const g = findGame(UI.gameId);
     if (g) correctEvent(g, el.dataset.event, { playerId:el.value }).catch(err => { fail(err); render(); });
@@ -7902,6 +8095,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && UI.courtAdj){ UI.courtAdj = null; render(); return; }
   if (e.key === 'Escape' && UI.suggest){ UI.suggest = null; render(); return; }
   if (e.key === 'Escape' && UI.fill){ UI.fill = null; render(); return; }
+  if (e.key === 'Escape' && UI.rec){ UI.rec = null; render(); return; }
   if (e.key === 'Escape' && UI.auto){ if (!isArmed('auto-close')) arm('auto-close'); else { disarm('auto-close'); UI.auto = null; render(); } return; }
   if (e.key === 'Escape' && UI.playerMenu){ UI.playerMenu = null; render(); return; }
   if (e.key === 'Escape' && UI.playerSheet){ UI.playerSheet = null; render(); return; }
