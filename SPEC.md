@@ -360,6 +360,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   shooter stats, court time and season totals all work. The person saving becomes the scorer
   (taking over if someone else was). Then check the timeline / Adjust court time and Finalise.
 - No rule changes: Scorers and Coach/Managers can already write these events and game fields.
+- **Re-record game** (added 2026-11-03): on a game at Full time (Coach/Managers and Scorers) or
+  Final (Coach/Managers; saving unlocks it), the same two steps open filled in with what was
+  recorded: each quarter's starting lineup and each player's (and the other team's) goals and
+  misses. Only differences are saved: a changed starting lineup replaces that quarter's lineups
+  (otherwise recorded substitutions are kept); extra shots are added at the end of the quarter
+  and removed ones are marked undone (latest first). A quarter recorded as shorter than 90% of
+  its length (or with no end) shows "Played the full N minutes", ticked, which moves its end
+  to full length so court time is right. Other stats (feeds aside) are untouched.
 
 ### Pick any spot (added 2026-10-26)
 - Tapping a player's spot in the Whole game table still shows suggested changes, and now also

@@ -4011,6 +4011,8 @@ function renderLiveTab(g){
         <p style="margin:0 0 0.6rem">Check the timeline below and fix any mistakes, then finalise to lock the game.</p>
         <button class="btn go" data-action="finalise-game" ${UI.busy ? 'disabled' : ''}>Finalise game</button>
       </div>`;
+    if (canRedo(g)) body += `<div class="panel"><p style="margin:0 0 0.5rem">Nobody scored properly? Re-enter the goals and who played where from memory.</p>
+        <button class="btn ghost small" data-action="rec-redo">Re-record game</button></div>`;
     if (final && isManager()) body += `<div class="lineup-tools">
         <button class="btn ghost small ${isArmed('unlock-game') ? 'armed' : ''}" data-action="unlock-game">
           ${isArmed('unlock-game') ? 'Confirm unlock for corrections' : 'Unlock for corrections'}</button></div>`;
@@ -7173,12 +7175,95 @@ function openRecord(g){
   }
   UI.rec = { gameId:g.id, step:1, from, partial, stopT, lineups, goals, edited:{} };
 }
+// Re-recording a game that's already at Full time (or Final): the same two
+// steps, filled in with what was recorded, so only what's wrong changes.
+function canRedo(g){
+  if (!g || isPractice(g) || g.bye || !isGameOver(g)) return false;
+  return g.status === 'final' ? isManager() : canScore();
+}
+function redoEvents(g, p){ return (CUR.events || []).filter(e => !e.undone && e.period === p).sort((a, b) => (a.t - b.t) || ((a.at || 0) - (b.at || 0))); }
+// The shots recorded in period p for one key (a player id, or 'opp') and kind.
+function redoShots(g, p, key, kind){
+  return redoEvents(g, p).filter(e => key === 'opp' ? e.type === (kind === 'goal' ? 'oppGoal' : 'oppMiss') : (e.type === kind && e.playerId === key));
+}
+function openRedo(g){
+  const n = periodCount(g), pm = periodMs(g), miss = tracksMiss(g);
+  const lineups = {}, goals = {}, orig = {}, fullLen = {};
+  for (let p = 1; p <= n; p++){
+    const evs = redoEvents(g, p);
+    const les = evs.filter(e => e.type === 'lineup');
+    const end = evs.find(e => e.type === 'periodEnd');
+    lineups[p] = { ...((les[0] && les[0].lineup) || {}) };
+    goals[p] = {};
+    evs.forEach(e => {
+      const key = e.type === 'goal' || (e.type === 'miss' && miss) ? e.playerId : (e.type === 'oppGoal' || (e.type === 'oppMiss' && miss)) ? 'opp' : null;
+      if (!key) return;
+      const kind = e.type === 'goal' || e.type === 'oppGoal' ? 'goal' : 'miss';
+      const c = goals[p][key] = goals[p][key] || {};
+      c[kind] = (c[kind] || 0) + 1;
+      if (key !== 'opp') c.pos = c.pos || e.pos;
+    });
+    orig[p] = { lineup:{ ...lineups[p] }, subs:Math.max(0, les.length - 1), endT:end ? end.t : 0 };
+    fullLen[p] = !end || end.t < pm * 0.9;
+  }
+  UI.rec = { gameId:g.id, step:1, from:1, partial:0, stopT:0, lineups, goals, edited:{}, redo:true, orig, fullLen };
+}
+function sameLineup(a, b){ return POSITIONS.every(pos => (a[pos] || '') === (b[pos] || '')); }
+async function saveRedo(g){
+  const R = UI.rec, n = periodCount(g), pm = periodMs(g), miss = tracksMiss(g);
+  // A finalised game is unlocked first (events can't change once it's final).
+  if (g.status === 'final') await updateDoc(gameRef(g.id), { status:'live' });
+  const undo = [], events = [];
+  const add = f => events.push({ ...newEvent(f), at:Date.now() + events.length });
+  const used = new Set(availableIds(g));
+  for (let p = 1; p <= n; p++){
+    const L = R.lineups[p], O = R.orig[p], evs = redoEvents(g, p);
+    Object.values(L).forEach(id => used.add(id));
+    // A changed starting lineup replaces every lineup recorded in that period.
+    if (!sameLineup(L, O.lineup) || !evs.some(e => e.type === 'lineup')){
+      evs.filter(e => e.type === 'lineup').forEach(e => undo.push(e.id));
+      add({ type:'lineup', period:p, t:0, lineup:L, start:true });
+    }
+    const endEv = evs.find(e => e.type === 'periodEnd');
+    let endT = endEv ? endEv.t : pm;
+    if (R.fullLen[p] && (!endEv || endEv.t < pm)){
+      if (endEv) undo.push(endEv.id);
+      add({ type:'periodEnd', period:p, t:pm });
+      endT = pm;
+    }
+    // Shots: add or remove only the difference, so recorded ones keep their times.
+    Object.entries(R.goals[p]).forEach(([key, c]) => {
+      ['goal', 'miss'].forEach(kind => {
+        if (kind === 'miss' && !miss) return;
+        const old = redoShots(g, p, key, kind), want = c[kind] || 0;
+        if (want < old.length) old.slice(want - old.length).forEach(e => undo.push(e.id));
+        for (let i = old.length; i < want; i++){
+          if (key === 'opp') add({ type:kind === 'goal' ? 'oppGoal' : 'oppMiss', period:p, t:endT });
+          else {
+            const pos = SHOOTERS_POS.find(x => L[x] === key) || c.pos || 'GS';
+            add({ type:kind, pos, playerId:key, period:p, t:endT });
+          }
+        }
+      });
+    });
+  }
+  const undone = new Set(undo);
+  const after = [...CUR.events.map(e => undone.has(e.id) ? { ...e, undone:true } : e), ...events];
+  const available = Array.from(used);
+  const batch = writeBatch(db);
+  undone.forEach(id => batch.update(doc(eventsRef(g.id), id), { undone:true }));
+  events.forEach(ev => batch.set(doc(eventsRef(g.id)), ev));
+  batch.update(gameRef(g.id), { available, summary:gameSummary({ ...g, available }, after) });
+  await batch.commit();
+  UI.rec = null;
+  toast(`Game updated. Check Game stats, then Finalise${g.status === 'final' ? ' again' : ''}.`);
+}
 function recPlayers(){ return byName(CUR.players.filter(p => p.active !== false).map(p => p.id)); }
 function recCount(p, key, kind){ const c = UI.rec.goals[p][key]; return (c && c[kind]) || 0; }
 // The score so far: what was recorded live plus what's been entered here.
 function recScore(g){
   const st = computeGame(g, CUR.events);
-  let us = st.us, them = st.them;
+  let us = UI.rec.redo ? 0 : st.us, them = UI.rec.redo ? 0 : st.them;
   Object.values(UI.rec.goals).forEach(gp => Object.entries(gp).forEach(([k, c]) => { if (k === 'opp') them += c.goal || 0; else us += c.goal || 0; }));
   return { us, them, st };
 }
@@ -7197,12 +7282,19 @@ function recSheetHtml(g){
   const partNote = p => p === R.partial
     ? `<p class="hint" style="margin:0 0 0.4rem">Scoring stopped ${R.stopT >= pm ? 'at the end of' : 'with ' + fmtMins(pm - R.stopT) + ' left in'} ${escapeHtml(periodName(g, p))}${(st.byPeriod[p] && (st.byPeriod[p].us || st.byPeriod[p].them)) ? ` (${st.byPeriod[p].us}&ndash;${st.byPeriod[p].them} recorded by then)` : ''}. ${R.step === 1 ? (R.stopT >= pm ? 'This lineup played to the end.' : 'Change anyone who came on after that.') : 'Add only the goals that weren\'t recorded.'}</p>`
     : '';
+  const redoNote = p => {
+    if (!R.redo || R.step !== 1) return '';
+    const O = R.orig[p], bits = [];
+    if (O.subs) bits.push(`<p class="hint" style="margin:0 0 0.4rem">${O.subs} change${O.subs === 1 ? ' was' : 's were'} recorded during this ${escapeHtml(periodNoun(g))}. ${O.subs === 1 ? 'It\'s' : 'They\'re'} kept unless you change this lineup.</p>`);
+    if (!O.endT || O.endT < pm * 0.9) bits.push(`<label class="check-row rec-full"><input type="checkbox" data-field="rec-full" data-period="${p}" ${R.fullLen[p] ? 'checked' : ''}> Played the full ${Math.round(pm / 60000)} minutes ${O.endT ? `(recorded as ${fmtMins(O.endT)})` : '(no end recorded)'}</label>`);
+    return bits.join('');
+  };
   let body;
   if (R.step === 1){
-    body = `<p style="margin:0.8rem 0 0.4rem">Who played where? We've filled in the ${periods[0] === 1 ? 'planned lineup' : 'lineup'}; change anyone who played somewhere else. Each player can only be in one position per ${escapeHtml(periodNoun(g))}.</p>
+    body = `<p style="margin:0.8rem 0 0.4rem">Who played where? ${R.redo ? 'This is who was recorded at the start of each ' + escapeHtml(periodNoun(g)) : 'We\'ve filled in the ' + (periods[0] === 1 ? 'planned lineup' : 'lineup')}; change anyone who played somewhere else. Each player can only be in one position per ${escapeHtml(periodNoun(g))}.</p>
       ${periods.map(p => {
         const L = R.lineups[p], locked = p === R.partial && R.stopT >= pm;
-        return `<h4 class="rec-head">${escapeHtml(periodName(g, p))}</h4>${partNote(p)}
+        return `<h4 class="rec-head">${escapeHtml(periodName(g, p))}</h4>${partNote(p)}${redoNote(p)}
           <div class="rec-grid">${POSITIONS.map(pos => `<label class="rec-pos"><span>${pos}</span>
             <select class="select-input" data-field="rec-slot" data-period="${p}" data-pos="${pos}" ${locked ? 'disabled' : ''} aria-label="${escapeHtml(periodName(g, p))} ${POS_NAMES[pos]}">
               <option value="">Empty</option>
@@ -7210,25 +7302,28 @@ function recSheetHtml(g){
             </select></label>`).join('')}</div>`;
       }).join('')}`;
   } else {
-    body = `<p class="hint" style="margin:0.8rem 0 0.4rem">Goals${miss ? ' (misses are optional)' : ''} for each ${escapeHtml(periodNoun(g))}.</p>
+    body = `<p class="hint" style="margin:0.8rem 0 0.4rem">Goals${miss ? ' (misses are optional)' : ''} for each ${escapeHtml(periodNoun(g))}.${R.redo ? ' These are what was recorded: change them to what really happened.' : ''}</p>
       ${periods.map(p => {
         const L = R.lineups[p];
-        const rows = SHOOTERS_POS.filter(pos => L[pos]).map(pos => `<div class="rec-row"><div class="rec-who"><b>${pos}</b> ${escapeHtml(playerName(L[pos]))}</div>
-            <div class="rec-steps">${recStepper(p, L[pos], 'goal', 'Goals')}${miss ? recStepper(p, L[pos], 'miss', 'Misses') : ''}</div></div>`).join('');
+        // Our GS and GA, plus (re-recording) anyone else with shots recorded this period.
+        const who = SHOOTERS_POS.filter(pos => L[pos]).map(pos => [pos, L[pos]]);
+        if (R.redo) Object.entries(R.goals[p]).forEach(([id, c]) => { if (id !== 'opp' && !who.some(w => w[1] === id) && (c.goal || c.miss)) who.push([c.pos || '', id]); });
+        const rows = who.map(([pos, id]) => `<div class="rec-row"><div class="rec-who"><b>${pos}</b> ${escapeHtml(playerName(id))}</div>
+            <div class="rec-steps">${recStepper(p, id, 'goal', 'Goals')}${miss ? recStepper(p, id, 'miss', 'Misses') : ''}</div></div>`).join('');
         return `<h4 class="rec-head">${escapeHtml(periodName(g, p))}</h4>${partNote(p)}
           ${rows || '<p class="hint">Nobody was in GS or GA. Go back to add them.</p>'}
           <div class="rec-row"><div class="rec-who"><b>${escapeHtml(teamLabel(g, 'them'))}</b></div>
             <div class="rec-steps">${recStepper(p, 'opp', 'goal', 'Goals')}${miss ? recStepper(p, 'opp', 'miss', 'Misses') : ''}</div></div>`;
       }).join('')}
-      ${g.scorerUid && USER && g.scorerUid !== USER.uid ? `<p class="hint">Saving takes over scoring from ${escapeHtml(g.scorerName || 'the scorer')}.</p>` : ''}
-      <p class="hint">Saving ends the game at full time. Check Game stats, fix anything with the timeline or Adjust court time, then Finalise.</p>`;
+      ${!R.redo && g.scorerUid && USER && g.scorerUid !== USER.uid ? `<p class="hint">Saving takes over scoring from ${escapeHtml(g.scorerName || 'the scorer')}.</p>` : ''}
+      <p class="hint">${R.redo ? (g.status === 'final' ? 'Saving unlocks the game. ' : '') + 'Check Game stats afterwards, then Finalise.' : 'Saving ends the game at full time. Check Game stats, fix anything with the timeline or Adjust court time, then Finalise.'}</p>`;
   }
   const bar = R.step === 1
     ? `<button class="btn" data-action="rec-next">Next: goals</button>`
     : `<button class="btn ghost" data-action="rec-back">Back</button><button class="btn go" data-action="rec-save" ${UI.busy ? 'disabled' : ''}>Save game</button>`;
   return `<div class="sheet-backdrop" data-action="rec-close"></div>
     <div class="sheet sub-sheet" role="dialog" aria-modal="true" aria-labelledby="rec-title">
-      <div class="sheet-head"><div class="grow"><h3 id="rec-title">Record ${R.from > 1 ? 'the rest' : 'game'}</h3>
+      <div class="sheet-head"><div class="grow"><h3 id="rec-title">${R.redo ? 'Re-record game' : 'Record ' + (R.from > 1 ? 'the rest' : 'game')}</h3>
         <div class="psub">Step ${R.step} of 2: ${R.step === 1 ? 'who played where' : `goals <span class="rec-score">(${escapeHtml(teamLabel(g, 'us'))} <b>${us}</b> &ndash; <b>${them}</b> ${escapeHtml(teamLabel(g, 'them'))})</span>`}</div></div>
         <button class="btn ghost small ${isArmed('rec-close') ? 'armed' : ''}" data-action="rec-close">${isArmed('rec-close') ? 'Discard?' : 'Close'}</button></div>
       <div class="auto-bar">${bar}</div>
@@ -7246,6 +7341,7 @@ function recSetSlot(g, p, pos, pid){
     L[pos] = pid;
   } else delete L[pos];
   R.lineups[p] = L; R.edited[p] = true;
+  if (R.redo) return;
   for (let q = p + 1; q <= periodCount(g) && !R.edited[q] && !ownPlan(g, q) && q !== R.partial; q++) R.lineups[q] = { ...L };
 }
 async function saveRecord(g){
@@ -7756,6 +7852,9 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'rec-open'){
       const g = findGame(UI.gameId);
       if (g && canRecordAfter(g) && CUR.eventsFor === g.id && CUR.loaded.events){ openRecord(g); render(); focusSheet(); }
+    } else if (a === 'rec-redo'){
+      const g = findGame(UI.gameId);
+      if (g && canRedo(g) && CUR.eventsFor === g.id && CUR.loaded.events){ openRedo(g); render(); focusSheet(); }
     } else if (a === 'rec-close'){
       if (!isArmed('rec-close')){ toast('Tap again to close without saving.'); return arm('rec-close'); }
       disarm('rec-close'); UI.rec = null; render();
@@ -7772,7 +7871,8 @@ document.addEventListener('click', async (e) => {
       }
     } else if (a === 'rec-save'){
       const g = findGame(UI.gameId);
-      if (g && UI.rec && canRecordAfter(g)){ await runBusy(() => saveRecord(g)); render(); }
+      if (g && UI.rec && UI.rec.redo && canRedo(g)){ await runBusy(() => saveRedo(g)); render(); }
+      else if (g && UI.rec && !UI.rec.redo && canRecordAfter(g)){ await runBusy(() => saveRecord(g)); render(); }
     } else if (a === 'auto-close'){
       // Two taps, so a stray tap doesn't lose the plan before it's saved.
       if (!isArmed('auto-close')){ toast('Tap again to close without saving, or tap Use this lineup.'); return arm('auto-close'); }
@@ -7839,6 +7939,7 @@ document.addEventListener('change', (e) => {
   // Ticking "This round is a bye" hides the fields a bye doesn't need, and
   // the opponent is no longer required.
   if (el.matches('input[data-field="bye-toggle"]')) syncByeForm(el);
+  if (el.matches('input[data-field="rec-full"]') && UI.rec && UI.rec.fullLen){ UI.rec.fullLen[parseInt(el.dataset.period, 10)] = el.checked; }
   if (el.matches('select[data-field="rec-slot"]') && UI.rec){
     const g = findGame(UI.gameId), p = parseInt(el.dataset.period, 10);
     if (g && UI.rec.lineups[p] && POSITIONS.includes(el.dataset.pos)){ recSetSlot(g, p, el.dataset.pos, el.value); render(); }
