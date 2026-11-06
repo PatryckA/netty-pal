@@ -418,6 +418,9 @@ form:has(#aw-on:not(:checked)) .award-names{display:none;}
 .grid-cell{background:none; border:none; padding:0; min-width:40px; min-height:40px; cursor:pointer; color:inherit; font:inherit; display:inline-flex; align-items:center; justify-content:center; border-radius:50%;}
 .grid-cell:hover,.grid-cell:focus-visible{background:var(--surface-2);}
 .grid-cell{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+.grid-name{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+tr.row-lifted{background:var(--accent-bg); outline:2px solid var(--pop);}
+tr.row-drop td{box-shadow:inset 0 3px 0 var(--pop);}
 .grid-cell.lifted{background:var(--accent-bg); box-shadow:0 0 0 2px var(--pop); transform:scale(1.12); transition:transform 0.1s;}
 .grid-cell.drop-ok{box-shadow:inset 0 0 0 1.5px var(--line);}
 .grid-cell.drop-hover{background:var(--pop); color:var(--pop-ink); box-shadow:none;}
@@ -3290,9 +3293,41 @@ function lineupFillIns(g){
   return out;
 }
 function prefsToggleHtml(){
-  return `<button class="btn ghost small" data-action="toggle-all-prefs" aria-pressed="${!!UI.showAllPrefs}">${UI.showAllPrefs ? 'Hide preferred positions' : 'Show preferred positions'}</button>`;
+  return `${orderToolHtml()}<button class="btn ghost small" data-action="toggle-all-prefs" aria-pressed="${!!UI.showAllPrefs}">${UI.showAllPrefs ? 'Hide preferred positions' : 'Show preferred positions'}</button>`;
+}
+// Player order for lineups: grouped by 1st preferred position (GS to GK), then
+// 2nd and 3rd, then name; players without preferences last. Anyone can drag
+// rows into their own order, kept on this phone for this season.
+const ORDER_KEY = 'nettyPalLineupOrder';
+function savedOrder(){
+  try { const m = JSON.parse(localStorage.getItem(ORDER_KEY) || '{}'); return Array.isArray(m[UI.seasonId]) ? m[UI.seasonId] : null; } catch(e){ return null; }
+}
+function setSavedOrder(list){
+  try { const m = JSON.parse(localStorage.getItem(ORDER_KEY) || '{}'); if (list) m[UI.seasonId] = list; else delete m[UI.seasonId]; localStorage.setItem(ORDER_KEY, JSON.stringify(m)); } catch(e){}
+}
+function prefOrder(ids){
+  const key = id => { const pr = playerPrefs(CUR.players.find(x => x.id === id)); return [0, 1, 2].map(i => pr[i] ? POSITIONS.indexOf(pr[i]) : 9); };
+  return ids.slice().sort((a, b) => { const ka = key(a), kb = key(b); for (let i = 0; i < 3; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i]; return playerName(a).localeCompare(playerName(b)); });
+}
+function lineupOrder(ids){
+  const saved = savedOrder(), base = prefOrder(ids);
+  if (!saved) return base;
+  const at = id => { const i = saved.indexOf(id); return i < 0 ? 1e6 + base.indexOf(id) : i; };
+  return base.slice().sort((a, b) => at(a) - at(b));
+}
+// Moves player a to where player b is in the shown list, and saves the order.
+function moveInOrder(shown, a, b){
+  const list = shown.filter(id => id !== a), to = shown.indexOf(b), from = shown.indexOf(a);
+  if (to < 0 || from < 0 || a === b) return;
+  list.splice(to, 0, a);
+  const rest = lineupOrder(CUR.players.map(x => x.id)).filter(id => !list.includes(id));
+  setSavedOrder([...list, ...rest]);
+}
+function orderToolHtml(){
+  return savedOrder() ? '<button class="btn ghost small" data-action="reset-order">Sort by position</button>' : '';
 }
 function gameGridHtml(g, opts){
+  opts = { ...opts, ids:lineupOrder(opts.ids) };
   const qs = Array.from({ length:periodCount(g) }, (_, i) => i + 1);
   const lineups = qs.map(p => opts.lineupOf(p) || {});
   const cell = (id, i) => {
@@ -3319,7 +3354,7 @@ function gameGridHtml(g, opts){
     const open = UI.showAllPrefs || UI.gridPrefs === id;
     const pl = CUR.players.find(x => x.id === id);
     const prefsLine = open ? `<span class="grid-prefs">${playerPrefs(pl).length ? prefChipsHtml(pl) : '<span class="hint">No preferred positions</span>'}</span>` : '';
-    return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}"><td><button class="grid-name" data-action="grid-prefs" data-player="${escapeHtml(id)}" aria-expanded="${open}">${escapeHtml(playerName(id))}</button>${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}${prefsLine}</td>
+    return `<tr class="${d ? 'uneven-row' : ''} ${q ? '' : 'no-time'} ${followRow(id)}" data-row="${escapeHtml(id)}"><td><button class="grid-name" data-action="grid-prefs" data-player="${escapeHtml(id)}" aria-expanded="${open}">${escapeHtml(playerName(id))}</button>${d ? ` <span class="uneven-tag">${d > 0 ? '+' + d : '−' + -d}</span>` : ''}${prefsLine}</td>
       ${qs.map((_, i) => cell(id, i)).join('')}<td class="total">${q}</td>${avg}</tr>`;
   }).join('');
   // Empty spots in each quarter that can still be changed: tap one to choose who plays there.
@@ -3330,7 +3365,7 @@ function gameGridHtml(g, opts){
   const head = p => opts.current
     ? `<button class="sort-btn" data-action="period" data-period="${p}" aria-pressed="${opts.current === p}">${escapeHtml(periodName(g, p))}</button>`
     : escapeHtml(periodName(g, p));
-  return `<div class="fair-wrap"><table class="fair auto-table">
+  return `<div class="fair-wrap"><table class="fair auto-table" data-order="${escapeHtml(opts.ids.join(','))}">
       <thead><tr><th scope="col">Player</th>${qs.map(p => `<th scope="col" class="${opts.current === p ? 'cur' : ''}">${head(p)}</th>`).join('')}<th scope="col">${g.format === 'halves' ? 'Halves' : 'Qtrs'}</th>${opts.avg ? '<th scope="col">Avg mins after</th>' : ''}</tr></thead>
       <tbody>${rows || `<tr><td colspan="${qs.length + 3}">No players are marked as playing.</td></tr>`}${emptyRow}</tbody></table></div>`;
 }
@@ -3655,7 +3690,7 @@ function renderLineupTab(g){
       tap:k => editable && !periodStarted(g, k),
       avg:isStaff() && !isPractice(g) ? { ...seasonCourtTotals(g.id), pm:periodMs(g), thisMs:gameMsFn(g) } : null })}
     ${!isGameOver(g) && !periodStarted(g, periodCount(g)) ? planNoteHtml(g) : ''}
-    <p class="hint">Tap a name for their preferred positions.${editable && g.status !== 'final' ? ' Tap a player\'s spot for suggestions or to pick any spot, tap an empty spot to choose who plays there, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && !isPractice(g) ? ' "Avg mins after" is season minutes per game available, counting this game' + (scheduled ? ' as planned.' : isGameOver(g) ? '.' : ' (played so far, plus what\'s planned).') : ''}</p>
+    <p class="hint">Tap a name for their preferred positions, or press and hold it and drag to change the order (just on this phone).${editable && g.status !== 'final' ? ' Tap a player\'s spot for suggestions or to pick any spot, tap an empty spot to choose who plays there, or press and hold it and drag onto another spot in the same ' + escapeHtml(periodNoun(g)) + ' to swap (bench spots too).' : ''} Grey bibs aren't one of the player's preferred positions.${isStaff() && !isPractice(g) ? ' "Avg mins after" is season minutes per game available, counting this game' + (scheduled ? ' as planned.' : isGameOver(g) ? '.' : ' (played so far, plus what\'s planned).') : ''}</p>
     ${UI.suggest ? suggestSheetHtml(g) : ''}
     ${UI.fill ? fillSheetHtml(g) : ''}
     ${UI.auto && autoBtn ? autoSheetHtml(g) : ''}`;
@@ -3699,7 +3734,7 @@ function courtHtml(plan, editable, g, p, avail, tapAction){
   let bench = '';
   if (avail){
     const onCourt = new Set(Object.values(plan).filter(Boolean));
-    const ids = avail.filter(id => !onCourt.has(id));
+    const ids = lineupOrder(avail.filter(id => !onCourt.has(id)));
     bench = `<div class="bench-drop" ${editable ? 'data-dnd' : ''}>
         <div class="bench-label">Bench${editable ? ' <span>(drag onto a position)</span>' : ''}</div>
         <div class="chip-wrap">${ids.length ? ids.map(id => editable
@@ -3752,7 +3787,8 @@ function pickerSheetHtml(g, p, plan, avail, posOf, countOf, note){
       <span class="pick-count ${c.zero ? 'zero' : ''}">${escapeHtml(c.text)}</span>
     </button>`;
   };
-  const byCount = (a, b) => prefRank(a) - prefRank(b) || countOf(a).n - countOf(b).n || playerName(a).localeCompare(playerName(b));
+  const ord = lineupOrder(avail);
+  const byCount = (a, b) => prefRank(a) - prefRank(b) || countOf(a).n - countOf(b).n || ord.indexOf(a) - ord.indexOf(b);
   const bench = avail.filter(id => !posOf[id]).sort(byCount);
   const onCourt = avail.filter(id => posOf[id] && posOf[id] !== pos).sort(byCount);
   return `<div class="sheet-backdrop" data-action="close-picker"></div>
@@ -7852,6 +7888,8 @@ document.addEventListener('click', async (e) => {
     } else if (a === 'rec-open'){
       const g = findGame(UI.gameId);
       if (g && canRecordAfter(g) && CUR.eventsFor === g.id && CUR.loaded.events){ openRecord(g); render(); focusSheet(); }
+    } else if (a === 'reset-order'){
+      setSavedOrder(null); toast('Sorted by preferred position.'); render();
     } else if (a === 'rec-redo'){
       const g = findGame(UI.gameId);
       if (g && canRedo(g) && CUR.eventsFor === g.id && CUR.loaded.events){ openRedo(g); render(); focusSheet(); }
@@ -8106,7 +8144,78 @@ document.addEventListener('pointerup', (e) => {
   else swapInQuarter(parseInt(d.k, 10), d.pid, t.dataset.player).catch(fail);
 });
 document.addEventListener('pointercancel', () => endGridDrag());
-document.addEventListener('contextmenu', (e) => { if (e.target.closest('.grid-cell')) e.preventDefault(); });
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('.grid-cell, .grid-name')) e.preventDefault(); });
+
+/* ---- Drag rows to reorder the Whole game table ----
+   Press and hold a player's name until the row lifts, then drag it up or
+   down. The order is kept on this phone (see lineupOrder). */
+let rdrag = null;
+function rowDropTarget(x, y){
+  const el = document.elementFromPoint(x, y);
+  const tr = el && el.closest('tr[data-row]');
+  return tr && rdrag && tr.closest('table') === rdrag.table && tr !== rdrag.row ? tr : null;
+}
+function endRowDrag(){
+  if (!rdrag) return;
+  clearTimeout(rdrag.timer);
+  if (rdrag.ghost) rdrag.ghost.remove();
+  if (rdrag.row) rdrag.row.classList.remove('row-lifted');
+  document.querySelectorAll('tr.row-drop').forEach(r => r.classList.remove('row-drop'));
+  document.body.classList.remove('dragging');
+  rdrag = null;
+}
+function liftRow(){
+  if (!rdrag) return;
+  rdrag.picked = true;
+  rdrag.row.classList.add('row-lifted');
+  if (navigator.vibrate) try { navigator.vibrate(20); } catch(err){}
+}
+document.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  const name = e.target.closest('.grid-name[data-player]');
+  const row = name && name.closest('tr[data-row]'), table = row && row.closest('table[data-order]');
+  if (!table) return;
+  rdrag = { id:e.pointerId, x:e.clientX, y:e.clientY, row, table, pid:row.dataset.row,
+    mouse:e.pointerType === 'mouse', picked:false, moved:false, ghost:null, timer:null };
+  if (!rdrag.mouse) rdrag.timer = setTimeout(liftRow, 300);
+});
+document.addEventListener('pointermove', (e) => {
+  if (!rdrag || e.pointerId !== rdrag.id) return;
+  const far = Math.hypot(e.clientX - rdrag.x, e.clientY - rdrag.y) > 8;
+  if (!rdrag.picked){
+    if (!far) return;
+    if (!rdrag.mouse){ endRowDrag(); return; }
+    liftRow();
+  }
+  if (far) rdrag.moved = true;
+  if (!rdrag.moved) return;
+  e.preventDefault();
+  if (!rdrag.ghost){
+    rdrag.ghost = document.createElement('div');
+    rdrag.ghost.className = 'drag-ghost';
+    rdrag.ghost.textContent = playerName(rdrag.pid);
+    document.body.appendChild(rdrag.ghost);
+    document.body.classList.add('dragging');
+  }
+  rdrag.ghost.style.left = e.clientX + 'px';
+  rdrag.ghost.style.top = e.clientY + 'px';
+  document.querySelectorAll('tr.row-drop').forEach(r => r.classList.remove('row-drop'));
+  const t = rowDropTarget(e.clientX, e.clientY);
+  if (t) t.classList.add('row-drop');
+}, { passive:false });
+document.addEventListener('touchmove', (e) => { if (rdrag && rdrag.picked) e.preventDefault(); }, { passive:false });
+document.addEventListener('pointerup', (e) => {
+  if (!rdrag || e.pointerId !== rdrag.id) return;
+  const d = rdrag;
+  const t = d.picked && d.moved ? rowDropTarget(e.clientX, e.clientY) : null;
+  endRowDrag();
+  if (!d.moved) return; // a tap shows the player's preferred positions as usual
+  swallowNextClick();
+  if (!t) return;
+  moveInOrder(d.table.dataset.order.split(','), d.pid, t.dataset.row);
+  render();
+});
+document.addEventListener('pointercancel', () => endRowDrag());
 // Swap two players' spots in one quarter of the Fill lineup preview.
 function swapInPreview(k, a, b){
   const g = findGame(UI.gameId);
