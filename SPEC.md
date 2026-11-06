@@ -342,6 +342,15 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Player order in lineups (added 2026-11-06)
+- The Whole game table (Lineup tab and Fill lineup preview) and the bench under the court list
+  players by 1st preferred position in court order (GS, GA, WA, C, WD, GD, GK), then 2nd and
+  3rd choice, then name. Players without preferences come last. The position picker keeps
+  putting players who prefer that position first, then least time, then this order.
+- Press and hold a name in the Whole game table, then drag up or down to change the order.
+  It's saved only on that phone, per season (localStorage `nettyPalLineupOrder`). Once
+  changed, **Sort by position** (next to Show preferred positions) goes back to the default.
+
 ### Record a game afterwards (added 2026-11-02)
 - For games nobody scored, or where scoring stopped part way. Coach/Managers and Scorers see
   **Record game afterwards** on the Game tab of a game not yet started (dated today or earlier),
