@@ -435,6 +435,16 @@ tr.row-drop td{box-shadow:inset 0 3px 0 var(--pop);}
 .pick.empty{border-style:dashed; border-color:var(--ok);}
 .pick.empty span{color:var(--ok); font-weight:600;}
 .pick .pref{color:var(--ok);}
+.crew-bar{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); padding:0.6rem 0.75rem; margin:0.6rem 0; font-size:0.92rem;}
+.crew-gap{color:var(--warm);}
+.crew-opt{display:flex; align-items:center; gap:0.6rem; width:100%; text-align:left; min-height:52px; padding:0.5rem 0.75rem; margin-bottom:0.4rem; border:1.5px solid var(--line); border-radius:var(--r); background:var(--surface); color:var(--ink); font:inherit; cursor:pointer;}
+.crew-opt .psub{display:block;}
+.crew-opt.on{border-color:var(--ok);}
+.crew-opt:disabled{opacity:0.5; cursor:default;}
+.crew-check{width:24px; height:24px; flex:none; border:1.5px solid var(--line); border-radius:6px; display:inline-flex; align-items:center; justify-content:center; color:var(--ok); font-weight:800;}
+.crew-opt.on .crew-check{border-color:var(--ok);}
+.feed-card{margin:0.6rem 0;}
+.feed-row{display:flex; flex-wrap:wrap; gap:0.4rem;}
 .rec-head{margin:1rem 0 0.4rem; font-size:1.05rem; text-transform:uppercase;}
 .rec-grid{display:grid; grid-template-columns:1fr 1fr; gap:0.4rem 0.6rem;}
 .rec-pos{display:flex; align-items:center; gap:0.4rem;}
@@ -3972,6 +3982,7 @@ function renderLiveTab(g){
             <label><input type="radio" id="fc-them" name="firstCentre" value="them"><span>${escapeHtml(teamLabel(g, 'them'))}</span></label>
           </div>
         </div>
+        ${crewBarHtml(g)}
         ${empty ? `<p class="hint" style="margin:0">${empty} position${empty === 1 ? ' is' : 's are'} empty in the ${escapeHtml(periodName(g, 1))} lineup. Fill ${empty === 1 ? 'it' : 'them'} below, or start anyway.</p>` : ''}
         <button class="btn go big" data-action="start-game" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, 1))}</button>
         <p class="hint" style="margin:0">Tap it when the umpire starts play. The clock starts and you become the scorer.</p>
@@ -3992,7 +4003,7 @@ function renderLiveTab(g){
       body += pickerSheetHtml(g, 1, plan, avail, posOf, planCountOf(g, gamePeriodCounts(g, avail)),
         `Counts show ${escapeHtml(periodNoun(g, true))} planned this game.`);
     }
-    return startCard + scoreboardHtml(g, st) + body + (UI.rec && UI.rec.gameId === g.id ? recSheetHtml(g) : '');
+    return startCard + scoreboardHtml(g, st) + body + (UI.rec && UI.rec.gameId === g.id ? recSheetHtml(g) : '') + (UI.crewPick === g.id ? crewSheetHtml(g) : '');
   }
 
   body += scorerBarHtml(g);
@@ -4004,7 +4015,7 @@ function renderLiveTab(g){
     // Coach/Managers and Scorers can all make substitutions, not just whoever is scoring.
     if (UI.subSheet && canScore()) body += subSheetHtml(g, st);
     else if (UI.feedFor && scoring) body += feedSheetHtml(g, st);
-    else if (UI.statPos && scoring) body += statSheetHtml(g, st);
+    else if (UI.statPos && (scoring || isHelping(g))) body += statSheetHtml(g, st);
     else if (UI.pickPos && canScore()){
       UI.pickMode = 'live';
       const posOf = {}; POSITIONS.forEach(pos => { if (lineup[pos]) posOf[lineup[pos]] = pos; });
@@ -4021,6 +4032,7 @@ function renderLiveTab(g){
     body += `<p class="big-note">${escapeHtml(breakName(g, L.period))}</p>
       ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
       ${breakToolsHtml(g)}
+      ${crewBarHtml(g)}
       <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' ' + LINEUP_TIP : ''}</p>
       ${courtHtml(plan, canScore(), g, next, avail)}${planNoteHtml(g)}`;
     if (scoring) body += undoBarHtml(g);
@@ -4061,16 +4073,135 @@ function renderLiveTab(g){
       <button class="btn ghost small" data-action="rec-open">Record the rest</button></div>`;
   if (UI.handover === g.id) body += handoverSheetHtml(g);
   if (UI.rec && UI.rec.gameId === g.id) body += recSheetHtml(g);
+  if (UI.crewPick === g.id) body += crewSheetHtml(g);
   return scoreboardHtml(g, st) + body;
 }
 
 // The in-play screen: position tiles for recording goals and misses, in
 // one of two modes the scorer swipes between. "Player first": tap a
 // shooter, then Goal or Miss. "Goal/Miss first": tap Goal or Miss, then who.
+/* ---- Sharing the stats (stat crew) ----
+   Goals (the score) and the clock stay with the scorer. Every other stat the
+   game tracks can be taken by one person: the scorer chooses theirs, and
+   anyone else with the Scorer or Coach/Manager role can tap Track stats and
+   take some of the rest. Kept on the game as statCrew { uid: { name, stats } }.
+   A scorer who hasn't chosen has every stat nobody else has taken. */
+function crewStats(g){
+  return [...(tracksMiss(g) ? ['miss'] : []), ...EXTRA_STATS.filter(k => usExtras(g).includes(k) || themExtras(g).includes(k))];
+}
+function crewOf(g){ return (g && g.statCrew) || {}; }
+function crewList(c){ return Array.isArray(c && c.stats) ? c.stats : []; }
+// Who has a stat other than this person, by explicit choice.
+function crewOwner(g, key, notUid){
+  const hit = Object.entries(crewOf(g)).find(([u, c]) => u !== notUid && crewList(c).includes(key));
+  return hit ? hit[0] : null;
+}
+// The stats a person records (not counting goals). asScorer: they are, or
+// will be, the scorer, so they also have whatever nobody else has taken.
+function statsFor(g, uid, asScorer){
+  const all = crewStats(g), c = crewOf(g)[uid];
+  if (c) return all.filter(k => crewList(c).includes(k));
+  return asScorer ? all.filter(k => !crewOwner(g, k, uid)) : [];
+}
+// What this phone's buttons show during play.
+function mySet(g){
+  const me = USER && USER.uid;
+  if (isPractice(g)) return new Set(['goal', ...crewStats(g)]);
+  if (amScorer(g)) return new Set(['goal', ...statsFor(g, me, true)]);
+  if (canScore() && me) return new Set(statsFor(g, me, false));
+  return new Set();
+}
+function isHelping(g){ return !!(g && !isPractice(g) && !amScorer(g) && canScore() && mySet(g).size); }
+// Stats nobody is recording (only once someone has made a choice).
+function untracked(g){
+  if (!Object.keys(crewOf(g)).length) return [];
+  const sc = g.scorerUid;
+  return crewStats(g).filter(k => !crewOwner(g, k, null) && !(sc && statsFor(g, sc, true).includes(k)));
+}
+function statNames(keys){ return keys.map(k => STAT_LABEL[k]).join(', '); }
+// The line on the Game tab: what I track, and who else is helping.
+function crewBarHtml(g){
+  if (!canScore() || isPractice(g) || !crewStats(g).length || isGameOver(g)) return '';
+  const me = USER && USER.uid, scoring = amScorer(g), started = g.status === 'live' && g.live;
+  const mine = statsFor(g, me, scoring || !started);
+  const others = Object.entries(crewOf(g)).filter(([u, c]) => u !== me && crewList(c).length)
+    .map(([u, c]) => `${escapeHtml(u === g.scorerUid ? (c.name || 'Scorer') + ' (scorer)' : c.name || 'Someone')}: ${escapeHtml(statNames(statsFor(g, u, u === g.scorerUid)))}`);
+  const gaps = untracked(g);
+  let lead;
+  if (!started) lead = `<b>Stats you'll track${scoring ? '' : ' if you start the game'}:</b> ${mine.length ? escapeHtml(statNames(mine)) : 'goals only'}`;
+  else if (scoring) lead = `<b>You're tracking:</b> goals${mine.length ? ', ' + escapeHtml(statNames(mine).toLowerCase()) : ''}`;
+  else lead = mine.length ? `<b>You're tracking:</b> ${escapeHtml(statNames(mine))}` : '<b>Help with stats?</b> Take some of the stats so the scorer has less to do.';
+  return `<div class="crew-bar">
+      <p style="margin:0">${lead}</p>
+      ${others.length ? `<p class="hint" style="margin:0.2rem 0 0">Also tracking: ${others.join(' · ')}</p>` : ''}
+      ${gaps.length ? `<p class="hint crew-gap" style="margin:0.2rem 0 0">Nobody is tracking: ${escapeHtml(statNames(gaps))}</p>` : ''}
+      <button class="btn ghost small" data-action="crew-open" style="margin-top:0.4rem">${!started || scoring || mine.length ? 'Change my stats' : 'Track stats'}</button>
+    </div>`;
+}
+function crewSheetHtml(g){
+  const me = USER && USER.uid, started = g.status === 'live' && g.live;
+  const asScorer = amScorer(g) || !started;
+  const sel = UI.crewSel;
+  const all = crewStats(g);
+  const groups = STAT_GROUPS.map(gr => ({ label:gr.label, keys:gr.stats.map(s => s.key).filter(k => all.includes(k)) })).filter(gr => gr.keys.length);
+  const row = k => {
+    const owner = crewOwner(g, k, me);
+    const ownerName = owner ? ((crewOf(g)[owner] || {}).name || 'Someone') : null;
+    const scorerHas = !owner && !asScorer && g.scorerUid && g.scorerUid !== me && statsFor(g, g.scorerUid, true).includes(k);
+    const on = sel.has(k);
+    const sub = owner ? `${escapeHtml(ownerName)} is tracking this` : on ? 'You' : scorerHas ? `With ${escapeHtml(g.scorerName || 'the scorer')} (scorer) until someone takes it` : 'Nobody yet';
+    return `<button class="crew-opt ${on ? 'on' : ''}" data-action="crew-toggle" data-stat="${k}" ${owner ? 'disabled' : ''} aria-pressed="${on}">
+        <span class="crew-check" aria-hidden="true">${on ? '&#10003;' : ''}</span>
+        <span class="grow"><b>${escapeHtml(STAT_LABEL[k])}</b><span class="psub">${sub}</span></span></button>`;
+  };
+  return `<div class="sheet-backdrop" data-action="crew-close"></div>
+    <div class="sheet sub-sheet" role="dialog" aria-modal="true" aria-labelledby="crew-title">
+      <div class="sheet-head"><div class="grow"><h3 id="crew-title">My stats</h3>
+        <div class="psub">${asScorer ? 'Goals always stay with the scorer.' : 'Pick the stats you\'ll record, for the whole court.'}</div></div>
+        <button class="btn ghost small" data-action="crew-close">Close</button></div>
+      <div class="auto-bar"><button class="btn" data-action="crew-save">Save</button></div>
+      <div class="sheet-body">
+        <p class="hint" style="margin:0.8rem 0 0.4rem">Each stat is recorded by one person, for both teams where it's tracked, so nothing is counted twice. Stats someone else has taken are greyed out.</p>
+        ${groups.map(gr => `<div class="list-label">${escapeHtml(gr.label)}</div>${gr.keys.map(row).join('')}`).join('')}
+      </div>
+    </div>`;
+}
+function openCrew(g){
+  const me = USER && USER.uid, started = g.status === 'live' && g.live;
+  UI.crewPick = g.id;
+  UI.crewSel = new Set(statsFor(g, me, amScorer(g) || !started));
+}
+async function saveCrew(g){
+  const me = USER.uid, keys = crewStats(g).filter(k => UI.crewSel.has(k) && !crewOwner(g, k, me));
+  const started = g.status === 'live' && g.live, asScorer = amScorer(g) || !started;
+  UI.crewPick = null; UI.crewSel = null;
+  await updateDoc(gameRef(g.id), { [`statCrew.${me}`]: !keys.length && !asScorer ? DELETE_FIELD : { name:memberProfile().name, stats:keys } });
+  toast(keys.length ? `You're tracking: ${statNames(keys)}.` : asScorer ? 'You\'re tracking goals only.' : 'You\'re not tracking any stats.');
+}
+// For a helper who has Feed: the latest goal of ours with no feed yet.
+function pendingFeed(g){
+  if (!mySet(g).has('feed') || amScorer(g)) return null;
+  const fed = new Set(CUR.events.filter(e => !e.undone && e.type === 'feed').map(e => e.goal));
+  const skip = UI.feedSkip || new Set();
+  const goals = CUR.events.filter(e => !e.undone && e.type === 'goal' && e.period === g.live.period && !fed.has(e.id) && !skip.has(e.id))
+    .sort((a, b) => (b.at || 0) - (a.at || 0));
+  return goals[0] || null;
+}
+function feedCardHtml(g, st, goal){
+  const lineup = st.lineup || {};
+  const who = POSITIONS.filter(pos => pos !== goal.pos && lineup[pos]);
+  return `<div class="panel feed-card"><p style="margin:0 0 0.5rem"><b>Who fed ${escapeHtml(playerName(goal.playerId))}'s goal?</b> <span class="hint">${escapeHtml(periodName(g, goal.period))} ${fmtMins(goal.t)}</span></p>
+      <div class="feed-row">${who.map(pos => `<button class="btn ghost small" data-action="feed-who" data-goal="${escapeHtml(goal.id)}" data-pos="${pos}">${pos} ${escapeHtml(playerName(lineup[pos]).split(' ')[0])}</button>`).join('')}
+        <button class="btn ghost small" data-action="feed-skip" data-goal="${escapeHtml(goal.id)}">Skip</button></div></div>`;
+}
 function livePlayHtml(g, st, scoring){
   const L = g.live;
   const lineup = st.lineup || {};
-  const mode = scoring ? UI.liveMode : 'player';
+  // The scorer, or a helper tracking some stats, gets buttons for their stats only.
+  const mine = mySet(g), helping = !scoring && isHelping(g), rec = scoring || helping;
+  const goalOn = mine.has('goal'), missOn = tracksMiss(g) && mine.has('miss'), shotsOn = goalOn || missOn;
+  const myUs = tapExtras(usExtras(g)).filter(k => mine.has(k)), myThem = themExtras(g).filter(k => mine.has(k));
+  const mode = rec ? UI.liveMode : 'player';
   const tile = (pos, side, action, opts) => {
     opts = opts || {};
     const pid = side === 'us' ? lineup[pos] : null;
@@ -4089,7 +4220,7 @@ function livePlayHtml(g, st, scoring){
   };
 
   let controls = '';
-  if (scoring){
+  if (rec){
     // At 0:00 the End button stands out, with a reminder to add any last shot.
     const timeUp = isTimeUp(g);
     controls = `<div class="mode-row">
@@ -4098,7 +4229,7 @@ function livePlayHtml(g, st, scoring){
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
       </div>
-      ${timeUp ? `<p class="time-up-note" role="status">Time. Add any last goal or miss, then tap End ${escapeHtml(periodName(g, L.period))} at the top.</p>` : ''}`;
+      ${scoring && timeUp ? `<p class="time-up-note" role="status">Time. Add any last goal or miss, then tap End ${escapeHtml(periodName(g, L.period))} at the top.</p>` : ''}`;
   }
 
   let pane;
@@ -4107,7 +4238,7 @@ function livePlayHtml(g, st, scoring){
     // With extra stats tracked, they sit under Goal and Miss as smaller
     // buttons, and Step 2 offers every position (only the ones that can
     // have the chosen stat are enabled).
-    const usTap = tapExtras(usExtras(g)), themTap = themExtras(g);
+    const usTap = myUs, themTap = myThem;
     const extras = EXTRA_STATS.filter(k => usTap.includes(k) || themTap.includes(k));
     const shot = ev === 'goal' || ev === 'miss';
     const usOk = pos => ev && (shot ? SHOOTERS.includes(pos) : usTap.includes(ev));
@@ -4117,34 +4248,35 @@ function livePlayHtml(g, st, scoring){
     // frames are always there (just invisible), so nothing on the screen moves.
     pane = `<div class="step-frame ${ev ? '' : 'active'}">
         <div class="sec-label ${ev ? 'done' : ''}">Step 1: What happened</div>
-        <div class="ev-grid ${tracksMiss(g) ? '' : 'one'}">
-          <button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>
-          ${tracksMiss(g) ? `<button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>` : ''}
-        </div>
+        ${shotsOn ? `<div class="ev-grid ${goalOn && missOn ? '' : 'one'}">
+          ${goalOn ? `<button class="evbtn goal ${ev === 'goal' ? 'on' : ''}" data-action="ef-event" data-stat="goal" aria-pressed="${ev === 'goal'}">Goal</button>` : ''}
+          ${missOn ? `<button class="evbtn miss ${ev === 'miss' ? 'on' : ''}" data-action="ef-event" data-stat="miss" aria-pressed="${ev === 'miss'}">Miss</button>` : ''}
+        </div>` : ''}
         ${extras.length ? `<div class="ev-more">${extras.map(k => `<button class="evbtn small ${ev === k ? 'on' : ''}" data-action="ef-event" data-stat="${k}" aria-pressed="${ev === k}">${escapeHtml(STAT_LABEL[k])}</button>`).join('')}</div>` : ''}
       </div>
       <div class="step-frame ${ev ? 'active' : ''}">
-        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap ${extras.length ? 'a stat' : tracksMiss(g) ? 'Goal or Miss' : 'Goal'} first)</span></div>
+        <div class="sec-label">Step 2: Who did it <span class="hint ${ev ? 'gone' : ''}">(tap ${extras.length ? 'a stat' : missOn ? 'Goal or Miss' : 'Goal'} first)</span></div>
         ${usTap.length ? `<div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!usOk('GS') })}${tile('GA', 'us', 'ef-who', { disabled:!usOk('GA') })}</div>
           <div class="pos-row three">${['WA','C','WD'].map(p => tile(p, 'us', 'ef-who', { disabled:!usOk(p) })).join('')}</div>
           <div class="pos-row two">${tile('GD', 'us', 'ef-who', { disabled:!usOk('GD') })}${tile('GK', 'us', 'ef-who', { disabled:!usOk('GK') })}</div>`
         : `<div class="pos-row two">${tile('GS', 'us', 'ef-who', { disabled:!usOk('GS') })}${tile('GA', 'us', 'ef-who', { disabled:!usOk('GA') })}</div>`}
-        <div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!themOk })}</div>
+        ${shotsOn || themTap.length ? `<div class="pos-row one">${tile('', 'them', 'ef-who', { disabled:!themOk })}</div>` : ''}
       </div>
       ${subBtnHtml(g)}`;
-  } else if (scoring){
+  } else if (rec){
     // The scorer only needs the shooters (subs are under Sub Player(s)).
-    pane = tapExtras(usExtras(g)).length
+    const themTile = shotsOn || myThem.length ? `<div class="pos-row one">${tile('', 'them', 'tile')}</div>` : '';
+    pane = myUs.length
       ? `<div class="sec-label">Who did it</div>
         <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
         <div class="pos-row three">${['WA','C','WD'].map(p => tile(p, 'us', 'tile')).join('')}</div>
         <div class="pos-row two">${tile('GD', 'us', 'tile')}${tile('GK', 'us', 'tile')}</div>
-        <div class="pos-row one">${tile('', 'them', 'tile')}</div>
-        ${subBtnHtml(g)}<p class="hint">Tap a player (or the other team) to record a stat.</p>`
+        ${themTile}
+        ${subBtnHtml(g)}<p class="hint">Tap a player${themTile ? ' (or the other team)' : ''} to record a stat.</p>`
       : `<div class="sec-label">Who shot</div>
-        <div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>
-        <div class="pos-row one">${tile('', 'them', 'tile')}</div>
-        ${subBtnHtml(g)}<p class="hint">Tap a shooter (or the other team) to record a goal${tracksMiss(g) ? ' or miss' : ''}.</p>`;
+        ${shotsOn ? `<div class="pos-row two">${tile('GS', 'us', 'tile')}${tile('GA', 'us', 'tile')}</div>` : ''}
+        ${themTile}
+        ${subBtnHtml(g)}<p class="hint">${shotsOn ? `Tap a shooter (or the other team) to record a ${goalOn ? 'goal' : 'miss'}${goalOn && missOn ? ' or miss' : ''}.` : 'Tap the other team to record a stat.'}</p>`;
   } else {
     // Everyone else sees who's on court on the court diagram, with the bench.
     // Coach/Managers and Scorers can tap a position to make a substitution.
@@ -4152,10 +4284,11 @@ function livePlayHtml(g, st, scoring){
       ${courtHtml(lineup, false, g, L.period, byName(availableIds(g)), canScore() ? 'tile' : null)}
       ${canScore() ? subBtnHtml(g) + '<p class="hint">Tap a position, or Sub Player(s), to make a substitution.</p>' : ''}`;
   }
-  return `${controls}<div class="swipe-zone" ${scoring ? 'data-swipe' : ''}>${pane}</div>
+  const feedGoal = helping ? pendingFeed(g) : null;
+  return `${controls}${crewBarHtml(g)}${feedGoal ? feedCardHtml(g, st, feedGoal) : ''}<div class="swipe-zone" ${rec ? 'data-swipe' : ''}>${pane}</div>
     ${eventLogHtml(g)}
-    ${scoring ? '<div class="float-spacer" aria-hidden="true"></div>' : ''}
-    ${scoring ? undoBarHtml(g) : ''}
+    ${rec ? '<div class="float-spacer" aria-hidden="true"></div>' : ''}
+    ${rec ? undoBarHtml(g) : ''}
     ${scoring && voiceSupported() ? `<button class="mic-btn ${UI.voiceListening ? 'on' : ''}" data-action="voice" aria-label="${UI.voiceListening ? 'Listening. Tap to stop' : 'Score by voice'}">${micSvg()}</button>${UI.voiceListening ? `<div class="mic-hint" role="status">Listening... say "GS goal"${tapExtras(usExtras(g)).length ? ' or "WD intercept"' : ''}</div>` : ''}` : ''}`;
 }
 
@@ -4438,9 +4571,11 @@ function statSheetHtml(g, st){
   const pid = !opp && st.lineup && st.lineup[pos];
   const title = opp ? `${teamLabel(g, 'them')} ${pos === 'Team' ? '' : pos}`.trim() : (pid ? playerName(pid) : 'Empty');
   const sub = opp ? (pos === 'Team' ? 'Other team' : 'Opposition ' + POS_NAMES[pos]) : POS_NAMES[pos];
-  const canShoot = opp || (!!pid && SHOOTERS.includes(pos));
+  const mine = mySet(g);
+  const shots = shotStats(g).filter(s => mine.has(s.key));
+  const canShoot = shots.length && (opp || (!!pid && SHOOTERS.includes(pos)));
   // Extra stats for this player or the other team, grouped (Gains, Losses...).
-  const extras = opp ? themExtras(g) : (pid ? tapExtras(usExtras(g)) : []);
+  const extras = (opp ? themExtras(g) : (pid ? tapExtras(usExtras(g)) : [])).filter(k => mine.has(k));
   const groups = STAT_GROUPS.map(gr => ({ label:gr.label, keys:gr.stats.map(x => x.key).filter(k => extras.includes(k)) })).filter(gr => gr.keys.length);
   return `<div class="sheet-backdrop" data-action="close-picker"></div>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -4453,7 +4588,7 @@ function statSheetHtml(g, st){
         <button class="btn ghost small" data-action="close-picker">Close</button>
       </div>
       <div class="sheet-body">
-        ${canShoot ? `<div class="stat-grid ${tracksMiss(g) ? '' : 'one'}">${shotStats(g).map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>` : ''}
+        ${canShoot ? `<div class="stat-grid ${shots.length > 1 ? '' : 'one'}">${shots.map(s => `<button class="stat-btn ${s.key}" data-action="record-stat" data-stat="${s.key}">${s.label}</button>`).join('')}</div>` : ''}
         ${groups.map(gr => `<div class="list-label">${escapeHtml(gr.label)}</div>
           <div class="stat-grid small">${gr.keys.map(k => `<button class="stat-btn" data-action="record-extra" data-stat="${k}">${escapeHtml(STAT_LABEL[k])}</button>`).join('')}</div>`).join('')}
         ${!opp && !pid ? `<p class="hint" style="margin-top:0.8rem">Nobody is playing ${pos}.</p>` : ''}
@@ -6855,7 +6990,7 @@ async function recordStat(g, pos, type, feedPos){
   const feeds = type === 'goal' && usExtras(g).includes('feed');
   if (feeds) ev._id = newId();
   const fedBy = feeds && feedPos && st.lineup[feedPos];
-  const askFeed = feeds && !fedBy;
+  const askFeed = feeds && !fedBy && mySet(g).has('feed');
   await writeGame(g, fedBy ? [ev, newEvent({ type:'feed', pos:feedPos, playerId:fedBy, goal:ev._id, period:ev.period, t:ev.t })] : [ev]);
   buzz();
   if (askFeed){ UI.feedFor = { goal:ev._id, shooter:pos, period:ev.period, t:ev.t }; render(); focusSheet(); }
@@ -7076,9 +7211,11 @@ async function handleVoice(alts){
   if (!parsed){ toast(`Heard "${heard}". ${error || "Didn't understand."}`, true); return; }
   if (parsed.undo){ await undoLast(); return; }
   if (parsed.side === 'us' && !lineup[parsed.pos]){ toast(`Heard "${heard}", but nobody is playing ${parsed.pos}.`, true); return; }
+  // Stats someone else is tracking are left to them, so nothing counts twice.
+  if (!mySet(g).has(parsed.stat)){ toast(`Heard "${heard}", but ${STAT_LABEL[parsed.stat]} is being tracked by someone else.`, true); return; }
   const shot = parsed.stat === 'goal' || parsed.stat === 'miss';
   if (!shot) await recordExtra(g, parsed.side, parsed.pos, parsed.stat);
-  else if (parsed.side === 'us') await recordStat(g, parsed.pos, parsed.stat, parsed.feeder && lineup[parsed.feeder] ? parsed.feeder : null);
+  else if (parsed.side === 'us') await recordStat(g, parsed.pos, parsed.stat, parsed.feeder && lineup[parsed.feeder] && mySet(g).has('feed') ? parsed.feeder : null);
   else await recordShot(g, parsed.side, parsed.pos, parsed.stat);
   const who = parsed.side === 'them'
     ? `${teamLabel(g, 'them')}${parsed.pos ? ' ' + parsed.pos : ''}`
@@ -7697,7 +7834,9 @@ document.addEventListener('click', async (e) => {
       const g = findGame(UI.gameId);
       if (!g || !isInPlay(g)) return;
       const side = btn.dataset.side, pos = btn.dataset.pos || 'Team';
-      if (amScorer(g) && (side === 'them' || SHOOTERS.includes(pos) || tapExtras(usExtras(g)).length)){ UI.statPos = pos; UI.statSide = side; UI.pickPos = null; }
+      const mine = mySet(g), shotsOn = mine.has('goal') || (tracksMiss(g) && mine.has('miss'));
+      const hasStat = side === 'them' ? (shotsOn || themExtras(g).some(k => mine.has(k))) : ((SHOOTERS.includes(pos) && shotsOn) || tapExtras(usExtras(g)).some(k => mine.has(k)));
+      if ((amScorer(g) || isHelping(g)) && hasStat){ UI.statPos = pos; UI.statSide = side; UI.pickPos = null; }
       else if (side === 'us'){ UI.pickPos = pos; UI.pickMode = 'live'; UI.statPos = null; }
       render(); focusSheet();
     } else if (a === 'stat-change-player'){
@@ -7716,9 +7855,24 @@ document.addEventListener('click', async (e) => {
       if (g && pos && isInPlay(g)) await recordExtra(g, side, pos, btn.dataset.stat);
     } else if (a === 'feed-who'){
       const g = findGame(UI.gameId);
+      if (g && btn.dataset.goal){
+        const goal = CUR.events.find(e => e.id === btn.dataset.goal);
+        if (goal) UI.feedFor = { goal:goal.id, shooter:goal.pos, period:goal.period, t:goal.t };
+      }
       if (g) await recordFeed(g, btn.dataset.pos); else { UI.feedFor = null; render(); }
     } else if (a === 'feed-skip'){
+      if (btn.dataset.goal){ UI.feedSkip = UI.feedSkip || new Set(); UI.feedSkip.add(btn.dataset.goal); }
       UI.feedFor = null; render();
+    } else if (a === 'crew-open'){
+      const g = findGame(UI.gameId);
+      if (g && canScore()){ openCrew(g); render(); focusSheet(); }
+    } else if (a === 'crew-close'){
+      UI.crewPick = null; UI.crewSel = null; render();
+    } else if (a === 'crew-toggle'){
+      if (UI.crewSel){ const k = btn.dataset.stat; if (UI.crewSel.has(k)) UI.crewSel.delete(k); else UI.crewSel.add(k); render(); }
+    } else if (a === 'crew-save'){
+      const g = findGame(UI.gameId);
+      if (g && UI.crewSel && canScore()) await runBusy(() => saveCrew(g));
     } else if (a === 'live-mode'){
       setLiveMode(btn.dataset.mode);
     } else if (a === 'ef-event'){
@@ -8367,7 +8521,7 @@ setInterval(() => {
 }, 250);
 
 function syncWakeLock(g){
-  const want = !!(g && UI.gameTab === 'live' && g.status === 'live' && amScorer(g) && document.visibilityState === 'visible');
+  const want = !!(g && UI.gameTab === 'live' && g.status === 'live' && (amScorer(g) || isHelping(g)) && document.visibilityState === 'visible');
   if (want && !wakeLock && !wakeLockPending && 'wakeLock' in navigator){
     wakeLockPending = true;
     navigator.wakeLock.request('screen')

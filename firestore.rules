@@ -180,7 +180,7 @@ service cloud.firestore {
 
         // Fixtures, availability and lineups: Coach/Managers.
         // Scorers can run the game (clock, status, who's scoring, who's playing,
-        // the lineup plan and the saved summary) but not change the fixture,
+        // the lineup plan, the saved summary and who tracks which stats) but not change the fixture,
         // and not once it's finalised. Coach/Managers can unlock a finalised game.
         match /games/{gameId} {
           function canRunGame() {
@@ -203,7 +203,7 @@ service cloud.firestore {
           allow update: if clockOk() && (isManager(teamId, seasonId)
             || (notFinal() && hasRole(teamId, seasonId, 'scorer')
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary'])));
+                     .hasOnly(['live', 'status', 'scorerUid', 'scorerName', 'available', 'plan', 'summary', 'statCrew'])));
 
           // Everything that happens in a game. Events are never deleted:
           // undo and corrections mark them undone or change the player.
