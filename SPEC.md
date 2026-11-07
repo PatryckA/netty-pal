@@ -293,7 +293,9 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
 
 ### After the game
 - The full-time **Timeline** is shown only to Coach/Managers and Scorers (viewers
-  don't see it). Scorer or Coach can **correct the timeline** (add, remove or reassign events),
+  don't see it). It lists events oldest first, each with the time into its quarter
+  (e.g. "Q2 3:15"), so times count up as you read down (changed 2026-11-07; it used
+  to show the countdown clock). Scorer or Coach can **correct the timeline** (add, remove or reassign events),
   then tap **Finalise** to lock the game. A Coach/Manager can unlock it if needed.
 
 ### Centre pass

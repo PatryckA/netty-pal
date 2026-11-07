@@ -4469,7 +4469,9 @@ function timelineHtml(g, full, editable){
   else evs = evs.sort((a,b) => (b.at || 0) - (a.at || 0)).slice(0, 6);
   const playerOpts = byName(Array.from(new Set([...availableIds(g), ...CUR.events.filter(e => e.playerId).map(e => e.playerId)])));
   const rows = evs.map(e => {
-    const when = `${escapeHtml(periodName(g, e.period))} ${fmtClock(pms - e.t)}`;
+    // The full timeline reads top to bottom, so it shows time into the period
+    // (0:20, 1:20...). The live list shows the countdown, like the scoreboard.
+    const when = `${escapeHtml(periodName(g, e.period))} ${full ? fmtMins(e.t) : fmtClock(pms - e.t)}`;
     const isOurs = !!STAT_LABEL[e.type];
     let controls = '';
     if (editable){
