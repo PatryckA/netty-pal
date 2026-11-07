@@ -346,6 +346,24 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   in progress are left out and noted. They're worked out from each game's events,
   loaded when the Stats tab is opened. Everyone in the season can see them.
 
+### Sharing the stats (added 2026-11-07)
+- For games that track misses or extra stats. Goals (the score), the clock and subs stay with
+  the scorer. Every other tracked stat (Miss, Feed and the extras) is recorded by one person,
+  for the whole court and both teams where tracked, so nothing counts twice.
+- A box on the Game tab (in the Start card before the game, under the controls during play,
+  and at breaks) shows what you track, who else is tracking what, and any stat **nobody is
+  tracking** (in orange). **Change my stats** / **Track stats** opens **My stats**: a tick list
+  grouped like Track more stats; stats someone else has chosen are greyed out with their name.
+- The scorer (or whoever will start the game) picks theirs; until they choose, the scorer has
+  every stat nobody else has taken. Anyone else with the Scorer or Coach/Manager role can take
+  any stat not already chosen by someone, including ones the scorer has only by default.
+- A helper's screen shows the scorer's two modes, but only their stats (no Goal button, no
+  clock controls), plus Undo/Redo for their own entries. A helper with Feed gets a "Who fed
+  X's goal?" card after each of our goals that has no feed (Skip hides it); the scorer is then
+  not asked. Voice scoring ignores stats someone else is tracking.
+- Stored on the game as `statCrew { uid: { name, stats:[keys] } }`. **Rules change:** Scorers
+  may now update `statCrew` (firestore.rules must be published).
+
 ### Player order in lineups (added 2026-11-06)
 - The Whole game table (Lineup tab and Fill lineup preview) and the bench under the court list
   players by 1st preferred position in court order (GS, GA, WA, C, WD, GD, GK), then 2nd and
