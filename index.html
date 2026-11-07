@@ -609,6 +609,7 @@ body.dragging{cursor:grabbing;}
 /* ---- Live game ---- */
 .clock{font-family:var(--font-display); font-size:2.3rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.05;}
 .clock.stopped{color:var(--warm);}
+.clock-left{font-family:var(--font-body); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; margin-left:0.25rem; opacity:0.75;}
 .scorer-bar{
   display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;
   font-size:0.82rem; color:var(--ink-soft); margin-bottom:0.8rem;
@@ -2765,7 +2766,7 @@ function liveCardHtml(teamId, seasonId, teamName, g){
   else {
     const key = seasonId + '/' + g.id;
     LIVE.clocks.set(key, g);
-    when = `${escapeHtml(periodName(g, L.period))} · <span data-lclock="${escapeHtml(key)}">${fmtClock(periodMs(g) - elapsedMs(g))}</span>${L.phase === 'paused' ? ' · Paused' : ''}`;
+    when = `${escapeHtml(periodName(g, L.period))} · <span data-lclock="${escapeHtml(key)}">${fmtClock(periodMs(g) - elapsedMs(g))}</span> left${L.phase === 'paused' ? ' · Paused' : ''}`;
   }
   const score = evs ? `<b>${us} : ${them}</b>` : '<b>&nbsp;</b>';
   return `<button class="live-card" data-action="open-live" data-team="${escapeHtml(teamId)}" data-season="${escapeHtml(seasonId)}" data-game="${escapeHtml(g.id)}">
@@ -4211,7 +4212,7 @@ function eventLogHtml(g){
       const who = opp ? '' : (e.playerId ? ' · ' + escapeHtml(playerName(e.playerId)) : '');
       const inner = `<span class="log-badge ${opp ? 'opp' : ''}">${escapeHtml(badge)}</span>
           <span class="log-what">${what}${who}</span>
-          <span class="log-when">${escapeHtml(periodName(g, e.period))} · ${fmtClock(pms - e.t)}</span>`;
+          <span class="log-when">${escapeHtml(periodName(g, e.period))} · ${fmtClock(pms - e.t)} left</span>`;
       if (!tappable) return `<div class="log-row ${i === 0 ? 'latest' : ''}">${inner}</div>`;
       const sel = UI.logSel === e.id;
       return `<div class="log-item ${sel ? 'sel' : ''}">
@@ -4258,7 +4259,7 @@ function scoreboardHtml(g, st){
   let period, phase = '', clock = '';
   if (!g.live || g.status === 'scheduled'){
     period = periodName(g, 1); phase = 'Not started';
-    clock = `<div class="clock stopped">${fmtClock(periodMs(g))}</div>`;
+    clock = `<div class="clock stopped">${fmtClock(periodMs(g))}<span class="clock-left">left</span></div>`;
   } else if (isGameOver(g)){
     period = g.status === 'final' ? 'Final' : 'Full time';
   } else {
@@ -4267,7 +4268,7 @@ function scoreboardHtml(g, st){
     // running, so no word is needed there (it would crowd the centre pass).
     // Followers have no button, so they still see "Paused".
     phase = !isInPlay(g) ? breakName(g, L.period) : isTimeUp(g) ? 'Time' : (L.phase === 'paused' && !scoring) ? 'Paused' : '';
-    clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}" data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</div>`;
+    clock = `<div class="clock ${L.phase === 'running' ? '' : 'stopped'}"><span data-clock>${fmtClock(periodMs(g) - elapsedMs(g))}</span><span class="clock-left">left</span></div>`;
   }
   // Next centre pass: a small netball under the team that takes it. The other
   // team gets an invisible copy so the two scores stay level. For the scorer the
@@ -4469,7 +4470,9 @@ function timelineHtml(g, full, editable){
   else evs = evs.sort((a,b) => (b.at || 0) - (a.at || 0)).slice(0, 6);
   const playerOpts = byName(Array.from(new Set([...availableIds(g), ...CUR.events.filter(e => e.playerId).map(e => e.playerId)])));
   const rows = evs.map(e => {
-    const when = `${escapeHtml(periodName(g, e.period))} ${fmtClock(pms - e.t)}`;
+    // The full timeline reads top to bottom, so it shows time into the period
+    // (0:20, 1:20...). The live list shows the countdown, like the scoreboard.
+    const when = `${escapeHtml(periodName(g, e.period))} ${full ? fmtMins(e.t) : fmtClock(pms - e.t) + ' left'}`;
     const isOurs = !!STAT_LABEL[e.type];
     let controls = '';
     if (editable){
