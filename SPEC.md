@@ -261,6 +261,16 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   can't share pictures, the picture is saved instead.
 
 ### Clock
+- (Added 2026-11-21.) At 0:00 the scorer gets a big pink **Time! Q1 is over** banner with
+  **End Q1 now** and a countdown; the goal buttons stay usable for a shot from the whistle.
+  If nobody ends it, the period **ends by itself one minute after 0:00** (on the scorer's
+  phone, as soon as the app is open). At the break, **Add to Q1** records a goal or miss at
+  the end of that period. After 4 minutes of a quarter break (6 at half time) a **Has Q2
+  started?** banner reminds the scorer (and tells helpers), and Start Q2 pulses.
+- (Added 2026-11-21.) **A finished period always counts as its full length** for court time,
+  even if the clock was started late or the period was ended early: whoever was on court
+  last plays out the rest. Older games' saved summaries are brought up to date when a
+  Coach/Manager (or a Scorer, before it's final) opens them.
 - **Counts down** from the period length (e.g. 7:00). At 0:00 it stops, the phone
   vibrates and the scoreboard shows "Time". Scoring stays open so a shot from the
   whistle can still be recorded (at 0:00); the scorer then taps End to end the period.

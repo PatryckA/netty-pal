@@ -756,6 +756,14 @@ button.cp-mark{cursor:pointer;}
 
 /* Scoring modes and position tiles */
 .mode-row{display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem;}
+.time-up-banner{position:sticky; top:0.5rem; z-index:5; margin:0.4rem 0 0.7rem; padding:0.8rem 0.9rem; border-radius:var(--r); background:var(--pop); color:var(--pop-ink); text-align:center; box-shadow:0 4px 14px var(--shadow); animation:tub-pulse 1.2s ease-in-out infinite alternate;}
+.time-up-banner p{margin:0.3rem 0; font-size:0.92rem;}
+.tub-title{font-family:var(--font-display); font-size:1.5rem; font-weight:800; text-transform:uppercase;}
+.tub-btn{width:100%; margin:0.4rem 0 0.2rem; background:var(--paper); color:var(--ink); border-color:var(--paper); font-size:1.1rem;}
+.tub-auto{font-size:0.8rem !important; opacity:0.9;}
+.btn.pulse{animation:tub-pulse 1.2s ease-in-out infinite alternate;}
+@keyframes tub-pulse{from{transform:scale(1);} to{transform:scale(1.025);}}
+@media (prefers-reduced-motion: reduce){.time-up-banner,.btn.pulse{animation:none;}}
 .time-up-note{margin:0.2rem 0 0.5rem; padding:0.5rem 0.7rem; border-radius:var(--r-sm); background:var(--pop); color:var(--pop-ink); font-size:0.85rem; font-weight:700; text-align:center;}
 .mode-tabs{display:flex; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-pill); padding:2px;}
 .mode-tab{border:none; background:none; padding:0.35rem 0.75rem; border-radius:var(--r-pill); font-size:0.78rem; font-weight:800; color:var(--ink-soft); cursor:pointer; font-family:var(--font-body);}
@@ -1391,6 +1399,31 @@ function isInPlay(g){ const ph = g.live && g.live.phase; return g.status === 'li
 // The clock has reached 0:00 but the scorer hasn't ended the period yet, so a
 // shot that was in the air on the whistle can still be recorded.
 function isTimeUp(g){ return isInPlay(g) && elapsedMs(g) >= periodMs(g); }
+// The quarter ends by itself this long after the clock reaches 0:00, if the
+// scorer hasn't tapped End (a late goal can still be added at the break).
+const AUTO_END_MS = 60000;
+// When the clock reached 0:00 (wall-clock time), or null.
+function timeUpAt(g){
+  const L = g.live || {};
+  if (!isTimeUp(g)) return null;
+  if (L.timeUpAt) return L.timeUpAt;
+  if (L.phase === 'running' && L.startedAt) return L.startedAt + (periodMs(g) - (L.elapsedMs || 0));
+  return null;
+}
+// How long the break has gone on (since the period ended), or 0.
+function breakMs(g){
+  const L = g.live || {};
+  if (g.status !== 'live' || L.phase !== 'ended' || isGameOver(g)) return 0;
+  const end = (CUR.eventsFor === g.id ? CUR.events : []).filter(e => !e.undone && e.type === 'periodEnd' && e.period === L.period)
+    .sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+  return end && end.at ? Math.max(0, Date.now() - end.at) : 0;
+}
+// After a normal break's length, remind everyone the next period may have started.
+function breakOverdue(g){
+  const L = g.live || {};
+  const limit = breakName(g, L.period) === 'Half time' ? 6 * 60000 : 4 * 60000;
+  return breakMs(g) > limit;
+}
 function isGameOver(g){
   return g.status === 'final' || (g.status === 'live' && !!g.live && g.live.phase === 'ended' && g.live.period >= periodCount(g));
 }
@@ -1430,7 +1463,10 @@ function computeGame(g, events){
     const pe = evs.filter(e => e.period === p);
     const lineups = pe.filter(e => e.type === 'lineup');
     const endEv = pe.find(e => e.type === 'periodEnd');
-    const endT = endEv ? endEv.t : (L.period === p ? elapsedMs(g) : 0);
+    // A finished period always counts as its full length, even if the clock
+    // was started late or the period was ended early: whoever was on court
+    // last plays out the rest of it.
+    const endT = endEv ? Math.max(endEv.t, periodMs(g)) : (L.period === p ? elapsedMs(g) : 0);
     lineups.forEach((le, i) => {
       const to = Math.min(i + 1 < lineups.length ? lineups[i + 1].t : endT, endT);
       const dt = Math.max(0, to - le.t);
@@ -4029,13 +4065,22 @@ function renderLiveTab(g){
     UI.period = next;
     const plan = startLineup(g, next);
     prepareShare(g, st);
+    const overdue = breakOverdue(g);
+    const nag = overdue ? `<div class="time-up-banner" role="alert">
+        <div class="tub-title">Has ${escapeHtml(periodName(g, next))} started?</div>
+        <p>${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} as soon as the umpire restarts play, so the clock matches the game.`
+          : `${escapeHtml(g.scorerName || 'The scorer')} hasn't started ${escapeHtml(periodName(g, next))} yet. If play has restarted, remind them${canScore() ? ', or take over scoring' : ''}.`}</p>
+      </div>` : '';
     body += `<p class="big-note">${escapeHtml(breakName(g, L.period))}</p>
-      ${scoring ? `<div class="control-row"><button class="btn go" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
+      ${nag}
+      ${scoring ? `<div class="control-row"><button class="btn go big ${overdue ? 'pulse' : ''}" data-action="start-period" ${UI.busy ? 'disabled' : ''}>Start ${escapeHtml(periodName(g, next))}</button></div>` : ''}
+      ${scoring ? `<p class="hint" style="text-align:center; margin:0 0 0.5rem">Missed a goal at the end of ${escapeHtml(periodName(g, L.period))}? <button class="btn ghost small" data-action="late-open">Add to ${escapeHtml(periodName(g, L.period))}</button></p>` : ''}
       ${breakToolsHtml(g)}
       ${crewBarHtml(g)}
       <p class="hint" style="text-align:center">${scoring ? `Tap Start ${escapeHtml(periodName(g, next))} when the umpire restarts play. ` : ''}${escapeHtml(periodName(g, next))} starts with the centre pass to <b>${escapeHtml(teamLabel(g, periodStartCentre(g, next)))}</b>.${canScore() ? ' ' + LINEUP_TIP : ''}</p>
       ${courtHtml(plan, canScore(), g, next, avail)}${planNoteHtml(g)}`;
     if (scoring) body += undoBarHtml(g);
+    if (scoring && UI.lateShot) body += lateShotSheetHtml(g);
     if (canScore() && UI.pickPos){
       UI.pickMode = 'plan';
       const posOf = {}; POSITIONS.forEach(pos => { if (plan[pos]) posOf[plan[pos]] = pos; });
@@ -4075,6 +4120,46 @@ function renderLiveTab(g){
   if (UI.rec && UI.rec.gameId === g.id) body += recSheetHtml(g);
   if (UI.crewPick === g.id) body += crewSheetHtml(g);
   return scoreboardHtml(g, st) + body;
+}
+
+// At 0:00: a big banner the scorer can't miss, with End right there and a
+// countdown to the quarter ending by itself.
+function timeUpBannerHtml(g){
+  const at = timeUpAt(g), left = at ? Math.max(0, AUTO_END_MS - (Date.now() - at)) : AUTO_END_MS;
+  const p = periodName(g, g.live.period);
+  return `<div class="time-up-banner" role="alert">
+      <div class="tub-title">Time! ${escapeHtml(p)} is over</div>
+      <p>Add any last goal or miss below, then end the ${escapeHtml(periodNoun(g))}.</p>
+      <button class="btn big tub-btn" data-action="end-period-now" ${UI.busy ? 'disabled' : ''}>End ${escapeHtml(p)} now</button>
+      <p class="tub-auto">Ends by itself in <span data-autoend>${fmtMins(left)}</span>. A late goal can still be added at the break.</p>
+    </div>`;
+}
+// At a break: add a goal or miss from the whistle that wasn't recorded in time.
+function lateShotSheetHtml(g){
+  const p = g.live.period, mine = mySet(g);
+  const L = endLineup(g, p) || {};
+  const kinds = ['goal', ...(tracksMiss(g) && mine.has('miss') ? ['miss'] : [])];
+  const row = (label, side, pos) => `<div class="rec-row"><div class="rec-who">${label}</div><div class="rec-steps">${kinds.map(k =>
+      `<button class="btn ${k === 'goal' ? '' : 'ghost'} small" data-action="late-shot" data-side="${side}" data-pos="${pos}" data-stat="${k}">${k === 'goal' ? 'Goal' : 'Miss'}</button>`).join('')}</div></div>`;
+  return `<div class="sheet-backdrop" data-action="late-close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="late-title">
+      <div class="sheet-head"><div class="grow"><h3 id="late-title">Add to ${escapeHtml(periodName(g, p))}</h3>
+        <div class="psub">A goal or miss from the end of the ${escapeHtml(periodNoun(g))}</div></div>
+        <button class="btn ghost small" data-action="late-close">Close</button></div>
+      <div class="sheet-body">
+        ${SHOOTERS.filter(pos => L[pos]).map(pos => row(`<b>${pos}</b> ${escapeHtml(playerName(L[pos]))}`, 'us', pos)).join('')}
+        ${row(`<b>${escapeHtml(teamLabel(g, 'them'))}</b>`, 'them', '')}
+      </div>
+    </div>`;
+}
+async function recordLateShot(g, side, pos, stat){
+  const p = g.live.period, t = periodMs(g), L = endLineup(g, p) || {};
+  let ev;
+  if (side === 'them') ev = newEvent({ type:stat === 'goal' ? 'oppGoal' : 'oppMiss', period:p, t });
+  else { if (!L[pos]) return; ev = newEvent({ type:stat, pos, playerId:L[pos], period:p, t }); }
+  await writeGame(g, [ev], { summary:gameSummary(g, [...CUR.events, ev]) });
+  buzz();
+  toast(`Added to ${periodName(g, p)}: ${eventText(g, ev)}.`);
 }
 
 // The in-play screen: position tiles for recording goals and misses, in
@@ -4229,7 +4314,7 @@ function livePlayHtml(g, st, scoring){
           <button class="mode-tab ${mode === 'player' ? 'on' : ''}" role="tab" aria-selected="${mode === 'player'}" data-action="live-mode" data-mode="player">Player first</button>
         </div>
       </div>
-      ${scoring && timeUp ? `<p class="time-up-note" role="status">Time. Add any last goal or miss, then tap End ${escapeHtml(periodName(g, L.period))} at the top.</p>` : ''}`;
+      ${scoring && timeUp ? timeUpBannerHtml(g) : ''}`;
   }
 
   let pane;
@@ -6904,12 +6989,25 @@ function watchEvents(gameId){
     CUR.events = snap.docs.map(d => ({ id:d.id, ...d.data() }));
     CUR.loaded.events = true;
     CUR.eventsError = null;
+    refreshSummary(gameId);
     render();
   }, (err) => {
     console.warn('Netty Pal: events listener', err);
     CUR.eventsError = err;
     render();
   });
+}
+// Older games saved their summary before short periods counted as full
+// length. When someone who can edit the game opens it, bring it up to date.
+const summaryChecked = new Set();
+function refreshSummary(gameId){
+  const g = findGame(gameId);
+  if (!g || isPractice(g) || summaryChecked.has(gameId) || !isGameOver(g) || !g.summary) return;
+  if (!(isManager() || (canScore() && g.status !== 'final'))) return;
+  summaryChecked.add(gameId);
+  const now = gameSummary(g, CUR.events);
+  const key = sm => JSON.stringify([sm.us, sm.them, Object.keys(sm.courtTime || {}).sort().map(id => [id, Object.keys(sm.courtTime[id] || {}).sort().map(k => [k, Math.round(sm.courtTime[id][k] || 0)])])]);
+  if (key(now) !== key(g.summary)) updateDoc(gameRef(g.id), { summary:now }).catch(err => console.warn('Netty Pal: summary refresh', err));
 }
 function stopEvents(){
   if (CUR.eventsUnsub) CUR.eventsUnsub();
@@ -7380,7 +7478,7 @@ function openRedo(g){
       if (key !== 'opp') c.pos = c.pos || e.pos;
     });
     orig[p] = { lineup:{ ...lineups[p] }, subs:Math.max(0, les.length - 1), endT:end ? end.t : 0 };
-    fullLen[p] = !end || end.t < pm * 0.9;
+    fullLen[p] = !end;
   }
   UI.rec = { gameId:g.id, step:1, from:1, partial:0, stopT:0, lineups, goals, edited:{}, redo:true, orig, fullLen };
 }
@@ -7462,7 +7560,7 @@ function recSheetHtml(g){
     if (!R.redo || R.step !== 1) return '';
     const O = R.orig[p], bits = [];
     if (O.subs) bits.push(`<p class="hint" style="margin:0 0 0.4rem">${O.subs} change${O.subs === 1 ? ' was' : 's were'} recorded during this ${escapeHtml(periodNoun(g))}. ${O.subs === 1 ? 'It\'s' : 'They\'re'} kept unless you change this lineup.</p>`);
-    if (!O.endT || O.endT < pm * 0.9) bits.push(`<label class="check-row rec-full"><input type="checkbox" data-field="rec-full" data-period="${p}" ${R.fullLen[p] ? 'checked' : ''}> Played the full ${Math.round(pm / 60000)} minutes ${O.endT ? `(recorded as ${fmtMins(O.endT)})` : '(no end recorded)'}</label>`);
+    if (!O.endT) bits.push(`<label class="check-row rec-full"><input type="checkbox" data-field="rec-full" data-period="${p}" ${R.fullLen[p] ? 'checked' : ''}> Played the full ${Math.round(pm / 60000)} minutes ${O.endT ? `(recorded as ${fmtMins(O.endT)})` : '(no end recorded)'}</label>`);
     return bits.join('');
   };
   let body;
@@ -7969,6 +8067,16 @@ document.addEventListener('click', async (e) => {
       const g = findGame(UI.gameId); if (g) await pauseClock(g);
     } else if (a === 'resume-clock'){
       const g = findGame(UI.gameId); if (g && !isTimeUp(g)) await resumeClock(g);
+    } else if (a === 'end-period-now'){
+      const g = findGame(UI.gameId); if (g && amScorer(g) && isInPlay(g)) await runBusy(() => endPeriod(g));
+    } else if (a === 'late-open'){
+      UI.lateShot = true; render(); focusSheet();
+    } else if (a === 'late-close'){
+      UI.lateShot = false; render();
+    } else if (a === 'late-shot'){
+      const g = findGame(UI.gameId);
+      UI.lateShot = false; render();
+      if (g && amScorer(g) && g.live && g.live.phase === 'ended' && !isGameOver(g)) await recordLateShot(g, btn.dataset.side, btn.dataset.pos, btn.dataset.stat === 'miss' ? 'miss' : 'goal');
     } else if (a === 'end-period'){
       if (!isArmed('end-period')) return arm('end-period');
       disarm('end-period');
@@ -8498,7 +8606,7 @@ document.addEventListener('touchend', (e) => {
    the clock at 0:00 (with a vibration) and keeps the screen awake. The
    scorer then ends the period, after adding any shot from the whistle.
 --------------------------------------------------------------------- */
-let timeUpKey = null;
+let timeUpKey = null, autoEndKey = null, breakNagKey = null;
 let wakeLock = null, wakeLockPending = false;
 setInterval(() => {
   document.querySelectorAll('[data-lclock]').forEach(el => {
@@ -8516,7 +8624,26 @@ setInterval(() => {
   if (g.live.phase === 'running' && amScorer(g) && elapsedMs(g) >= periodMs(g) && timeUpKey !== key){
     timeUpKey = key;
     if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
-    pauseClock(g).catch(err => { timeUpKey = null; fail(err); });
+    // Stop the clock at 0:00 and note when, for the countdown to ending by itself.
+    updateDoc(gameRef(g.id), { 'live.phase':'paused', 'live.elapsedMs':periodMs(g), 'live.startedAt':null, 'live.timeUpAt':timeUpAt(g) || Date.now() })
+      .catch(err => { timeUpKey = null; fail(err); });
+  }
+  // The countdown on the Time banner, and ending the quarter after a minute.
+  const at = timeUpAt(g);
+  if (at){
+    const left = AUTO_END_MS - (Date.now() - at);
+    document.querySelectorAll('[data-autoend]').forEach(el => { el.textContent = fmtMins(Math.max(0, left)); });
+    if (left <= 0 && amScorer(g) && autoEndKey !== key && !UI.busy){
+      autoEndKey = key;
+      const pn = periodName(g, g.live.period), last = g.live.period >= periodCount(g);
+      endPeriod(g).then(() => toast(last ? 'Full time. Add any missed goal in the Timeline below.' : `${pn} ended. Tap Add to ${pn} if a goal was missed.`)).catch(err => { autoEndKey = null; fail(err); });
+    }
+  }
+  // A long break: show the "Has the next quarter started?" reminder (once).
+  if (UI.gameTab === 'live' && breakOverdue(g) && breakNagKey !== key){
+    breakNagKey = key;
+    if (amScorer(g) && navigator.vibrate) navigator.vibrate([300, 150, 300]);
+    render();
   }
 }, 250);
 
