@@ -4114,6 +4114,11 @@ function renderLiveTab(g){
 
   // The full-time timeline is for Coach/Managers and Scorers (to check and fix); viewers don't see it.
   if (isGameOver(g) && canScore()) body += timelineHtml(g, true, status !== 'final');
+  if (canUndoStart(g)){
+    const n = CUR.events.filter(e => !e.undone && e.type !== 'lineup' && e.type !== 'periodEnd').length;
+    body += `<div class="panel undo-start"><p style="margin:0 0 0.5rem"><b>Started by mistake?</b> Put the game back to not started, so you can set the lineup and start again.${n ? ` This clears the ${n} stat${n === 1 ? '' : 's'} recorded so far.` : ''}</p>
+      <button class="btn ghost small ${isArmed('undo-start') ? 'armed' : ''}" data-action="undo-start" ${UI.busy ? 'disabled' : ''}>${isArmed('undo-start') ? 'Confirm undo start' : 'Undo start'}</button></div>`;
+  }
   if (canRecordAfter(g)) body += `<div class="panel"><p style="margin:0 0 0.5rem">Scoring stopped part way? Fill in the rest of the game from memory.</p>
       <button class="btn ghost small" data-action="rec-open">Record the rest</button></div>`;
   if (UI.handover === g.id) body += handoverSheetHtml(g);
@@ -7368,6 +7373,22 @@ async function redoLast(){
   toast('Redone: ' + eventText(findGame(UI.gameId), e));
 }
 
+// Undo start: the game goes back to not started (the lineup plan is kept)
+// and everything recorded is marked undone, as events are never deleted.
+function canUndoStart(g){ return !!(g && g.status === 'live' && g.live && canScore() && !isPractice(g)); }
+async function undoStart(g){
+  const me = memberProfile().name;
+  // The clock can only be changed by whoever is scoring, so take over first.
+  if (g.scorerUid !== USER.uid) await updateDoc(gameRef(g.id), { scorerUid:USER.uid, scorerName:me });
+  const batch = writeBatch(db);
+  CUR.events.filter(e => !e.undone).forEach(e => batch.update(doc(eventsRef(g.id), e.id), { undone:true }));
+  batch.update(gameRef(g.id), { status:'scheduled', live:DELETE_FIELD, scorerUid:DELETE_FIELD, scorerName:DELETE_FIELD, summary:DELETE_FIELD });
+  redoStack = [];
+  await batch.commit();
+  UI.period = 1; UI.showTabs = false;
+  toast('Game put back to not started. Set the lineup, then Start Q1 when play starts.');
+}
+
 async function takeOverScoring(g){
   await updateDoc(gameRef(g.id), { scorerUid:USER.uid, scorerName:memberProfile().name });
   toast("You're now scoring this game.");
@@ -8081,6 +8102,10 @@ document.addEventListener('click', async (e) => {
       if (!isArmed('end-period')) return arm('end-period');
       disarm('end-period');
       const g = findGame(UI.gameId); if (g) await endPeriod(g);
+    } else if (a === 'undo-start'){
+      if (!isArmed('undo-start')) return arm('undo-start');
+      disarm('undo-start');
+      const g = findGame(UI.gameId); if (g && canUndoStart(g)) await runBusy(() => undoStart(g));
     } else if (a === 'take-over'){
       if (!isArmed('take-over')) return arm('take-over');
       disarm('take-over');

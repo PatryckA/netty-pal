@@ -301,6 +301,14 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   shots record GS, GA or just the team.
 - Floating **Undo** and **Redo**.
 
+### Undo start (added 2026-11-22)
+- On a started game that isn't final, Scorers and Coach/Managers see **Started by mistake?
+  Undo start** at the bottom of the Game tab (two taps). It puts the game back to not
+  started: the lineup plan is kept, the clock, scorer and saved summary are cleared, and
+  everything recorded is marked undone (events are never deleted). Someone who isn't the
+  scorer takes over scoring first (the clock can only be changed by the scorer). No rule
+  changes.
+
 ### After the game
 - The full-time **Timeline** is shown only to Coach/Managers and Scorers (viewers
   don't see it). It lists events oldest first, each with the time into its quarter
