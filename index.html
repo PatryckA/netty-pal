@@ -5059,8 +5059,13 @@ async function summaryImage(g, st){
       document.fonts.load('800 40px "DM Sans"')
     ]);
   } catch(e){ /* falls back to system fonts */ }
+  // Each shooter gets a line of their own, so the picture grows taller
+  // when more players shot (it's square with up to two).
+  const shooters = shareShooters(st);
+  const ROW = 58, listTop = 945;
+  const H = shooters.length ? Math.max(1080, listTop + shooters.length * ROW + (st.missOn ? 70 : 0) + 30) : 1080;
   const W = 1080, c = document.createElement('canvas');
-  c.width = W; c.height = W;
+  c.width = W; c.height = H;
   const x = c.getContext('2d');
   x.fontStretch = 'extra-condensed'; // narrow Archivo headings, like the app (DM Sans has no narrow width)
   const display = (size, weight) => `${weight || 900} ${size}px Archivo, "Arial Narrow", sans-serif`;
@@ -5069,7 +5074,7 @@ async function summaryImage(g, st){
   const over = isGameOver(g), res = resultWord(st.us, st.them);
 
   // Background and header band.
-  x.fillStyle = '#F5F5F6'; x.fillRect(0, 0, W, W);
+  x.fillStyle = '#F5F5F6'; x.fillRect(0, 0, W, H);
   // Ink band with white text, like the app's top bar.
   x.fillStyle = '#0B0B0D'; x.fillRect(0, 0, W, 150);
   // The black and white stripe under the bar.
@@ -5131,16 +5136,31 @@ async function summaryImage(g, st){
     x.fillText(st.byPeriod[p] ? `${st.byPeriod[p].us} : ${st.byPeriod[p].them}` : '-', bx + boxW / 2, 770);
   }
 
-  // Shooters.
-  const shooters = shareShooters(st);
+  // Shooters: one line each, name on the left, goals (and shots and %) on the right.
   if (shooters.length){
-    x.fillStyle = '#5F5F66'; x.font = body(32, 800); x.fillText('SHOOTING', W / 2, 880);
-    x.fillStyle = '#0B0B0D'; x.font = body(40);
+    x.fillStyle = '#5F5F66'; x.font = body(32, 800); x.textAlign = 'center'; x.fillText('SHOOTING', W / 2, 880);
     const shots = shooters.reduce((s, y) => s + y.shots, 0);
-    x.fillText(fit(shooters.map(s => st.missOn ? `${s.name} ${s.goals}/${s.shots}` : `${s.name} ${s.goals}`).join('   ·   '), W - 120), W / 2, 940);
+    const L = 170, R = W - 170;
+    shooters.forEach((s, i) => {
+      const y = listTop + i * ROW;
+      x.font = body(40, 800); x.fillStyle = '#0B0B0D'; x.textAlign = 'right';
+      let statW;
+      if (st.missOn){
+        // Goals/shots and percentage in two lined-up columns.
+        x.fillText(pctText(s.goals, s.shots), R, y);
+        x.fillText(`${s.goals}/${s.shots}`, R - 150, y);
+        statW = 150 + x.measureText(`${s.goals}/${s.shots}`).width;
+      } else {
+        const stat = `${s.goals} goal${s.goals === 1 ? '' : 's'}`;
+        x.fillText(stat, R, y); statW = x.measureText(stat).width;
+      }
+      x.font = body(40); x.textAlign = 'left';
+      x.fillText(fit(s.name, R - L - statW - 40), L, y);
+    });
+    x.textAlign = 'center';
     if (st.missOn){
       x.fillStyle = '#5F5F66'; x.font = body(32);
-      x.fillText(`Team ${st.us}/${shots} (${pctText(st.us, shots)})`, W / 2, 1000);
+      x.fillText(`Team ${st.us}/${shots} (${pctText(st.us, shots)})`, W / 2, listTop + shooters.length * ROW + 20);
     }
   }
   return await new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('No image')), 'image/png'));

@@ -309,6 +309,12 @@ Status: agreed with the owner on 2026-09-27. Nothing built yet.
   scorer takes over scoring first (the clock can only be changed by the scorer). No rule
   changes.
 
+### Share score picture: shooters (changed 2026-11-25)
+- Each shooter has their own line (name on the left; goals/shots and % in lined-up
+  columns, or just goals when misses aren't tracked), with the team total underneath.
+  The picture is square with up to two shooters and grows taller with more, so nobody
+  is cut off.
+
 ### After the game
 - The full-time **Timeline** is shown only to Coach/Managers and Scorers (viewers
   don't see it). It lists events oldest first, each with the time into its quarter
